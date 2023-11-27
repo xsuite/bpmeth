@@ -8,6 +8,7 @@ authors = [
 
 ]
 requires-python = ">=3.8"
+version = "0.0.0"
 
 [build-system]
 requires = ["setuptools>=61.0"]
@@ -17,6 +18,7 @@ build-backend = "setuptools.build_meta"
 dependencies = [
   "numpy", "matplotlib", "scipy", "sympy"
 ]
+
 
 classifiers = [
   "Development Status :: 4 - Beta",
