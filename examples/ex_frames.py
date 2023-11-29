@@ -27,7 +27,7 @@ px0 = -0.2
 py0 = 0
 ptau0 = 0
 delta = 0  # What is beta0, so what is the general expression here?
-b = np.arcsin(px0 / np.sqrt((1+delta)^2 - py0^2))
+b = np.arcsin(px0 / np.sqrt((1+delta)**2 - py0**2))
 
 s = np.linspace(0,10,100)
 x = (1/h + x0) * (np.cos(b) / np.cos(b+s*h)) - 1/h 
