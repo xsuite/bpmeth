@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
+from mpl_toolkits.mplot3d import Axes3D
 
 class CanvasZX:
     def __init__(self, fig=None, ax=None):
@@ -23,6 +23,27 @@ class CanvasZX:
     def arrow(self, vv, dd, **kwargs):
         arr = np.hypot(dd[2], dd[0]) * 0.05
         self.ax.arrow(vv[2], vv[0], dd[2], dd[0], width=arr, **kwargs)
+        
+
+class CanvasZXY:
+    def __init__(self, fig=None, ax=None):
+        if fig is None:
+            fig = plt.figure()
+        if ax is None:
+            self.fig = fig
+            self.ax = self.fig.add_subplot(111, projection='3d')
+            self.ax.set_xlabel("$z$")
+            self.ax.set_ylabel("$x$")
+            self.ax.set_zlabel("$y$")
+        else:
+            self.ax = ax
+            self.fig = ax.figure
+
+    def plot(self, vv, **kwargs):
+        self.ax.plot(vv[2], vv[0], vv[1], **kwargs)
+
+    def arrow(self, vv, dd, **kwargs):
+        self.ax.quiver(vv[2], vv[0], vv[1], dd[2], dd[0], dd[1], arrow_length_ratio=0.05, **kwargs)
 
 
 class Frame:
@@ -67,6 +88,18 @@ class Frame:
         z = self.matrix[2, 3]
         canvas.plot(self.origin, linestyle="none", marker="o", color="black")
         canvas.arrow(self.origin, self.xdir, color="red")
+        canvas.arrow(self.origin, self.zdir, color="blue")
+        return self
+    
+    def plot_zxy(self, canvas=None):
+        if canvas is None:
+            canvas = CanvasZXY()
+        x = self.matrix[0, 3]
+        y = self.matrix[1, 3]
+        z = self.matrix[2, 3]
+        canvas.plot(self.origin, linestyle="none", marker="o", color="black")
+        canvas.arrow(self.origin, self.xdir, color="red")
+        canvas.arrow(self.origin, self.ydir, color="orange")
         canvas.arrow(self.origin, self.zdir, color="blue")
         return self
 
@@ -147,9 +180,25 @@ class BendFrame:
         canvas.plot(self.ref_trajectory(11), color="green")
         return self
 
+    def plot_zxy(self, canvas=None):
+        if canvas is None:
+            canvas = CanvasZXY()
+        self.start.plot_zxy(canvas)
+        self.end.plot_zxy(canvas)
+        canvas.plot(self.ref_trajectory(11), color="green")
+        return self
+
     def plot_trajectory_zx(self, s,x,y, canvas=None):
         if canvas is None:
             canvas = CanvasZX()
         self.plot_zx(canvas)
         canvas.plot(self.trajectory(s,x,y), color="black")
         return self
+
+    def plot_trajectory_zxy(self, s,x,y, canvas=None):
+        if canvas is None:
+            canvas = CanvasZXY()
+        self.plot_zxy(canvas)
+        canvas.plot(self.trajectory(s,x,y), color="black")
+        return self
+

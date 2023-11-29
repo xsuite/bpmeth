@@ -17,21 +17,22 @@ fb = bpmeth.BendFrame(fr2,length,angle).plot_zx()
 
 # Plot a trajectory with constant x
 s = np.linspace(0,10,100)
-x = 0.1 - 0.03*s
+x = 0.1 + 0*s
 y = 0*s
 fb.plot_trajectory_zx(s,x,y)
 
 # Plot a drift trajectory
 x0 = 0.5
 px0 = -0.2
-py0 = 0
+py0 = 0.1
 ptau0 = 0
-delta = 0  # What is beta0, so what is the general expression here?
+beta0 = 1
+delta = np.sqrt(1 + 2*ptau0/beta0 + ptau0**2) - 1
 b = np.arcsin(px0 / np.sqrt((1+delta)**2 - py0**2))
 
 s = np.linspace(0,10,100)
 x = (1/h + x0) * (np.cos(b) / np.cos(b+s*h)) - 1/h 
-y = 0*s  # Still to calculate
+y = py0 / (h * np.sqrt((1+delta)**2 - py0**2)) * (1+h*x0) * np.cos(b) * np.tan(b+h*s)
 fb.plot_trajectory_zx(s,x,y)
-
+fb.plot_trajectory_zxy(s,x,y)
 
