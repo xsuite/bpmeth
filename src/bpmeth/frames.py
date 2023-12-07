@@ -43,7 +43,7 @@ class CanvasZXY:
         self.ax.plot(vv[2], vv[0], vv[1], **kwargs)
 
     def arrow(self, vv, dd, **kwargs):
-        self.ax.quiver(vv[2], vv[0], vv[1], dd[2], dd[0], dd[1], arrow_length_ratio=0.05, **kwargs)
+        self.ax.quiver(vv[2], vv[0], vv[1], dd[2], dd[0], dd[1], arrow_length_ratio=0.2, **kwargs)
 
 
 class Frame:
@@ -200,5 +200,15 @@ class BendFrame:
             canvas = CanvasZXY()
         self.plot_zxy(canvas)
         canvas.plot(self.trajectory(s,x,y), color="black")
+        
+        # Set equal intervals for the three axes.
+        smid, xmid, ymid = (np.max(s)+np.min(s))/2, (np.max(x)+np.min(x))/2, (np.max(y)+np.min(y))/2
+        sdist, xdist, ydist = (np.max(s)-np.min(s))/2, (np.max(x)-np.min(x))/2, (np.max(y)-np.min(y))/2
+        dist = max([sdist, xdist, ydist])
+        canvas.ax.set_xlim(smid-dist, smid+dist)
+        canvas.ax.set_ylim(xmid-dist, xmid+dist)
+        canvas.ax.set_zlim(ymid-dist, ymid+dist)
+        canvas.ax.set_box_aspect((1,1,1))
+
         return self
 
