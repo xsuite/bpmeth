@@ -24,15 +24,38 @@ fb.plot_trajectory_zx(s,x,y)
 # Plot a drift trajectory
 x0 = 0.5
 px0 = -0.2
-py0 = 0.1
+py0 = 0.3
 ptau0 = 0
 beta0 = 1
 delta = np.sqrt(1 + 2*ptau0/beta0 + ptau0**2) - 1
-b = np.arcsin(px0 / np.sqrt((1+delta)**2 - py0**2))
+theta0 = np.arcsin(px0 / np.sqrt((1+delta)**2 - py0**2))
 
 s = np.linspace(0,10,100)
-x = (1/h + x0) * (np.cos(b) / np.cos(b+s*h)) - 1/h 
-y = py0 / (h * np.sqrt((1+delta)**2 - py0**2)) * (1+h*x0) * np.cos(b) * np.tan(b+h*s)
+x = (1/h + x0) * (np.cos(theta0) / np.cos(theta0+s*h)) - 1/h 
+y = py0 / (h * np.sqrt((1+delta)**2 - py0**2)) * (1+h*x0) * np.cos(theta0) * np.tan(theta0+h*s)
 fb.plot_trajectory_zx(s,x,y)
 fb.plot_trajectory_zxy(s,x,y)
+
+# Plot a trajectory with dipole in y direction for h=0
+length = 10
+angle = 0
+h = angle/length
+fb0 = bpmeth.BendFrame(fr2,length,angle)
+
+BB = 0.1 # Only q By / P0 plays a role so lets call this quantity BB
+x0 = 0.5
+px0 = -0.2
+py0 = 0.3
+ptau0 = 0
+beta0 = 1
+delta = np.sqrt(1 + 2*ptau0/beta0 + ptau0**2) - 1
+theta0 = np.arcsin(px0 / np.sqrt((1+delta)**2 - py0**2))
+
+smax = 0.99* np.sqrt( (1+delta)**2 - py0**2) / BB
+s = np.linspace(0,smax,100)
+x = -1/BB * ( np.sqrt((1+delta)**2-(BB*s)**2-py0**2) - np.sqrt((1+delta)**2-py0**2) ) + x0
+y = py0/BB * np.arcsin( BB / np.sqrt((1+delta)**2-py0**2) * s ) 
+fb0.plot_trajectory_zx(s,x,y)
+fb0.plot_trajectory_zxy(s,x,y)
+
 
