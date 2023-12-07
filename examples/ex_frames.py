@@ -34,7 +34,7 @@ s = np.linspace(0,10,100)
 x = (1/h + x0) * (np.cos(theta0) / np.cos(theta0+s*h)) - 1/h 
 y = py0 / (h * np.sqrt((1+delta)**2 - py0**2)) * (1+h*x0) * np.cos(theta0) * np.tan(theta0+h*s)
 fb.plot_trajectory_zx(s,x,y)
-fb.plot_trajectory_zxy(s,x,y)
+fb.plot_trajectory_zxy(s,x,y, figname="drift.png")
 
 # Plot a trajectory with dipole in y direction for h=0
 length = 10
@@ -56,6 +56,6 @@ s = np.linspace(0,smax,100)
 x = -1/BB * ( np.sqrt((1+delta)**2-(BB*s)**2-py0**2) - np.sqrt((1+delta)**2-py0**2) ) + x0
 y = py0/BB * np.arcsin( BB / np.sqrt((1+delta)**2-py0**2) * s ) 
 fb0.plot_trajectory_zx(s,x,y)
-fb0.plot_trajectory_zxy(s,x,y)
+fb0.plot_trajectory_zxy(s,x,y, figname="dipoleh0.png")
 
 
