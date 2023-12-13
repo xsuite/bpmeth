@@ -24,7 +24,6 @@ fb = bpmeth.BendFrame(fr,length,angle)
 
 # Plot a trajectory with dipole in y direction
 delta = np.sqrt(1 + 2*ptau0/beta0 + ptau0**2) - 1
-theta0 = np.arcsin(px0 / np.sqrt((1+delta)**2 - py0**2))
 
 smax = 0.99 * ( px0 + np.sqrt( (1+delta)**2 - py0**2) ) / BB
 s = np.linspace(0,smax,100)
