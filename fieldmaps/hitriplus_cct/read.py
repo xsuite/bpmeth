@@ -55,7 +55,16 @@ class Magnet:
         dst = pv.PolyData(XYZ)
 
         dst = dst.interpolate(self.src, radius=radius)
-        dst["xFS"] = np.array(r*np.cos(psi)).flatten()  # Frenet-serret x
+
+        # Frenet-Serret coordinates
+        dst["xFS"] = np.array(r*np.cos(psi)).flatten()
+        dst["yFS"] = 0 * s.flatten()
+        dst["sFS"] = s.flatten()
+
+        # Field in Frenet-Serret coordinates
+        dst["BxFS"] = dst["Bx"] * np.cos(s/rho).flatten() + dst["By"] *  np.sin(s/rho).flatten()
+        dst["ByFS"] = dst["Bz"]
+        dst["BsFS"] = dst["Bx"] * np.sin(s/rho).flatten() - dst["By"] * np.cos(s/rho).flatten()
        
         if plot:
             plt.scatter(dst.point_data["xFS"], dst.point_data[field])
@@ -69,6 +78,8 @@ class Magnet:
         Fit a polynomial to the x distribution for y=0 and a given s
         Bx(x, y=0, s) = a_j(s) x^j/j!
         By(x, y=0, s) = b_j(s) x^j/j!
+
+        :return: list of coefficients, highest order term first
         """
 
         dst = self.calc_x(rho, rmax, spos, field, radius, n_r)
@@ -84,7 +95,7 @@ class Magnet:
         return coefs
     
 
-    def fit_s(self, rho, rmax, smax, field, radius=0.01, n_r=25, n_s=25, xdegree=10, plot=False):
+    def fit_s(self, rho, rmax, smax, field, model, radius=0.01, n_r=25, n_s=25, xdegree=10, plot=False):
         """
         Fit a given function model(s, params) to the coefficients aj and bj
         """
@@ -101,9 +112,23 @@ class Magnet:
         for j in range(xdegree):
             params[j] = sc.optimize.curve_fit(model, s, coeflist[:, j])
 
+        if plot:
+            for j in range(xdegree): 
+                # Normalize plots such that shape is visible
+                minval = min(coeflist[:, j])
+                maxval = max(coeflist[:, j])
+                norm = maxval if maxval > -minval else minval
+                plt.plot(s, coeflist[:, j]/norm, label=f"coeff_{j}")
+            plt.legend()
+            plt.show()
+
         return params
 
         
+
+
+
+
 def model(s, c0, c1, c2, c3, c4):
     """
     Model for aj(s), bj(s), all parameters have to be separate arguments.
@@ -112,21 +137,40 @@ def model(s, c0, c1, c2, c3, c4):
     return c0 + c1*s + c2*s**2 + c3*s**3 + c4*s**4
 
 
-
-
-
 data = np.loadtxt(gzip.open('fieldmap-cct.txt.gz'),skiprows=9)
 cctmagnet = Magnet(data)
 
 #cctmagnet.plot()
 
+field = "Bz"
 rho = 1.65
 rmax = 0.1
 smax = 0.8
-#cctmagnet.curved_plot(rho, rmax, smax, "Bz")
-#cctmagnet.curved_plot(rho, rmax, smax, "Bz", n_psi=2)
+
+cctmagnet.curved_plot(rho, rmax, smax, field)
+cctmagnet.curved_plot(rho, rmax, smax, field, n_psi=2)
+
+cctmagnet.curved_plot(rho, rmax, smax, "Bx", n_psi=2)
+cctmagnet.curved_plot(rho, rmax, smax, "By", n_psi=2)
 
 spos=0.1
-#cctmagnet.fit_x(rho, rmax, spos, "Bz", plot=True)
+#cctmagnet.calc_x(rho, rmax, spos, "Bx", plot=True)
+#cctmagnet.calc_x(rho, rmax, spos, "By", plot=True)
+#cctmagnet.calc_x(rho, rmax, spos, "Bz", plot=True)
+#
+#cctmagnet.calc_x(rho, rmax, spos, "BxFS", plot=True)
+#cctmagnet.calc_x(rho, rmax, spos, "ByFS", plot=True)
+#cctmagnet.calc_x(rho, rmax, spos, "BsFS", plot=True)
+#
+#spos=0.1
+#cctmagnet.fit_x(rho, rmax, spos, "ByFS", plot=True)
 
-cctmagnet.fit_s(rho, rmax, smax, "Bz")
+print(cctmagnet.fit_x(rho, rmax, spos, "BxFS", plot=True))
+print(cctmagnet.fit_x(rho, rmax, spos, "ByFS", plot=True))
+
+
+
+
+
+
+
