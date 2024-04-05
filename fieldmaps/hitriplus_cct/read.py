@@ -74,7 +74,7 @@ class Magnet:
         return dst
 
 
-    def calc_s(self, rho, smax, field, radius=0.01, n_r=25, n_s=101, plot=False):
+    def calc_s(self, rho, smax, field, radius=0.01, n_s=101, plot=False):
         """
         Calculate profile of field in s direction at x=y=0
         """
@@ -135,7 +135,7 @@ class Magnet:
         for n in range(degree+1): 
             for i in range(n+1):
                 ind = center+2*(n/2-i)
-                coefsdiff[n] += 1/h**n *  (-1)**i * math.factorial(n)/math.factorial(n-i)/math.factorial(i) * dst.point_data[field][int(ind)]
+                coefsdiff[n] += 1/h**n * (-1)**i * math.factorial(n)/math.factorial(n-i)/math.factorial(i) * dst.point_data[field][int(ind)]
 
         if plot:
             x = np.linspace(min(dst.point_data["xFS"]), max(dst.point_data["xFS"]), 100)
@@ -149,10 +149,40 @@ class Magnet:
             fig.legend()
             plt.show()
 
-        print("Fit: ", coefsfit)
-        print("Diff: ", coefsdiff)
-
         return coefsfit, coefsdiff
+
+    
+    def magnetic_length(self, rho, smax, radius=0.01, n_s=101, plot=False):
+        """
+        Calculate the magnetic length of the magnet
+        """
+        
+        n_s = n_s + 1 - n_s%2
+        dst = self.calc_s(rho, smax, "ByFS", radius, n_s)
+
+        Bint = sc.integrate.simpson(dst.point_data["ByFS"], x=dst.point_data["sFS"])
+        [Bcenter] = dst.point_data["ByFS"][dst.point_data["sFS"]==0]
+        mlen = Bint / Bcenter
+
+        print("Integrated field: ", Bint)
+        print("Central field: ", Bcenter)
+
+        if plot:
+            fig, ax = plt.subplots()
+            ax.axvline(x=mlen/2, color="red")
+            ax.axvline(x=-mlen/2, color="red")
+            plt.text(mlen/2, 4.3, "$L_{mag}/2$", color="red", horizontalalignment="center")
+            plt.text(-mlen/2, 4.3, "$L_{mag}/2$", color="red", horizontalalignment="center")
+            #ax.scatter(dst.point_data["sFS"], dst.point_data["BxFS"], label="$B_x(x=y=0, s)$", s=3, color="orange")
+            ax.scatter(dst.point_data["sFS"], dst.point_data["ByFS"], label="$B_y(x=y=0, s)$", s=3, color="blue")
+            ax.scatter(dst.point_data["sFS"], dst.point_data["BsFS"], label="$B_s(x=y=0, s)$", s=3, color="lightgreen")
+            ax.set_xlabel("s (m)")
+            ax.set_ylabel("Field (T)")
+            ax.legend(loc="upper right")
+            plt.show()
+
+        return mlen
+
 
 
 data = np.loadtxt(gzip.open('fieldmap-cct.txt.gz'),skiprows=9)
@@ -171,7 +201,7 @@ smax = 0.8
 #cctmagnet.curved_plot(rho, rmax, smax, "Bx", n_psi=2)
 #cctmagnet.curved_plot(rho, rmax, smax, "By", n_psi=2)
 #
-#spos=0.1
+spos=0.1
 #cctmagnet.calc_x(rho, rmax, spos, "Bx", plot=True)
 #cctmagnet.calc_x(rho, rmax, spos, "By", plot=True)
 #cctmagnet.calc_x(rho, rmax, spos, "Bz", plot=True)
@@ -183,13 +213,14 @@ smax = 0.8
 spos=0.1
 #cctmagnet.fit_x(rho, rmax, spos, "ByFS", plot=True)
 
-cctmagnet.calc_s(rho, 1, "BxFS", plot=True)
-cctmagnet.calc_s(rho, 1, "ByFS", plot=True)
-cctmagnet.calc_s(rho, 1, "BsFS", plot=True)
+#cctmagnet.calc_s(rho, 1, "BxFS", plot=True)
+#cctmagnet.calc_s(rho, 1, "ByFS", plot=True)
+#cctmagnet.calc_s(rho, 1, "BsFS", plot=True)
 
 #cctmagnet.fit_x(rho, rmax, spos, "BxFS", n_r = 55, degree = 20, plot=True)
 #cctmagnet.fit_x(rho, rmax, spos, "ByFS", n_r = 55, degree = 20, plot=True)
 
+cctmagnet.magnetic_length(rho, smax, n_s=200, plot=True)
 
 
 
