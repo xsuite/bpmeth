@@ -1,5 +1,6 @@
 import bpmeth
 import numpy as np
+import matplotlib.pyplot as plt
 
 fr = bpmeth.Frame()
 
@@ -16,3 +17,4 @@ x=0.1-0.03*s
 y=0*s
 fb.plot_trajectory_zx(s,x,y)
 
+plt.show()
