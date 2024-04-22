@@ -130,7 +130,7 @@ class Magnet:
         return dst
 
 
-    def fit_x(self, rho, rmax, spos, field, radius=0.01, n_r=200, degree=10, plot=False, stepsize = 4):
+    def fit_x(self, rho, rmax, spos, field, radius=0.01, n_r=200, degree=10, plot=False, plotdiff=False):
         """
         Fit a polynomial to the x distribution for y=0 and a given s
         Bx(x, y=0, s) = a_j(s) x^j/j!
@@ -155,6 +155,7 @@ class Magnet:
         coefsfitcenter = [params[degree-i] * math.factorial(i) for i in range(degree+1)]
 
         # Extract the multipole coefficients by calculating derivatives, using central difference
+        stepsize = 4
         h = stepsize * 4*rmax / (n_r-1)  # Twice the interval between two points, since we need half step values
         center = n_r // 2  # x=0
         coefsdiff = np.zeros(degree+1)
@@ -163,35 +164,60 @@ class Magnet:
                 ind = center+2*(n/2-i)*stepsize
                 coefsdiff[n] += 1/h**n * (-1)**i * math.factorial(n)/math.factorial(n-i)/math.factorial(i) * dst.point_data[field][int(ind)]
 
-        if plot:
-            if field == "BxFS":
-                direction = "x"
-            elif field == "ByFS":
-                direction = "y"
-            elif field == "BsFS":
-                direction = "s"
-            else:
-                direction = ""
+        print(f"Central fit, {field}, {degree}", coefsfitcenter[:4])
+        print(f"Partial der, {field}, {degree}", coefsdiff[:4])
 
+        if plot:
             x = np.linspace(min(dst.point_data["xFS"]), max(dst.point_data["xFS"]), 1000)
-            yfit = sum([coefsfit[i] * x**(i) / math.factorial(i) for i in range(degree+1)])
+            #yfit = sum([coefsfit[i] * x**(i) / math.factorial(i) for i in range(degree+1)])
             yfitcenter = sum([coefsfitcenter[i] * x**(i) / math.factorial(i) for i in range(degree+1)])
             ydiff = sum([coefsdiff[i] * x**(i) / math.factorial(i) for i in range(degree+1)])
 
             fig, ax = plt.subplots(figsize=(4,3.25))
-            ax.scatter(dst.point_data["xFS"], dst.point_data[field], label=f"$B_{direction}(x, y=0, s={spos})$", s=3, color="orange")
+            ax.scatter(dst.point_data["xFS"], dst.point_data[field], label=f"$B_{field[1]}(x, y=0, s={spos})$", s=3, color="orange")
             #ax.plot(x, yfit, label="Fit", color="red") 
             ax.plot(x, yfitcenter, label="Polynomial fit", color="purple") 
             ax.plot(x, ydiff, label="Partial derivative", color="pink") 
-            #ax.axvline(x=dst.point_data["xFS"][fitmin], color="gray")
-            #ax.axvline(x=dst.point_data["xFS"][fitmax], color="gray")
-            ax.set_ylim(1.1*min(dst.point_data[field]), 1.5*max(dst.point_data[field]))
+
+            ymax = max(dst.point_data[field])
+            ymin = min(dst.point_data[field])
+            ydelta = ymax - ymin
+            ax.annotate('', xy=(-0.04, ymin - 0.05*ydelta), xytext=(0.04, ymin - 0.05*ydelta),\
+                    arrowprops=dict(arrowstyle='<->', color="gray"))
+            ax.text(0, ymin, "Aperture", color="gray", horizontalalignment="center")
+
+            ax.set_ylim(ymin - 0.1*ydelta, 1.6*ymax)
             ax.set_xlabel("x (m)")
             ax.set_ylabel("Field (T)")
             ax.legend(loc="upper right")
             plt.tight_layout()
             plt.savefig(f"{field[0:2]}fit.png")
             plt.show()
+        
+        if plotdiff:
+            mask = (dst.point_data["xFS"]>-0.04) & (dst.point_data["xFS"]<0.04)
+            x = dst.point_data["xFS"][mask]
+
+            yfitcenter = dst.point_data[field][mask] - sum([coefsfitcenter[i] * x**(i) / math.factorial(i) for i in range(degree+1)])
+            ydiff = dst.point_data[field][mask] - sum([coefsdiff[i] * x**(i) / math.factorial(i) for i in range(degree+1)])
+
+            fig, ax = plt.subplots(figsize=(4,3.25))
+            ax.scatter(x, yfitcenter, label=f"Polynomial fit", s=3, color="purple")
+            ax.scatter(x, ydiff, label=f"Partial derivative", s=3, color="pink")
+
+            ymin = min(yfitcenter + ydiff)
+            ymax = max(yfitcenter + ydiff)
+            ydelta = ymax - ymin
+
+            ax.set_ylim(ymin - 0.1*ydelta, ymax + 0.5*ydelta)
+
+            ax.set_xlabel("x (m)")
+            ax.set_ylabel("Deviation from actual field (T)")
+            ax.legend(loc="upper right")
+            plt.tight_layout()
+            plt.savefig(f"{field[0:2]}fitdiff_{degree}.png")
+            plt.show()
+
 
     
     def magnetic_length(self, rho, smax, radius=0.01, n_s=101, plot=False, fields=["Bx", "By", "Bs"]):
@@ -210,10 +236,10 @@ class Magnet:
 
         if plot:
             fig, ax = plt.subplots(figsize=(4,3.25))
-            ax.axvline(x=mlen/2, color="red")
-            ax.axvline(x=-mlen/2, color="red")
-            plt.text(mlen/2, 6.5, "$L_{mag}/2$", color="red", horizontalalignment="center")
-            plt.text(-mlen/2, 6.5, "$L_{mag}/2$", color="red", horizontalalignment="center")
+            ax.axvline(x=mlen/2, color="gray", linewidth=0.75)
+            ax.axvline(x=-mlen/2, color="gray", linewidth=0.75)
+            plt.text(mlen/2, 6.25, "$L_{mag}/2$", color="gray", horizontalalignment="center")
+            plt.text(-mlen/2, 6.25, "$L_{mag}/2$", color="gray", horizontalalignment="center")
             if "Bx" in fields:
                 ax.scatter(dst.point_data["sFS"], dst.point_data["BxFS"], label="$B_x(x=y=0, s)$", s=3, color="orange")
             if "By" in fields:
@@ -238,39 +264,41 @@ rmax = 0.1
 data = np.loadtxt(gzip.open('fieldmap-cct.txt.gz'),skiprows=9)
 cctmagnet = Magnet(data)
 
-# Overview of magnet
-cctmagnet.plot()
-
-# Curved frame and slice 
-smax = 0.8
-cctmagnet.curved_plot(rho, rmax, smax, field)
-cctmagnet.curved_plot(rho, rmax, smax, field, n_psi=2)
-
-# Bx and By in slice
-smax = 0.8
-cctmagnet.curved_plot(rho, rmax, smax, "Bx", n_psi=2, n_r=10, n_s=200)
-cctmagnet.curved_plot(rho, rmax, smax, "By", n_psi=2, n_r=10, n_s=200)
-cctmagnet.curved_plot(rho, rmax, smax, "Bz", n_psi=2, n_r=10, n_s=200)
-
-# Plot the field in x direction at given s position
-spos=0
-cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="Bx")
-cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="By")
-
-spos=0.1
-cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="Bx")
-cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="By")
-
-# Plot in s direction of the field on axis
-cctmagnet.calc_s(rho, 1, plot=True)
+## Overview of magnet
+#cctmagnet.plot()
+#
+## Curved frame and slice 
+#smax = 0.8
+#cctmagnet.curved_plot(rho, rmax, smax, field)
+#cctmagnet.curved_plot(rho, rmax, smax, field, n_psi=2)
+#
+## Bx and By in slice
+#smax = 0.8
+#cctmagnet.curved_plot(rho, rmax, smax, "Bx", n_psi=2, n_r=10, n_s=200)
+#cctmagnet.curved_plot(rho, rmax, smax, "By", n_psi=2, n_r=10, n_s=200)
+#cctmagnet.curved_plot(rho, rmax, smax, "Bz", n_psi=2, n_r=10, n_s=200)
+#
+## Plot the field in x direction at given s position
+#spos=0
+#cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="Bx")
+#cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="By")
+#
+#spos=0.1
+#cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="Bx")
+#cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="By")
+#
+## Plot in s direction of the field on axis
+#cctmagnet.calc_s(rho, 1, plot=True)
 
 # Fit of fields to determine multipole coefficients
 spos=0.1
-cctmagnet.fit_x(rho, rmax, spos, "BxFS", degree = 20, plot=True)
-cctmagnet.fit_x(rho, rmax, spos, "ByFS", degree = 20, plot=True)
+cctmagnet.fit_x(rho, rmax, spos, "BxFS", degree = 20, plot=True, plotdiff=True)
+cctmagnet.fit_x(rho, rmax, spos, "BxFS", degree = 10, plot=True, plotdiff=True)
+cctmagnet.fit_x(rho, rmax, spos, "ByFS", degree = 20, plot=True, plotdiff=True)
+cctmagnet.fit_x(rho, rmax, spos, "ByFS", degree = 10, plot=True, plotdiff=True)
 
 # Plot in s direction including magnetic length
-cctmagnet.magnetic_length(rho, smax, n_s=200, plot=True, fields=["By", "Bs"])
+#cctmagnet.magnetic_length(rho, smax, n_s=200, plot=True, fields=["By", "Bs"])
 
 
 
