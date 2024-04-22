@@ -178,17 +178,19 @@ class Magnet:
             yfitcenter = sum([coefsfitcenter[i] * x**(i) / math.factorial(i) for i in range(degree+1)])
             ydiff = sum([coefsdiff[i] * x**(i) / math.factorial(i) for i in range(degree+1)])
 
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=(4,3.25))
             ax.scatter(dst.point_data["xFS"], dst.point_data[field], label=f"$B_{direction}(x, y=0, s={spos})$", s=3, color="orange")
             #ax.plot(x, yfit, label="Fit", color="red") 
             ax.plot(x, yfitcenter, label="Polynomial fit", color="purple") 
             ax.plot(x, ydiff, label="Partial derivative", color="pink") 
             #ax.axvline(x=dst.point_data["xFS"][fitmin], color="gray")
             #ax.axvline(x=dst.point_data["xFS"][fitmax], color="gray")
-            ax.set_ylim(1.1*min(dst.point_data[field]), 1.1*max(dst.point_data[field]))
+            ax.set_ylim(1.1*min(dst.point_data[field]), 1.5*max(dst.point_data[field]))
             ax.set_xlabel("x (m)")
             ax.set_ylabel("Field (T)")
             ax.legend(loc="upper right")
+            plt.tight_layout()
+            plt.savefig(f"{field[0:2]}fit.png")
             plt.show()
 
     
@@ -207,11 +209,11 @@ class Magnet:
         mlen = Bint / Bcenter
 
         if plot:
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=(4,3.25))
             ax.axvline(x=mlen/2, color="red")
             ax.axvline(x=-mlen/2, color="red")
-            plt.text(mlen/2, 4.3, "$L_{mag}/2$", color="red", horizontalalignment="center")
-            plt.text(-mlen/2, 4.3, "$L_{mag}/2$", color="red", horizontalalignment="center")
+            plt.text(mlen/2, 6.5, "$L_{mag}/2$", color="red", horizontalalignment="center")
+            plt.text(-mlen/2, 6.5, "$L_{mag}/2$", color="red", horizontalalignment="center")
             if "Bx" in fields:
                 ax.scatter(dst.point_data["sFS"], dst.point_data["BxFS"], label="$B_x(x=y=0, s)$", s=3, color="orange")
             if "By" in fields:
@@ -220,7 +222,10 @@ class Magnet:
                 ax.scatter(dst.point_data["sFS"], dst.point_data["BsFS"], label="$B_s(x=y=0, s)$", s=3, color="lightgreen")
             ax.set_xlabel("s (m)")
             ax.set_ylabel("Field (T)")
+            ax.set_ylim((-0.5,6))
             ax.legend(loc="upper right")
+            plt.tight_layout()
+            plt.savefig("magneticlength.png")
             plt.show()
 
         return Bcenter, mlen
