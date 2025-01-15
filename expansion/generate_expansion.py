@@ -90,9 +90,11 @@ class FieldExpansion:
     def writefile(self, xarr, yarr, zarr, filename):
         X, Y, Z = np.meshgrid(xarr, yarr, zarr)
 
-        Bx = self.np_Bx(X, Y, Z)
-        By = self.np_By(X, Y, Z)
-        Bs = self.np_Bs(X, Y, Z)
+        Bxfun, Byfun, Bsfun = self.get_Bfield()
+
+        Bx = Bxfun(X, Y, Z)
+        By = Byfun(X, Y, Z)
+        Bs = Bsfun(X, Y, Z)
 
         with open(f'{filename}.csv', 'w') as file:
             file.write(f'"X","Y","Z","Bx","By","Bz"\n')

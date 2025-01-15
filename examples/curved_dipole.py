@@ -11,10 +11,10 @@ length = 1
 angle = 1
 
 BB = 1 # Only q By / P0 plays a role so lets call this quantity BB
-x0 = 0.2
-y0 = 0.3
-px0 = 0.1
-py0 = 0.2
+x0 = 0
+y0 = 0
+px0 = 0
+py0 = 0
 ptau0 = 0
 beta0 = 1
 

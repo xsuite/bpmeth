@@ -24,7 +24,7 @@ class Hamiltonian:
         H = ptau/beta0 - (1+h*x)*(tmp1 + A[2])
         return H
     
-    def get_vectorfield(self, coords=None, lambdify=True,beta0=1):
+    def get_vectorfield(self, coords=None, lambdify=True, beta0=1):
         if coords is None:
             coords = SympyParticle(beta0=beta0)
         x, y, tau = coords.x, coords.y, coords.tau
@@ -81,6 +81,11 @@ class DipoleVectorPotential:
         h = self.curv
         As = -(x+h/2*x**2)/(1+h*x) * self.b1
         return [0, 0, As]
+    
+
+class FringeVectorPotential:
+    def __init__(self, b1):
+
 
 
 class SympyParticle:

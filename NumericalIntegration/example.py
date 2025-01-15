@@ -18,7 +18,7 @@ H = solver.Hamiltonian(l, h, dipole)
 
 f = H.get_vectorfield()
 
-qp0 = [0.2,0.3,0,0.1,0.2,0]  # Initial conditions x, y, tau, px, py, ptau
+qp0 = [0,0,0.1,0,0,0]  # Initial conditions x, y, tau, px, py, ptau
 
 sol = H.solve(qp0)
 H.plotsol(qp0)
