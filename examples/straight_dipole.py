@@ -2,6 +2,9 @@ import bpmeth
 import numpy as np
 import matplotlib.pyplot as plt
 
+"""
+Plot the analytical solution for a straight dipole using bpmeth
+"""
 
 # Parameters
 length = 10

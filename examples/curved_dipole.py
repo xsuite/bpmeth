@@ -2,16 +2,19 @@ import bpmeth
 import numpy as np
 import matplotlib.pyplot as plt
 
+"""
+Plot the analytical solution for a curved dipole using bpmeth
+"""
 
 # Parameters
-length = 10
-angle = 0.5
+length = 1
+angle = 1
 
-BB = 0.05 # Only q By / P0 plays a role so lets call this quantity BB
-x0 = 0.5
-y0 = 0.1
-px0 = 0.2
-py0 = 0.3
+BB = 1 # Only q By / P0 plays a role so lets call this quantity BB
+x0 = 0.1
+y0 = 0
+px0 = 0
+py0 = 0
 ptau0 = 0
 beta0 = 1
 
@@ -26,7 +29,7 @@ fb = bpmeth.BendFrame(fr,length,angle)
 delta = np.sqrt(1 + 2*ptau0/beta0 + ptau0**2) - 1
 theta0 = np.arcsin(px0 / np.sqrt((1+delta)**2 - py0**2))
 
-s = np.linspace(0,10,100)
+s = np.linspace(0,1,100)
 px = px0*np.cos(s*h) + ( np.sqrt((1+delta)**2-px0**2-py0**2) - (1/h + x0)*BB )*np.sin(s*h)
 pxder = -px0*h*np.sin(s*h) + ( np.sqrt((1+delta)**2-px0**2-py0**2) - (1/h + x0)*BB )*h*np.cos(s*h)
 x = 1/h * 1/BB * ( h*np.sqrt((1+delta)**2-px**2-py0**2) - pxder - BB)
