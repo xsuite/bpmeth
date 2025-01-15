@@ -30,12 +30,12 @@ class Hamiltonian:
         x, y, tau = coords.x, coords.y, coords.tau
         px, py, ptau = coords.px, coords.py, coords.ptau
         H = self.get_H(coords)
-        fx = - H.diff(px)
-        fy = - H.diff(py)
-        ftau = - H.diff(ptau)
-        fpx = H.diff(x)
-        fpy = H.diff(y)
-        fptau = H.diff(tau)
+        fx = H.diff(px)
+        fy = H.diff(py)
+        ftau = H.diff(ptau)
+        fpx = - H.diff(x)
+        fpy = - H.diff(y)
+        fptau = - H.diff(tau)
         qpdot = [fx, fy, ftau, fpx, fpy, fptau]
         if lambdify:
             qp = (x, y, tau, px, py, ptau)
@@ -54,7 +54,7 @@ class Hamiltonian:
         sol = solve_ivp(f, s_span, qp0, **ivp_opt)
         return sol
     
-    def plotsol(self, qp0, s_span=None, ivp_opt=None, figname=None):
+    def plotsol(self, qp0, s_span=None, ivp_opt=None, figname_zx=None, figname_zxy=None):
         sol = self.solve(qp0, s_span, ivp_opt)
         s = sol.t
         x, y, tau, px, py, ptau = sol.y
@@ -62,7 +62,9 @@ class Hamiltonian:
         fr = bpmeth.Frame()
         fb = bpmeth.BendFrame(fr, self.length, self.angle)
 
-        fb.plot_trajectory_zx(s, x, y, figname=figname)
+        fb.plot_trajectory_zx(s, x, y, figname=figname_zx)
+        fb.plot_trajectory_zxy(s, x, y, figname=figname_zxy)
+
         plt.show()
     
     def __repr__(self):

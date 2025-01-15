@@ -2,6 +2,8 @@ import numpy as np
 import gzip
 import pyvista as pv
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import matplotlib.cm as cm
 from matplotlib.ticker import MaxNLocator
 import scipy as sc
 import math
@@ -22,7 +24,7 @@ class Magnet:
 
     def curved_plot(self, rho, rmax, smax, field, radius=0.01, n_psi=32, n_r=5, n_s=101):
         """
-        Plot the field in a curved reference frame
+        Plot the field as originally given (Bz vertical) in a curved reference frame
         """ 
 
         s, psi, r = np.meshgrid(np.linspace(-smax, smax, n_s),
@@ -41,61 +43,152 @@ class Magnet:
         return dst
 
 
-    def calc_x(self, rho, rmax, spos, radius=0.01, n_r=25, plot=False, fields=["Bx", "By", "Bz"]):
+    def calc_x(self, rho, rmax, spos, radius=0.01, n_r=25, plot=False, fields=["BxFS", "ByFS", "BsFS"], aperture=False, fringe=False):
         """
-        Calculate profile of field in x direction at y=0 and given s
+        Calculate profile of field in Frenet Serret coordinates in x direction at y=0 and given s
 
         :param fields: Fields that are desired to plot
         """
-
-        s, psi, r = np.meshgrid([spos],
-                                [0.0],
-                                np.linspace(-rmax, rmax, n_r))
-
-        X = np.cos(s/rho) * (rho+r*np.cos(psi))
-        Y = -np.sin(s/rho) * (rho+r*np.cos(psi))
-        Z = r*np.sin(psi)
-        XYZ = np.array([X.flatten(), Y.flatten(), Z.flatten()]).T
-        dst = pv.PolyData(XYZ)
-
-        dst = dst.interpolate(self.src, radius=radius)
-
-        # Frenet-Serret coordinates
-        dst["xFS"] = np.array(r*np.cos(psi)).flatten()
-        dst["yFS"] = np.array(r*np.sin(psi)).flatten()
-        dst["sFS"] = s.flatten()
-
-        # Field in Frenet-Serret coordinates
-        dst["BxFS"] = dst["Bx"] * np.cos(s/rho).flatten() - dst["By"] * np.sin(s/rho).flatten()
-        dst["ByFS"] = dst["Bz"]
-        dst["BsFS"] = dst["Bx"] * np.sin(s/rho).flatten() + dst["By"] * np.cos(s/rho).flatten()
-       
+    
         if plot:
+            cmap = plt.get_cmap('plasma')
+            colors = cmap(np.linspace(0, 1, len(spos)))
             fig, ax = plt.subplots()
-            if "Bx" in fields:
-                ax.scatter(dst.point_data["xFS"], dst.point_data["BxFS"], color="orange", s=3, label=f"$B_x(x, y=0, s={spos})$")
-            if "By" in fields:
-                ax.scatter(dst.point_data["xFS"], dst.point_data["ByFS"], color="blue", s=3, label=f"$B_y(x, y=0, s={spos})$")
-            if "Bz" in fields:
-                ax.scatter(dst.point_data["xFS"], dst.point_data["BsFS"], color="lightgreen", s=3, label=f"$B_s(x, y=0, s={spos})$")
+
+        for i, sval in enumerate(np.append(spos, 0.868/2)):
+            s, psi, r = np.meshgrid([sval],
+                                    [0.0],
+                                    np.linspace(-rmax, rmax, n_r))
+    
+            X = np.cos(s/rho) * (rho+r*np.cos(psi))
+            Y = -np.sin(s/rho) * (rho+r*np.cos(psi))
+            Z = r*np.sin(psi)
+            XYZ = np.array([X.flatten(), Y.flatten(), Z.flatten()]).T
+            dst = pv.PolyData(XYZ)
+    
+            dst = dst.interpolate(self.src, radius=radius)
+    
+            # Frenet-Serret coordinates
+            dst["xFS"] = np.array(r*np.cos(psi)).flatten()
+            dst["yFS"] = np.array(r*np.sin(psi)).flatten()
+            dst["sFS"] = s.flatten()
+    
+            # Field in Frenet-Serret coordinates
+            dst["BxFS"] = dst["Bx"] * np.cos(s/rho).flatten() - dst["By"] * np.sin(s/rho).flatten()
+            dst["ByFS"] = dst["Bz"]
+            dst["BsFS"] = dst["Bx"] * np.sin(s/rho).flatten() + dst["By"] * np.cos(s/rho).flatten()
+           
+            if plot:
+                if "BxFS" in fields:
+                    ax.scatter(dst.point_data["xFS"], dst.point_data["BxFS"], color = "Black" if i==len(spos) else colors[i], s=3, label=f"$B_x(x, y=0, s={sval})$")
+                if "ByFS" in fields:
+                    ax.scatter(dst.point_data["xFS"], dst.point_data["ByFS"], color = "Black" if i==len(spos) else colors[i], s=3, label=f"$B_y(x, y=0, s={sval})$")
+                if "BsFS" in fields:
+                    ax.scatter(dst.point_data["xFS"], dst.point_data["BsFS"], color = "Black" if i==len(spos) else colors[i], s=3, label=f"$B_s(x, y=0, s={sval})$")
+                
+                if aperture:
+                    apt = 0.08
+                    ax.axvline(x=apt/2, color="gray", linewidth=0.75)
+                    ax.axvline(x=-apt/2, color="gray", linewidth=0.75)
+                    ax.annotate("", (-apt/2, 0.8), (apt/2, 0.8), arrowprops={'arrowstyle':'<->'}, color="gray")
+                    plt.text(0, 0.85, "Aperture", color="gray", horizontalalignment="center")
+    
+        if plot:
+            cmap = mcolors.ListedColormap(colors)
+            norm = mcolors.BoundaryNorm(boundaries=spos, ncolors=cmap.N, clip=True)
+            sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+            sm.set_array([])
+            
+            cbar = fig.colorbar(sm, ax=ax)
+            cbar.set_label("s position")
+
             ax.set_xlabel("x (m)")
             ax.set_ylabel("Field (T)")
-            ax.legend(loc="upper right")
+            #ax.legend(loc="upper right")
             plt.show()
+
 
         return dst
 
 
-    def calc_s(self, rho, smax, radius=0.01, n_s=101, plot=False, fields=["Bx", "By", "Bs"]):
+
+    def calc_x_at_y(self, rho, rmax, spos, ypos, radius=0.01, n_r=25, plot=False, fields=["BxFS", "ByFS", "BsFS"], aperture=False):
         """
-        Calculate profile of field in s direction at x=y=0
+        Calculate profile of field in Frenet Serret coordinates in x direction at given y and given s
+
+        :param fields: Fields that are desired to plot
+        """
+
+        # Define nice colors for the plot
+        cmap = plt.get_cmap('plasma')
+        colors = cmap(np.linspace(0, 1, len(ypos)))
+        
+        fig, ax = plt.subplots()
+        for i, yval in enumerate(ypos):
+            s, x, y = np.meshgrid([spos], np.linspace(-rmax, rmax, n_r), [yval])
+            psi = np.arctan(y/x)
+            r = np.sqrt(x**2 + y**2) * x / abs(x)
+    
+            X = np.cos(s/rho) * (rho+r*np.cos(psi))
+            Y = -np.sin(s/rho) * (rho+r*np.cos(psi))
+            Z = r*np.sin(psi)
+            XYZ = np.array([X.flatten(), Y.flatten(), Z.flatten()]).T
+            dst = pv.PolyData(XYZ)
+    
+            dst = dst.interpolate(self.src, radius=radius)
+    
+            # Frenet-Serret coordinates
+            dst["xFS"] = np.array(r*np.cos(psi)).flatten()
+            dst["yFS"] = np.array(r*np.sin(psi)).flatten()
+            dst["sFS"] = s.flatten()
+    
+            # Field in Frenet-Serret coordinates
+            dst["BxFS"] = dst["Bx"] * np.cos(s/rho).flatten() - dst["By"] * np.sin(s/rho).flatten()
+            dst["ByFS"] = dst["Bz"]
+            dst["BsFS"] = dst["Bx"] * np.sin(s/rho).flatten() + dst["By"] * np.cos(s/rho).flatten()
+
+            if "BxFS" in fields:
+                ax.scatter(dst.point_data["xFS"], dst.point_data["BxFS"], color=colors[i], s=3, label=f"$B_x(x, y={yval}, s={spos})$")
+            if "ByFS" in fields:
+                ax.scatter(dst.point_data["xFS"], dst.point_data["ByFS"], color=colors[i], s=3, label=f"$B_y(x, y={yval}, s={spos})$")
+            if "BsFS" in fields:
+                ax.scatter(dst.point_data["xFS"], dst.point_data["BsFS"], color=colors[i], s=3, label=f"$B_s(x, y={yval}, s={spos})$")
+                
+        if aperture:
+            apt = 0.08
+            ax.axvline(x=apt/2, color="gray", linewidth=0.75)
+            ax.axvline(x=-apt/2, color="gray", linewidth=0.75)
+            ax.annotate("", (-apt/2, 0.8), (apt/2, 0.8), arrowprops={'arrowstyle':'<->'}, color="gray")
+            plt.text(0, 0.85, "Aperture", color="gray", horizontalalignment="center")
+   
+        ax.set_xlabel("x (m)")
+        ax.set_ylabel("Field (T)")
+        #ax.legend(loc="upper right")
+
+        cmap = mcolors.ListedColormap(colors)
+        norm = mcolors.BoundaryNorm(boundaries=ypos, ncolors=cmap.N, clip=True)
+        sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        
+        cbar = fig.colorbar(sm, ax=ax)
+        cbar.set_label("y position")
+
+
+        plt.show()
+
+        return dst
+
+
+    def calc_s(self, rho, smax, radius=0.01, n_s=101, rval=0, plot=False, fields=["BxFS", "ByFS", "BsFS"]):
+        """
+        Calculate profile of field in Frenet Serret coordinates in s direction at y=0 for given value of r
 
         :param fields: Fields that are desired to plot
         """
 
         s, psi, r = np.meshgrid(np.linspace(-smax, smax, n_s),
                                 [0.0],
-                                [0.0])
+                                [rval])
 
         X = np.cos(s/rho) * (rho+r*np.cos(psi))
         Y = -np.sin(s/rho) * (rho+r*np.cos(psi))
@@ -117,12 +210,12 @@ class Magnet:
        
         if plot:
             fig, ax = plt.subplots()
-            if "Bx" in fields:
-                ax.scatter(dst.point_data["sFS"], dst.point_data["BxFS"], label="$B_x(x=y=0, s)$", s=3, color="orange")
-            if "By" in fields:
-                ax.scatter(dst.point_data["sFS"], dst.point_data["ByFS"], label="$B_y(x=y=0, s)$", s=3, color="blue")
-            if "Bs" in fields:
-                ax.scatter(dst.point_data["sFS"], dst.point_data["BsFS"], label="$B_s(x=y=0, s)$", s=3, color="lightgreen")
+            if "BxFS" in fields:
+                ax.scatter(dst.point_data["sFS"], dst.point_data["BxFS"], label=f"$B_x(x={rval}, y=0, s)$", s=3, color="orange")
+            if "ByFS" in fields:
+                ax.scatter(dst.point_data["sFS"], dst.point_data["ByFS"], label=f"$B_y(x={rval}, y=0, s)$", s=3, color="blue")
+            if "BsFS" in fields:
+                ax.scatter(dst.point_data["sFS"], dst.point_data["BsFS"], label=f"$B_s(x={rval}, y=0, s)$", s=3, color="lightgreen")
             ax.set_xlabel("s (m)")
             ax.set_ylabel("Field (T)")
             ax.legend(loc="upper right")
@@ -165,6 +258,7 @@ class Magnet:
         Fit a polynomial to the x distribution for y=0 and a given s using two methods
         Bx(x, y=0, s) = a_j(s) x^j/j!
         By(x, y=0, s) = b_j(s) x^j/j!
+        The fields are expressed in Frenet Serret coordinates
 
         :return: list of coefficients for both methods, lowest order first
         """
@@ -221,7 +315,7 @@ class Magnet:
             ax.set_ylabel("Field (T)")
             ax.legend(loc="upper right")
             plt.tight_layout()
-            plt.savefig(f"{field[0:2]}fit.png")
+            plt.savefig(f"{field[0:2]}fit_s={spos}.png")
             plt.show()
 
         return dst, coefsfitcenter, coefsdiff
@@ -254,7 +348,7 @@ class Magnet:
         ax.set_ylabel("Deviation from actual field (T)")
         ax.legend(loc="upper right")
         plt.tight_layout()
-        plt.savefig(f"{field[0:2]}fitdiff_{degree}.png")
+        plt.savefig(f"{field[0:2]}fitdiff_s={spos}.png")
         plt.show()
 
         return
@@ -269,7 +363,7 @@ class Magnet:
         allfitcenter = [[] for i in range(maxdegree+1)]
         alldiff = [[] for i in range(maxdegree+1)]
         for degree in range(maxdegree+1):
-            _, coefsfitcenter, coefsdiff = self.fit_x(rho, rmax, spos, field, radius, n_r, degree)
+            _, coefsfitcenter, coefsdiff = self.fit_x(rho, rmax, spos, field, radius=radius, n_r=n_r, degree=degree)
             allfitcenter[degree] = coefsfitcenter
             alldiff[degree] = coefsdiff
 
@@ -292,8 +386,8 @@ class Magnet:
         
         return
 
-    
-    def magnetic_length(self, rho, smax, radius=0.01, n_s=101, plot=False, fields=["Bx", "By", "Bs"]):
+
+    def magnetic_length(self, rho, smax, radius=0.01, n_s=101, plot=False, fields=["BxFS", "ByFS", "BsFS"]):
         """
         Calculate the magnetic length of the magnet
 
@@ -313,11 +407,11 @@ class Magnet:
             ax.axvline(x=-mlen/2, color="gray", linewidth=0.75)
             plt.text(mlen/2, 6.25, "$L_{mag}/2$", color="gray", horizontalalignment="center")
             plt.text(-mlen/2, 6.25, "$L_{mag}/2$", color="gray", horizontalalignment="center")
-            if "Bx" in fields:
+            if "BxFS" in fields:
                 ax.scatter(dst.point_data["sFS"], dst.point_data["BxFS"], label="$B_x(x=y=0, s)$", s=3, color="orange")
-            if "By" in fields:
+            if "ByFS" in fields:
                 ax.scatter(dst.point_data["sFS"], dst.point_data["ByFS"], label="$B_y(x=y=0, s)$", s=3, color="blue")
-            if "Bs" in fields:
+            if "BsFS" in fields:
                 ax.scatter(dst.point_data["sFS"], dst.point_data["BsFS"], label="$B_s(x=y=0, s)$", s=3, color="lightgreen")
             ax.set_xlabel("s (m)")
             ax.set_ylabel("Field (T)")
@@ -330,61 +424,135 @@ class Magnet:
         return Bcenter, mlen
 
 
+    def fit_coefs_s(self, rho, rmax, smax, field, radius=0.01, n_r=200, n_s=50, degree=20, plot=False):
+        """
+        Fit a certain model to the coefficients in s direction
+        """
 
-field = "Bz"
+        sstep = 2*smax / n_s
+        fitcenters = np.zeros((degree+1, n_s))
+        diffs = np.zeros((degree+1, n_s))
+        slist = np.arange(-smax, smax, sstep)
+        for sindex, s in enumerate(slist):
+            _, fitcenters[:, sindex], diffs[:, sindex] = self.fit_x(rho, rmax, s, field, degree=degree)
+
+        if plot:
+            fig, ax = plt.subplots(2, 10)
+            for i in range(10):
+                ax[0,i].plot(slist, fitcenters[i, :], label="fit")
+                ax[1,i].plot(slist, diffs[i, :], label="diffs")
+            plt.legend()
+            plt.show()
+
+        return
+
+
+
+
+
+
+field = "Bx"
 rho = 1.65
 rmax = 0.1
+apt = 0.08
 
 data = np.loadtxt(gzip.open('fieldmap-cct.txt.gz'),skiprows=9)
 cctmagnet = Magnet(data)
 
-# Overview of magnet
-cctmagnet.plot()
+## Overview of magnet
+#cctmagnet.plot()
+##
+## Curved frame and slice 
+#smax = 0.8
+#cctmagnet.curved_plot(rho, rmax, smax, field)
+#cctmagnet.curved_plot(rho, rmax, smax, field, n_psi=2)
+##
+## Bx and By in slice
+#smax = 0.8
+#cctmagnet.curved_plot(rho, rmax, smax, "Bx", n_psi=2, n_r=20, n_s=250)
+#cctmagnet.curved_plot(rho, rmax, smax, "By", n_psi=2, n_r=20, n_s=250)
+#cctmagnet.curved_plot(rho, rmax, smax, "Bz", n_psi=2, n_r=20, n_s=250)
+#smax = 0.8
+#cctmagnet.curved_plot(rho, apt/2, smax, "Bx", n_psi=2, n_r=20, n_s=250)
+#cctmagnet.curved_plot(rho, apt/2, smax, "By", n_psi=2, n_r=20, n_s=250)
+#cctmagnet.curved_plot(rho, apt/2, smax, "Bz", n_psi=2, n_r=20, n_s=250)
+#
+## Plot the field in x direction at given s position
+#cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="Bx", aperture=True)
+#cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="By")
+#
+#spos=0.868/2
+#cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="BxFS", aperture=True)
+#cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="ByFS", aperture=True)
+#cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="BsFS", aperture=True)
+##
+#Plot at many s values
+#smagnlength=0.868/2
+#spos = np.linspace(0, smagnlength, 200)
+#cctmagnet.calc_x(rho, rmax, spos, n_r=250, plot=True, fields="BxFS", aperture=True)
+#cctmagnet.calc_x(rho, rmax, spos, n_r=250, plot=True, fields="ByFS", aperture=True)
+#cctmagnet.calc_x(rho, rmax, spos, n_r=250, plot=True, fields="BsFS", aperture=True)
+#spos = np.linspace(smagnlength, 0.7, 200)
+#cctmagnet.calc_x(rho, rmax, spos, n_r=250, plot=True, fields="BxFS", aperture=True)
+#cctmagnet.calc_x(rho, rmax, spos, n_r=250, plot=True, fields="ByFS", aperture=True)
+#cctmagnet.calc_x(rho, rmax, spos, n_r=250, plot=True, fields="BsFS", aperture=True)
+#
+#spos=-0.868/2
+#cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="BxFS", aperture=True)
+#cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="ByFS", aperture=True)
+#cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="BsFS", aperture=True)
+#
+## Check if new function works
+#spos=0.868/2
+#cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="BxFS", aperture=True)
+#cctmagnet.calc_x_at_y(rho, rmax, spos, 0, n_r=200, plot=True, fields="BxFS", aperture=True)
+#spos=0.868/2
+#
+# Plot field at many y positions
+#ypos = np.linspace(-0.04, 0.04, 100)
+#spos=0.868/2
+#cctmagnet.calc_x_at_y(rho, rmax, spos, ypos, n_r=500, plot=True, fields="BxFS", aperture=True)
+#cctmagnet.calc_x_at_y(rho, rmax, spos, ypos, n_r=500, plot=True, fields="ByFS", aperture=True)
+#cctmagnet.calc_x_at_y(rho, rmax, spos, ypos, n_r=500, plot=True, fields="BsFS", aperture=True)
 
-# Curved frame and slice 
-smax = 0.8
-cctmagnet.curved_plot(rho, rmax, smax, field)
-cctmagnet.curved_plot(rho, rmax, smax, field, n_psi=2)
+#
+#Plot at many s values
+#for spos in np.linspace(0.4,0.5,5):
+#    cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="BxFS", aperture=True)
+#
+## Plot in s direction of the field on axis
+#cctmagnet.calc_s(rho, 1, plot=True, fields="BxFS")
+### Plot in s direction of the field at aperture distance
+#apt=0.08
+#cctmagnet.calc_s(rho, 1, rval=apt/2, plot=True, fields="BxFS")
+#cctmagnet.calc_s(rho, 1, rval=0, plot=True, fields="BxFS")
+#cctmagnet.calc_s(rho, 1, rval=-apt/2, plot=True, fields="BxFS")
+#cctmagnet.calc_s(rho, 1, rval=apt/2, plot=True, fields="BsFS")
+#cctmagnet.calc_s(rho, 1, rval=0, plot=True, fields="BsFS")
+#cctmagnet.calc_s(rho, 1, rval=-apt/2, plot=True, fields="BsFS")
+#
+## Fit of fields to determine multipole coefficients
+#spos=0.4
+#cctmagnet.fit_x(rho, rmax, spos, "BxFS", degree=20, plot=True)
+#cctmagnet.fit_x(rho, rmax, spos, "ByFS", degree=20, plot=True)
+## Plot the difference between the fit and the real value for both methods 
+#spos=0.4
+#cctmagnet.plot_difference(rho, rmax, spos, "BxFS", degree=20)
+#cctmagnet.plot_difference(rho, rmax, spos, "ByFS", degree=20)
+#
+## Compare the two methods concerning stability
+#spos=0.1
+#cctmagnet.compare_methods(rho, rmax, spos, "BxFS", maxdegree=20, indices=[0,1,2,3,4,5,6])
+#cctmagnet.compare_methods(rho, rmax, spos, "ByFS", maxdegree=20, indices=[0,1,2,3,4,5,6])
+#spos=0.4
+#cctmagnet.compare_methods(rho, rmax, spos, "BxFS", maxdegree=20, indices=[0,1,2,3,4,5,6])
+#cctmagnet.compare_methods(rho, rmax, spos, "ByFS", maxdegree=20, indices=[0,1,2,3,4,5,6])
+#
+## Plot in s direction including magnetic length
+#cctmagnet.magnetic_length(rho, smax, n_s=200, plot=True, fields=["By", "Bs"])
 
-# Bx and By in slice
-smax = 0.8
-cctmagnet.curved_plot(rho, rmax, smax, "Bx", n_psi=2, n_r=10, n_s=200)
-cctmagnet.curved_plot(rho, rmax, smax, "By", n_psi=2, n_r=10, n_s=200)
-cctmagnet.curved_plot(rho, rmax, smax, "Bz", n_psi=2, n_r=10, n_s=200)
-
-# Plot the field in x direction at given s position
-spos=0
-cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="Bx")
-cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="By")
-
-spos=0.1
-cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="Bx")
-cctmagnet.calc_x(rho, rmax, spos, n_r=200, plot=True, fields="By")
-
-# Plot in s direction of the field on axis
-cctmagnet.calc_s(rho, 1, plot=True)
-
-# Fit of fields to determine multipole coefficients
-spos=0.1
-cctmagnet.fit_x(rho, rmax, spos, "BxFS", degree=20, plot=True)
-cctmagnet.fit_x(rho, rmax, spos, "ByFS", degree=20, plot=True)
-# Plot the difference between the fit and the real value for both methods 
-spos=0.1
-cctmagnet.plot_difference(rho, rmax, spos, "BxFS", degree=20)
-cctmagnet.plot_difference(rho, rmax, spos, "ByFS", degree=20)
-
-# Compare the two methods concerning stability
-spos=0.1
-cctmagnet.compare_methods(rho, rmax, spos, "BxFS", maxdegree=30, indices=[0,1,2,3,4,5,6])
-cctmagnet.compare_methods(rho, rmax, spos, "ByFS", maxdegree=30, indices=[0,1,2,3,4,5,6])
-
-
-
-# Plot in s direction including magnetic length
-cctmagnet.magnetic_length(rho, smax, n_s=200, plot=True, fields=["By", "Bs"])
-
-
-
-
+#smax = 0.8
+#cctmagnet.fit_coefs_s(rho, rmax, smax, "ByFS", n_s=100, plot=True)
+#cctmagnet.fit_coefs_s(rho, rmax, smax, "ByFS", n_s=100, degree=19, plot=True)
 
 
