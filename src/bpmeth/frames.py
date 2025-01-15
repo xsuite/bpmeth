@@ -81,26 +81,26 @@ class Frame:
     def zdir(self):
         return self.matrix[0:3, 2]
 
-    def plot_zx(self, canvas=None):
+    def plot_zx(self, canvas=None, arrowsize=1):
         if canvas is None:
             canvas = CanvasZX()
         x = self.matrix[0, 3]
         z = self.matrix[2, 3]
         canvas.plot(self.origin, linestyle="none", marker="o", color="black")
-        canvas.arrow(self.origin, self.xdir, color="red")
-        canvas.arrow(self.origin, self.zdir, color="blue")
+        canvas.arrow(self.origin, self.xdir*arrowsize, color="red")
+        canvas.arrow(self.origin, self.zdir*arrowsize, color="blue")
         return self
     
-    def plot_zxy(self, canvas=None):
+    def plot_zxy(self, canvas=None, arrowsize=1):
         if canvas is None:
             canvas = CanvasZXY()
         x = self.matrix[0, 3]
         y = self.matrix[1, 3]
         z = self.matrix[2, 3]
         canvas.plot(self.origin, linestyle="none", marker="o", color="black")
-        canvas.arrow(self.origin, self.xdir, color="red")
-        canvas.arrow(self.origin, self.ydir, color="orange")
-        canvas.arrow(self.origin, self.zdir, color="blue")
+        canvas.arrow(self.origin, self.xdir*arrowsize, color="red")
+        canvas.arrow(self.origin, self.ydir*arrowsize, color="orange")
+        canvas.arrow(self.origin, self.zdir*arrowsize, color="blue")
         return self
 
     def move_to(self, origin):
@@ -156,11 +156,16 @@ class BendFrame:
         end = self.start.copy()
         end.arc_by(self.length, self.angle)
         return end
+    
+    @property
+    def arrowsize(self):
+        # Size of the arrows in the plot, scaled with the length of the frame
+        return self.length/10
 
     def frame(self, s):
         return self.start.copy().arc_by(s, s / self.length * self.angle)
 
-    def ref_trajectory(self, steps=11):
+    def ref_trajectory(self, steps=21):
         return np.array(
             [self.frame(s).origin for s in np.linspace(0, self.length, steps)]
         ).T
@@ -175,17 +180,17 @@ class BendFrame:
     def plot_zx(self, canvas=None):
         if canvas is None:
             canvas = CanvasZX()
-        self.start.plot_zx(canvas)
-        self.end.plot_zx(canvas)
-        canvas.plot(self.ref_trajectory(11), color="green")
+        self.start.plot_zx(canvas, arrowsize=self.arrowsize)
+        self.end.plot_zx(canvas, arrowsize=self.arrowsize)
+        canvas.plot(self.ref_trajectory(), color="green")
         return self
 
     def plot_zxy(self, canvas=None):
         if canvas is None:
             canvas = CanvasZXY()
-        self.start.plot_zxy(canvas)
-        self.end.plot_zxy(canvas)
-        canvas.plot(self.ref_trajectory(11), color="green")
+        self.start.plot_zxy(canvas, arrowsize=self.arrowsize)
+        self.end.plot_zxy(canvas, arrowsize=self.arrowsize)
+        canvas.plot(self.ref_trajectory(), color="green")
         return self
 
     def plot_trajectory_zx(self, s,x,y, canvas=None, figname=None):
