@@ -43,6 +43,18 @@ class FieldExpansion:
         return sum(pp * y**i / sp.factorial(i) for i, pp in enumerate(phiv)).simplify()
 
     
+    def get_A(self):
+        x, y, s = self.x, self.y, self.s
+        hs = self.hs
+        phi = self.get_phi()
+        
+        
+
+
+
+        
+
+    
     def get_Bfield(self, lambdify=True):
         x = self.x
         y = self.y

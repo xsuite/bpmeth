@@ -13,6 +13,7 @@ class Hamiltonian:
         self.vectp = vectp
         self.angle = curv * length
     
+
     def get_H(self, coords):
         x, y, s = coords.x, coords.y, coords.s
         px, py, ptau = coords.px, coords.py, coords.ptau
@@ -24,6 +25,7 @@ class Hamiltonian:
         H = ptau/beta0 - (1+h*x)*(tmp1 + A[2])
         return H
     
+
     def get_vectorfield(self, coords=None, lambdify=True, beta0=1):
         if coords is None:
             coords = SympyParticle(beta0=beta0)
@@ -44,6 +46,7 @@ class Hamiltonian:
         else:
             return qpdot
 
+
     def solve(self, qp0, s_span=None, ivp_opt=None):
         if s_span is None:
             s_span = [0, self.length]
@@ -54,6 +57,7 @@ class Hamiltonian:
         sol = solve_ivp(f, s_span, qp0, **ivp_opt)
         return sol
     
+
     def plotsol(self, qp0, s_span=None, ivp_opt=None, figname_zx=None, figname_zxy=None):
         sol = self.solve(qp0, s_span, ivp_opt)
         s = sol.t
@@ -83,8 +87,9 @@ class DipoleVectorPotential:
         return [0, 0, As]
     
 
-class FringeVectorPotential:
+class FringeVectorPotential:  # In a straight coordinate frame
     def __init__(self, b1):
+        self.b1 = b1   
 
 
 
