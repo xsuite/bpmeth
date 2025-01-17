@@ -88,9 +88,38 @@ class DipoleVectorPotential:
     
 
 class FringeVectorPotential:  # In a straight coordinate frame
-    def __init__(self, b1):
-        self.b1 = b1   
+    def __init__(self, b1, nphi=5):
+        self.b1 = b1
+        self.nphi = nphi
+    
+    def get_A(self, coords):
+        x, y, s = coords.x, coords.y, coords.s
+        fringe = bpmeth.FieldExpansion(b=(self.b1,), nphi=self.nphi)
+        Ax, Ay, As = fringe.get_A()
+        return [
+            Ax.subs({fringe.x: x, fringe.y: y, fringe.s: s}).evalf(),
+            Ay.subs({fringe.x: x, fringe.y: y, fringe.s: s}).evalf(),
+            As.subs({fringe.x: x, fringe.y: y, fringe.s: s}).evalf()
+        ]
+    
 
+class GeneralVectorPotential:  # In bent coordinate frame
+    def __init__(self, curv, a=("0*s",), b=("0*s",), bs="0", nphi=5):
+        self.curv = f"{curv}"
+        self.a = a
+        self.b = b
+        self.bs = bs
+        self.nphi = nphi
+    
+    def get_A(self, coords):
+        x, y, s = coords.x, coords.y, coords.s
+        field = bpmeth.FieldExpansion(a=self.a, b=self.b, bs=self.bs, hs=self.curv, nphi=self.nphi)
+        Ax, Ay, As = field.get_A()
+        return [
+            Ax.subs({field.x: x, field.y: y, field.s: s}).evalf(),
+            Ay.subs({field.x: x, field.y: y, field.s: s}).evalf(),
+            As.subs({field.x: x, field.y: y, field.s: s}).evalf()
+        ]
 
 
 class SympyParticle:
@@ -100,3 +129,4 @@ class SympyParticle:
         self.px, self.py, self.ptau = sp.symbols('px py ptau')
         self.beta0 = beta0
         self.math = sp
+
