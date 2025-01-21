@@ -1,4 +1,3 @@
-
 import sympy as sp
 import numpy as np
 from scipy.integrate import solve_ivp
@@ -21,7 +20,7 @@ class Hamiltonian:
         beta0 = coords.beta0
         h = self.curv
         A = self.vectp.get_A(coords)
-        sqrt = coords.math.sqrt
+        sqrt = coords._m.sqrt
         tmp1 = sqrt(1+2*ptau/beta0+ptau**2-px**2-py**2)
         H = ptau/beta0 - (1+h*x)*(tmp1 + A[2])
         return H
@@ -58,6 +57,20 @@ class Hamiltonian:
         sol = solve_ivp(f, s_span, qp0, **ivp_opt)
         return sol
     
+
+    def track(self, particle):
+        qp0 = [particle.x, particle.y, particle.tau, particle.px, particle.py, particle.ptau]
+        sol = self.solve(qp0)
+        s = sol.t
+        x, y, tau, px, py, ptau = sol.y
+        particle.x = x[-1]
+        particle.y = y[-1]
+        particle.tau = tau[-1]
+        particle.px = px[-1]
+        particle.py = py[-1]
+        particle.ptau = ptau[-1]
+        particle.s += self.length        
+
 
     def plotsol(self, qp0, s_span=None, ivp_opt=None, figname_zx=None, figname_zxy=None):
         sol = self.solve(qp0, s_span, ivp_opt)
@@ -126,8 +139,15 @@ class GeneralVectorPotential:  # In bent coordinate frame
 class SympyParticle:
     def __init__(self, beta0=1):
         self.x, self.y, self.tau= sp.symbols('x y tau')
-        self.s, self.h = sp.symbols('s h')
+        self.s = sp.symbols('s')
         self.px, self.py, self.ptau = sp.symbols('px py ptau')
         self.beta0 = beta0
-        self.math = sp
+        self._m = sp
 
+class NumpyParticle:
+    def __init__(self, qp0, s=0, beta0=1):
+        self.x, self.y, self.tau, self.px, self.py, self.ptau = qp0
+        self.s = s
+        self.beta0 = beta0
+        self._m = np
+        
