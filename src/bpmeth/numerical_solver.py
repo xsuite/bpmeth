@@ -21,7 +21,7 @@ class Hamiltonian:
         h = self.curv
         A = self.vectp.get_A(coords)
         sqrt = coords._m.sqrt
-        tmp1 = sqrt(1+2*ptau/beta0+ptau**2-px**2-py**2)
+        tmp1 = sqrt(1+2*ptau/beta0+ptau**2-(px-A[0])**2-(py-A[1])**2)
         H = ptau/beta0 - (1+h*x)*(tmp1 + A[2])
         return H
     
@@ -52,7 +52,7 @@ class Hamiltonian:
             s_span = [0, self.length]
         if ivp_opt is None:
             ivp_opt = {}
-            ivp_opt['t_eval'] = np.linspace(s_span[0], s_span[1], 100)
+            ivp_opt['t_eval'] = np.linspace(s_span[0], s_span[1], 500)
         f = self.get_vectorfield()
         sol = solve_ivp(f, s_span, qp0, **ivp_opt)
         return sol
@@ -89,6 +89,11 @@ class Hamiltonian:
         return f'Hamiltonian({self.length}, {self.curv}, {self.vectp})'
 
 
+class DriftVectorPotential:
+    def get_A(self, coords):
+        return [0, 0, 0]
+
+
 class DipoleVectorPotential:
     def __init__(self, curv, b1):
         self.curv = curv
@@ -116,6 +121,15 @@ class FringeVectorPotential:  # In a straight coordinate frame
             As.subs({fringe.x: x, fringe.y: y, fringe.s: s}).evalf()
         ]
     
+class SolenoidVectorPotential:  # In straight coordinate frame
+    def __init__(self, bs):
+        self.bs = bs
+
+    def get_A(self, coords):
+        x, y, s = coords.x, coords.y, coords.s
+        bs = self.bs
+        return [-bs*y/2, bs*x/2, 0]
+
 
 class GeneralVectorPotential:  # In bent coordinate frame
     def __init__(self, curv, a=("0*s",), b=("0*s",), bs="0", nphi=5):
@@ -134,6 +148,8 @@ class GeneralVectorPotential:  # In bent coordinate frame
             Ay.subs({field.x: x, field.y: y, field.s: s}).evalf(),
             As.subs({field.x: x, field.y: y, field.s: s}).evalf()
         ]
+    
+
 
 
 class SympyParticle:
