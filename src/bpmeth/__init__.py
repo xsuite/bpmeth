@@ -1,4 +1,4 @@
 version='0.0.0'
-from .frames import Frame,BendFrame
-from .generate_expansion import FieldExpansion
+from .frames import *
+from .generate_expansion import *
 from .numerical_solver import *

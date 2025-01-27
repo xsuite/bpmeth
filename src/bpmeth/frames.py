@@ -193,22 +193,22 @@ class BendFrame:
         canvas.plot(self.ref_trajectory(), color="green")
         return self
 
-    def plot_trajectory_zx(self, s,x,y, canvas=None, figname=None):
+    def plot_trajectory_zx(self, s,x,y, canvas=None, figname=None, color="black"):
         if canvas is None:
             canvas = CanvasZX()
         self.plot_zx(canvas)
-        canvas.plot(self.trajectory(s,x,y), color="black")
+        canvas.plot(self.trajectory(s,x,y), color=color)
 
         if figname:
             canvas.fig.savefig(figname, dpi=500)
 
         return self
 
-    def plot_trajectory_zxy(self, s,x,y, canvas=None, figname=None):
+    def plot_trajectory_zxy(self, s,x,y, canvas=None, figname=None, color="black"):
         if canvas is None:
             canvas = CanvasZXY()
         self.plot_zxy(canvas)
-        canvas.plot(self.trajectory(s,x,y), color="black")
+        canvas.plot(self.trajectory(s,x,y), color=color)
 
         # Set equal intervals for the three axes.
         smid, xmid, ymid = (np.max(s)+np.min(s))/2, (np.max(x)+np.min(x))/2, (np.max(y)+np.min(y))/2

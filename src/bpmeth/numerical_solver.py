@@ -51,8 +51,7 @@ class Hamiltonian:
         if s_span is None:
             s_span = [0, self.length]
         if ivp_opt is None:
-            ivp_opt = {}
-            ivp_opt['t_eval'] = np.linspace(s_span[0], s_span[1], 500)
+            ivp_opt = {'t_eval':np.linspace(s_span[0], s_span[1], 500)}
         f = self.get_vectorfield()
         sol = solve_ivp(f, s_span, qp0, **ivp_opt)
         return sol
@@ -72,19 +71,19 @@ class Hamiltonian:
         particle.s += self.length        
 
 
-    def plotsol(self, qp0, s_span=None, ivp_opt=None, figname_zx=None, figname_zxy=None):
+    def plotsol(self, qp0, s_span=None, ivp_opt=None, figname_zx=None, figname_zxy=None, canvas_zx=None, canvas_zxy=None):
         sol = self.solve(qp0, s_span, ivp_opt)
         s = sol.t
         x, y, tau, px, py, ptau = sol.y
 
+
         fr = Frame()
         fb = BendFrame(fr, self.length, self.angle)
 
-        fb.plot_trajectory_zx(s, x, y, figname=figname_zx)
-        fb.plot_trajectory_zxy(s, x, y, figname=figname_zxy)
+        fb.plot_trajectory_zx(s, x, y, figname=figname_zx, canvas=canvas_zx)
+        #fb.plot_trajectory_zxy(s, x, y, figname=figname_zxy, canvas=canvas_zxy)
 
-        plt.show()
-    
+
     def __repr__(self):
         return f'Hamiltonian({self.length}, {self.curv}, {self.vectp})'
 
