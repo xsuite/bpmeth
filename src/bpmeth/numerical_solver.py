@@ -51,24 +51,48 @@ class Hamiltonian:
         if s_span is None:
             s_span = [0, self.length]
         if ivp_opt is None:
-            ivp_opt = {'t_eval':np.linspace(s_span[0], s_span[1], 500)}
+            ivp_opt = {'t_eval': np.linspace(s_span[0], s_span[1], 500)}
         f = self.get_vectorfield()
         sol = solve_ivp(f, s_span, qp0, **ivp_opt)
         return sol
     
 
     def track(self, particle):
-        qp0 = [particle.x, particle.y, particle.beta0*particle.zeta, particle.px, particle.py, particle.ptau]
-        sol = self.solve(qp0)
-        s = sol.t
-        x, y, tau, px, py, ptau = sol.y
-        particle.x = x[-1]
-        particle.y = y[-1]
-        particle.zeta = tau[-1]/particle.beta0
-        particle.px = px[-1]
-        particle.py = py[-1]
-        particle.ptau = ptau[-1]
-        particle.s += self.length        
+        if isinstance(particle.x, np.ndarray) or isinstance(particle.x, list):
+            results = []
+            for i in range(len(particle.x)):
+                qp0 = [particle.x[i], particle.y[i], particle.beta0[i] * particle.zeta[i], particle.px[i], particle.py[i], particle.ptau[i]]
+                print(qp0)
+                sol = self.solve(qp0)
+                s = sol.t
+                x, y, tau, px, py, ptau = sol.y
+                results.append({
+                    'x': x[-1],
+                    'y': y[-1],
+                    'zeta': tau[-1] / particle.beta0[i],
+                    'px': px[-1],
+                    'py': py[-1],
+                    'ptau': ptau[-1],
+                })
+            particle.x = [res['x'] for res in results]
+            particle.y = [res['y'] for res in results]
+            particle.zeta = [res['zeta'] for res in results]
+            particle.px = [res['px'] for res in results]
+            particle.py = [res['py'] for res in results]
+            particle.ptau = [res['ptau'] for res in results]
+            particle.s += self.length
+        else:
+            qp0 = [particle.x, particle.y, particle.beta0 * particle.zeta, particle.px, particle.py, particle.ptau]
+            sol = self.solve(qp0)
+            s = sol.t
+            x, y, tau, px, py, ptau = sol.y
+            particle.x = x[-1]
+            particle.y = y[-1]
+            particle.zeta = tau[-1] / particle.beta0
+            particle.px = px[-1]
+            particle.py = py[-1]
+            particle.ptau = ptau[-1]
+            particle.s += self.length
 
 
     def plotsol(self, qp0, s_span=None, ivp_opt=None, figname_zx=None, figname_zxy=None, canvas_zx=None, canvas_zxy=None):
