@@ -62,7 +62,6 @@ class Hamiltonian:
             results = []
             for i in range(len(particle.x)):
                 qp0 = [particle.x[i], particle.y[i], particle.beta0[i] * particle.zeta[i], particle.px[i], particle.py[i], particle.ptau[i]]
-                print(qp0)
                 sol = self.solve(qp0)
                 s = sol.t
                 x, y, tau, px, py, ptau = sol.y
