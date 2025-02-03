@@ -99,3 +99,5 @@ plt.xlabel('y0')
 plt.ylabel('Difference')
 plt.legend()
 plt.show()
+
+# => The "focussing term" in forest is actually physical, with a third order correction (the sadistic term)

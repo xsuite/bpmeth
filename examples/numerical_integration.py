@@ -32,7 +32,6 @@ h = 0
 b1fringe = f"{b1}*(tanh(s)+1)/2"
 # Fringe field integral K = 1/(2g)
 fringe = bpmeth.FringeVectorPotential(b1fringe)
-#fringe = solver.FringeVectorPotential(f"{b1}")
 
 A_fringe = fringe.get_A(p_sp)
 H_fringe = bpmeth.Hamiltonian(l, h, fringe)

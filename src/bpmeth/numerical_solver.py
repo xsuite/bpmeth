@@ -29,7 +29,7 @@ class Hamiltonian:
     def get_vectorfield(self, coords=None, lambdify=True, beta0=1):
         if coords is None:
             coords = SympyParticle(beta0=beta0)
-        x, y, tau = coords.x, coords.y, coords.tau
+        x, y, tau = coords.x, coords.y, coords.beta0 * coords.zeta
         px, py, ptau = coords.px, coords.py, coords.ptau
         H = self.get_H(coords)
         fx = H.diff(px)
@@ -58,13 +58,13 @@ class Hamiltonian:
     
 
     def track(self, particle):
-        qp0 = [particle.x, particle.y, particle.tau, particle.px, particle.py, particle.ptau]
+        qp0 = [particle.x, particle.y, particle.beta0*particle.zeta, particle.px, particle.py, particle.ptau]
         sol = self.solve(qp0)
         s = sol.t
         x, y, tau, px, py, ptau = sol.y
         particle.x = x[-1]
         particle.y = y[-1]
-        particle.tau = tau[-1]
+        particle.zeta = tau[-1]/particle.beta0
         particle.px = px[-1]
         particle.py = py[-1]
         particle.ptau = ptau[-1]
@@ -154,6 +154,7 @@ class GeneralVectorPotential:  # In bent coordinate frame
 class SympyParticle:
     def __init__(self, beta0=1):
         self.x, self.y, self.tau= sp.symbols('x y tau')
+        self.zeta = sp.symbols('zeta')
         self.s = sp.symbols('s')
         self.px, self.py, self.ptau = sp.symbols('px py ptau')
         self.beta0 = beta0
@@ -161,8 +162,9 @@ class SympyParticle:
 
 class NumpyParticle:
     def __init__(self, qp0, s=0, beta0=1):
-        self.x, self.y, self.tau, self.px, self.py, self.ptau = qp0
-        self.s = s
         self.beta0 = beta0
+        self.x, self.y, self.tau, self.px, self.py, self.tau = qp0
+        self.zeta = self.tau * self.beta0
+        self.s = s
         self._m = np
         
