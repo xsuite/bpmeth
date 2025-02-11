@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import bpmeth
 
 class Phase4d:
     def __init__(self, phase_x, phase_y):
@@ -81,14 +82,78 @@ class Line4d:
         nelem=len(self.elements)
         output=np.zeros((num_turns,nelem,ncoord,npart))
         for nturn in range(num_turns):
+            print(f"Turn {nturn}")
             for ielem,element in enumerate(self.elements):
                 element.track(tcoord)
                 output[nturn,ielem]=tcoord
         return Output4d(coord.copy(),output)
+    
+
+class NumericalFringe:
+    def __init__(self,b1,shape="(tanh(s)+1)/2", len=5):
+        self.b1 = b1
+        self.shape = shape
+        self.len = len
+
+    
+    def track(self,coord):
+        ncoord,npart=coord.shape
+        
+        x = coord[0]
+        px = coord[1]
+        y = coord[2]
+        py = coord[3]
+
+        # First a backwards drift
+        drift = bpmeth.DriftVectorPotential()
+        H_drift = bpmeth.Hamiltonian(self.len/2, 0, drift)
+
+        # Then a fringe field map
+        fringe = bpmeth.FringeVectorPotential(f"{self.b1}*{self.shape}", nphi=5)
+        H_fringe = bpmeth.Hamiltonian(self.len, 0, fringe)
+
+        # Then a backwards bend
+        dipole = bpmeth.DipoleVectorPotential(0, self.b1)
+        H_dipole = bpmeth.Hamiltonian(self.len/2, 0, dipole)
+        for i in range(npart):
+            qp0 = [x[i], y[i], 0, px[i], py[i], 0]
+            sol_drift = H_drift.solve(qp0, s_span=[0, -self.len/2])
+            sol_fringe = H_fringe.solve(sol_drift.y[:, -1], s_span=[-self.len/2, self.len/2])
+            sol_dipole = H_dipole.solve(sol_fringe.y[:, -1], s_span=[self.len/2, 0])
+        
+            coord[0, i] = sol_dipole.y[0][-1]
+            coord[1, i] = sol_dipole.y[3][-1]
+            coord[2, i] = sol_dipole.y[1][-1]
+            coord[3, i] = sol_dipole.y[4][-1]
+
+
+class NumericalSextupole:
+    def __init__(self, b3, len):
+        self.b3 = b3
+        self.len = len
+
+    def track(self, coord):
+        ncoord,npart=coord.shape
+
+        x = coord[0]
+        px = coord[1]
+        y = coord[2]
+        py = coord[3]
+
+        for i in range(npart):
+            sextupole = bpmeth.GeneralVectorPotential(0, b=("0", "0", f"{self.b3}"))
+            H_sextupole = bpmeth.Hamiltonian(self.len, 0, sextupole)
+
+            sol = H_sextupole.solve([x[i], y[i], 0, px[i], py[i], 0], s_span=[0, self.len])
+
+            coord[0, i] = sol.y[0][-1]
+            coord[1, i] = sol.y[3][-1]
+            coord[2, i] = sol.y[1][-1]
+            coord[3, i] = sol.y[4][-1]
 
 
 class Output4d:
-    def __init__(self, init, output, cut=10):
+    def __init__(self, init, output, cut=None):
         self.init = init
         self.output = output
         self.cut = cut
@@ -128,25 +193,46 @@ class Output4d:
         py=self.py(part,elem)
         return y-1j*py
 
-    def plot_xpx(self,elem=0,ax=None):
+    def plot_xpx(self,elem=0,ax=None,xlims=None,ylims=None,savepath=None):
         if ax is None:
             fig,ax=plt.subplots()
         x=self.output[:,elem,0,:]
         px=self.output[:,elem,1,:]
-        cut=np.all((abs(x)<self.cut),axis=0)
-        ax.plot(x[:,cut],px[:,cut],'.')
+        if self.cut is not None:
+            cut=np.all((abs(x)<self.cut),axis=0)
+            ax.plot(x[:,cut],px[:,cut],'.')
+        else:
+            ax.plot(x,px,'.')
         ax.set_xlabel('x')
         ax.set_ylabel('px')
+        if not xlims is None:
+            ax.set_xlim(xlims)
+        if not ylims is None:
+            ax.set_ylim(ylims)
+        if not savepath is None:
+            plt.savefig(savepath,dpi=300)
+            plt.close()
 
-    def plot_ypy(self,elem=0,ax=None):
+    def plot_ypy(self,elem=0,ax=None,xlims=None,ylims=None,savepath=None):
         if ax is None:
             fig,ax=plt.subplots()
         y=self.output[:,elem,2,:]
         py=self.output[:,elem,3,:]
-        cut=np.all((abs(y)<self.cut),axis=0)
-        ax.plot(y[:,cut],py[:,cut],'.')
+        if self.cut is not None:
+            cut=np.all((abs(y)<self.cut),axis=0)
+            ax.plot(y[:,cut],py[:,cut],'.')
+        else:
+            ax.plot(y,py,'.')
         ax.set_xlabel('y')
         ax.set_ylabel('py')
+        if not xlims is None:
+            ax.set_xlim(xlims)
+        if not ylims is None:
+            ax.set_ylim(ylims)
+        if not savepath is None:
+            plt.savefig(savepath,dpi=300)
+            plt.close()
+
 
     def plot_loss(self,elem=0):
         x=self.output[:,elem,0,:]
@@ -200,7 +286,8 @@ class NormalForms4d:
                 for r in range(len(h[p, q])):
                     for t in range(len(h[p, q, r])):
                         if h[p, q, r, t] != 0:
-                            f[p, q, r, t] = h[p, q, r, t] * np.exp(1j*(p-q)*phi_x + 1j*(r-t)*phi_y) / (1 - np.exp(2*np.pi*1j * ((p-q)*Qx+(r-t)*Qy)))
+                            f[p, q, r, t] = (h[p, q, r, t] * np.exp(1j*(p-q)*phi_x + 1j*(r-t)*phi_y) /
+                                             (1 - np.exp(2*np.pi*1j * ((p-q)*Qx+(r-t)*Qy))))
         return f
 
     def calc_coords(self, part):
@@ -221,8 +308,9 @@ class NormalForms4d:
                             corr = np.array([2j * q*f[p,q,r,t] * (2*Ix)**((p+q-1)/2) * (2*Iy)**((r+t)/2) 
                                             * np.exp(1j*(q-p-1)*(2*np.pi*Qx*N + psi0x) + 1j*(t-r)*(2*np.pi*Qy*N + psi0y)) 
                                             for N in range(self.num_turns)])
-                            hxplus += corr
-
+                            hxplus += corr 
+        
+     
 
         hxmin = np.array([np.sqrt(2*Ix) * np.exp(1j*(2*np.pi*Qx*N + psi0x)) for N in range(self.num_turns)])
         for p in range(len(f)):
@@ -230,10 +318,12 @@ class NormalForms4d:
                 for r in range(len(f[p,q])):
                     for t in range(len(f[p,q,r])):
                         if f[p,q,r,t] != 0:
-                            corr = np.array([2j * p*f[p,q,r,t] * (2*Ix)**((p+q-1)/2) * (2*Iy)**((r+t)/2) 
+                            corr = np.array([-2j * p*f[p,q,r,t] * (2*Ix)**((p+q-1)/2) * (2*Iy)**((r+t)/2) 
                                             * np.exp(1j*(q-p+1)*(2*np.pi*Qx*N + psi0x) + 1j*(t-r)*(2*np.pi*Qy*N + psi0y))
-                                            for N in range(self.num_turns)])
-                            hxplus -= corr
+                                            for N in range(self.num_turns)])  
+
+                            hxmin += corr
+                            print(f"Spectral line: ({q-p+1}, {t-r})")
 
         hyplus = np.array([np.sqrt(2*Iy) * np.exp(-1j*(2*np.pi*Qy*N + psi0y)) for N in range(self.num_turns)])
         for p in range(len(f)):
@@ -252,10 +342,10 @@ class NormalForms4d:
                 for r in range(len(f[p,q])):
                     for t in range(len(f[p,q,r])):
                         if f[p,q,r,t] != 0:
-                            corr = np.array([2j * r*f[p,q,r,t] * (2*Ix)**((p+q)/2) * (2*Iy)**((r+t-1)/2) 
+                            corr = np.array([-2j * r*f[p,q,r,t] * (2*Ix)**((p+q)/2) * (2*Iy)**((r+t-1)/2) 
                                             * np.exp(1j*(q-p)*(2*np.pi*Qx*N + psi0x) + 1j*(t-r+1)*(2*np.pi*Qy*N + psi0y))
                                             for N in range(self.num_turns)])
-                            hyplus -= corr
+                            hymin += corr
 
 
         x = (hxplus + hxmin) / 2

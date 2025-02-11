@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 class Phase:
     def __init__(self, phase):
         self.phase = phase
@@ -48,7 +49,7 @@ class Line:
         return Output(coord.copy(),output)
 
 class Output:
-    def __init__(self, init, output, cut=10):
+    def __init__(self, init, output, cut=None):
         self.init = init
         self.output = output
         self.cut = cut
@@ -72,15 +73,26 @@ class Output:
         px=self.px(part,elem)
         return x-1j*px
 
-    def plot_xpx(self,elem=0,ax=None):
+    def plot_xpx(self,elem=0,ax=None,xlims=None,ylims=None,savepath=None):
         if ax is None:
             fig,ax=plt.subplots()
         x=self.output[:,elem,0,:]
         px=self.output[:,elem,1,:]
-        cut=np.all((abs(x)<self.cut),axis=0)
-        ax.plot(x[:,cut],px[:,cut],'.')
+
+        if self.cut is not None:
+            cut=np.all((abs(x)<self.cut),axis=0)
+            ax.plot(x[:,cut],px[:,cut],'.')
+        else:
+            ax.plot(x,px,'.')
         ax.set_xlabel('x')
         ax.set_ylabel('px')
+        if not xlims is None:
+            ax.set_xlim(xlims)
+        if not ylims is None:
+            ax.set_ylim(ylims)
+        if not savepath is None:
+            plt.savefig(savepath,dpi=300)
+            plt.close()
 
     def plot_loss(self,elem=0):
         x=self.output[:,elem,0,:]
@@ -124,24 +136,25 @@ class NormalForms:
 
     def calc_xpx(self, part):
         Ix = (part[0]**2 + part[1]**2)/2
-        psi0 = np.arctan(part[1]/part[0])
+        psi0 = np.where(part[0]!=0, np.arctan(part[1]/part[0]), 0)
         Qx = self.Qx
         f = self.f
 
         hxplus = np.array([np.sqrt(2*Ix) * np.exp(-1j*(2*np.pi*Qx*N + psi0)) for N in range(self.num_turns)])
         for p in range(len(f)):
             for q in range(len(f[p])):
-                corr = np.array([2j * q*f[p,q] * (2*Ix)**((p+q-1)/2) * np.exp(1j*(q-p-1)*(2*np.pi*Qx*N + psi0)) for N in range(self.num_turns)])
-                hxplus += corr
+                if f[p,q] != 0:
+                    corr = np.array([2j * q*f[p,q] * (2*Ix)**((p+q-1)/2) * np.exp(1j*(q-p-1)*(2*np.pi*Qx*N + psi0)) for N in range(self.num_turns)])
+                    hxplus += corr
         
         hxmin = np.array([np.sqrt(2*Ix) * np.exp(1j*(2*np.pi*Qx*N + psi0)) for N in range(self.num_turns)])
-        print("Spectrum for hxmin...")
         for p in range(len(f)):
-            for q in range(len(f[p])):
-                corr = np.array([-2j * p*f[p,q] * (2*Ix)**((p+q-1)/2) * np.exp(1j*(q-p+1)*(2*np.pi*Qx*N + psi0)) for N in range(self.num_turns)])
-                hxmin += corr
-                if f[p, q] != 0:
-                    print(f"({q-p+1}, 0)")
+            for q in range(len(f[p])):                
+                if f[p,q] != 0:
+                    corr = np.array([-2j * p*f[p,q] * (2*Ix)**((p+q-1)/2) * np.exp(1j*(q-p+1)*(2*np.pi*Qx*N + psi0)) for N in range(self.num_turns)])
+                    hxmin += corr                    
+                    print(f"Spectral line: ({q-p+1}, 0)")
+            
                 
 
         x = (hxplus + hxmin) / 2
