@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import bpmeth
+import math
 
 class Phase4d:
     def __init__(self, phase_x, phase_y):
@@ -40,7 +41,7 @@ class Kick_x:
 
     def track(self, coord):
         x = coord[0]
-        coord[1] += self.kick*x**self.order
+        coord[1] += self.kick*x**self.order/math.factorial(self.order)
 
     def __repr__(self):
         return f"Kick_x({self.kick})"
@@ -52,7 +53,7 @@ class Kick_y:
 
     def track(self, coord):
         y = coord[2]
-        coord[3] += self.kick*y**self.order
+        coord[3] += self.kick*y**self.order/math.factorial(self.order)
 
     def __repr__(self):
         return f"Kick_y({self.kick})"

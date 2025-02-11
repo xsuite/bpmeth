@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
 
 class Phase:
@@ -27,7 +28,7 @@ class Kick:
 
     def track(self, coord):
         x=coord[0]
-        coord[1]+=self.kick*x**self.order
+        coord[1]+=self.kick*x**self.order/math.factorial(self.order)
 
     def __repr__(self):
         return f"Kick({self.kick})"
