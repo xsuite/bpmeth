@@ -6,24 +6,23 @@ import math
 
 npart = 10
 part = np.zeros((4, npart))
-part[0] = np.linspace(0, 0.3, npart)
-Qx = 0.33
-Qy = 0
-nturns = 100
+part[0] = np.linspace(0, 0.9, npart)
+Qx = 0.112
+Qy = 0.221
+nturns = 2**14
 xlims=[-1,1] 
 ylims=[-1,1]
 b3 = 0.1
-
-fig, ax = plt.subplots()
+b1 = 0.001
 
 # Solution with kicks
 line_kick = xt4d.Line4d([xt4d.Phase4d(Qx, Qy), xt4d.Kick_x(b3, 2)])
 o_kick = line_kick.track(part, num_turns=nturns)
-o_kick.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
+o_kick.plot_xpx(xlims=xlims, ylims=ylims)
 
 line_sext = xt4d.Line4d([xt4d.Phase4d(Qx, Qy), xt4d.Sextupole(b3)])
 o_sext = line_sext.track(part, num_turns=nturns)
-o_sext.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
+o_sext.plot_xpx(xlims=xlims, ylims=ylims)
 
 for i,tune in enumerate(np.arange(0.332,0.334,0.0001)):
    npart = 100
@@ -52,9 +51,14 @@ o_norm.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
 # Solution with numerical integration
 line_num = xt4d.Line4d([xt4d.Phase4d(Qx, Qy), xt4d.NumericalSextupole(-100, b3/100)])
 o_num = line_num.track(part, num_turns=nturns)
-o_num.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
+o_num.plot_xpx(xlims=xlims, ylims=ylims)
 
 index=95
 o_kick.plot_spectrum_x(index)
 o_norm.plot_spectrum_x(index)
 o_num.plot_spectrum_x(index)
+
+line_fringe = xt4d.Line4d([xt4d.Phase4d(Qx, Qy), xt4d.NumericalFringe(b1)])
+o_fringe = line_fringe.track(part, num_turns=nturns)
+o_fringe.plot_xpx(xlims=[-2, 2], ylims=ylims)
+o_fringe.plot_ypy(xlims=[-2, 2], ylims=ylims)

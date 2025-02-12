@@ -91,10 +91,16 @@ class Line4d:
     
 
 class NumericalFringe:
-    def __init__(self,b1,shape="(tanh(s)+1)/2", len=5):
+    def __init__(self,b1,aa=0.1,len=1,nphi=5):
         self.b1 = b1
-        self.shape = shape
+        self.aa = aa
         self.len = len
+        self.nphi = nphi
+
+        self.fringe1 = bpmeth.FringeVectorPotential(f"{self.b1}*(tanh(s/{self.aa})+1)/2", nphi=self.nphi)
+        self.H_fringe1 = bpmeth.Hamiltonian(-self.len/2, 0, self.fringe1)
+        self.fringe2 = bpmeth.FringeVectorPotential(f"{self.b1}*(tanh(s/{self.aa})-1)/2", nphi=self.nphi)
+        self.H_fringe2 = bpmeth.Hamiltonian(0, self.len/2, self.fringe2)
 
     
     def track(self,coord):
@@ -105,27 +111,15 @@ class NumericalFringe:
         y = coord[2]
         py = coord[3]
 
-        # First a backwards drift
-        drift = bpmeth.DriftVectorPotential()
-        H_drift = bpmeth.Hamiltonian(self.len/2, 0, drift)
-
-        # Then a fringe field map
-        fringe = bpmeth.FringeVectorPotential(f"{self.b1}*{self.shape}", nphi=5)
-        H_fringe = bpmeth.Hamiltonian(self.len, 0, fringe)
-
-        # Then a backwards bend
-        dipole = bpmeth.DipoleVectorPotential(0, self.b1)
-        H_dipole = bpmeth.Hamiltonian(self.len/2, 0, dipole)
         for i in range(npart):
             qp0 = [x[i], y[i], 0, px[i], py[i], 0]
-            sol_drift = H_drift.solve(qp0, s_span=[0, -self.len/2])
-            sol_fringe = H_fringe.solve(sol_drift.y[:, -1], s_span=[-self.len/2, self.len/2])
-            sol_dipole = H_dipole.solve(sol_fringe.y[:, -1], s_span=[self.len/2, 0])
+            sol_fringe1 = self.H_fringe1.solve(qp0, s_span=[-self.len/2, 0])
+            sol_fringe2 = self.H_fringe1.solve(sol_fringe1.y[:,-1], s_span=[0, self.len/2])
         
-            coord[0, i] = sol_dipole.y[0][-1]
-            coord[1, i] = sol_dipole.y[3][-1]
-            coord[2, i] = sol_dipole.y[1][-1]
-            coord[3, i] = sol_dipole.y[4][-1]
+            coord[0, i] = sol_fringe1.y[0][-1]
+            coord[1, i] = sol_fringe1.y[3][-1]
+            coord[2, i] = sol_fringe1.y[1][-1]
+            coord[3, i] = sol_fringe1.y[4][-1]
 
 
 class NumericalSextupole:
@@ -141,10 +135,10 @@ class NumericalSextupole:
         y = coord[2]
         py = coord[3]
 
+        sextupole = bpmeth.GeneralVectorPotential(0, b=("0", "0", f"{self.b3}"))
+        H_sextupole = bpmeth.Hamiltonian(self.len, 0, sextupole)
+        
         for i in range(npart):
-            sextupole = bpmeth.GeneralVectorPotential(0, b=("0", "0", f"{self.b3}"))
-            H_sextupole = bpmeth.Hamiltonian(self.len, 0, sextupole)
-
             sol = H_sextupole.solve([x[i], y[i], 0, px[i], py[i], 0], s_span=[0, self.len])
 
             coord[0, i] = sol.y[0][-1]
@@ -196,7 +190,8 @@ class Output4d:
 
     def plot_xpx(self,elem=0,ax=None,xlims=None,ylims=None,savepath=None):
         if ax is None:
-            fig,ax=plt.subplots()
+            fig = plt.figure()
+            ax=fig.add_subplot(aspect='equal')
         x=self.output[:,elem,0,:]
         px=self.output[:,elem,1,:]
         if self.cut is not None:
@@ -216,7 +211,8 @@ class Output4d:
 
     def plot_ypy(self,elem=0,ax=None,xlims=None,ylims=None,savepath=None):
         if ax is None:
-            fig,ax=plt.subplots()
+            fig = plt.figure()
+            ax=fig.add_subplot(aspect='equal')
         y=self.output[:,elem,2,:]
         py=self.output[:,elem,3,:]
         if self.cut is not None:
