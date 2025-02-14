@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import bpmeth
 import math
+import sympy as sp
 
 class Phase4d:
     def __init__(self, phase_x, phase_y):
@@ -73,55 +74,6 @@ class Sextupole:
         coord[3] += self.b3/2 * x*y
 
 
-class Line4d:
-    def __init__(self,elements):
-        self.elements = elements
-
-    def track(self, coord, num_turns=1):
-        tcoord=coord.copy()
-        ncoord,npart=coord.shape
-        nelem=len(self.elements)
-        output=np.zeros((num_turns,nelem,ncoord,npart))
-        for nturn in range(num_turns):
-            print(f"Turn {nturn}")
-            for ielem,element in enumerate(self.elements):
-                element.track(tcoord)
-                output[nturn,ielem]=tcoord
-        return Output4d(coord.copy(),output)
-    
-
-class NumericalFringe:
-    def __init__(self,b1,aa=0.1,len=1,nphi=5):
-        self.b1 = b1
-        self.aa = aa
-        self.len = len
-        self.nphi = nphi
-
-        self.fringe1 = bpmeth.FringeVectorPotential(f"{self.b1}*(tanh(s/{self.aa})+1)/2", nphi=self.nphi)
-        self.H_fringe1 = bpmeth.Hamiltonian(-self.len/2, 0, self.fringe1)
-        self.fringe2 = bpmeth.FringeVectorPotential(f"{self.b1}*(tanh(s/{self.aa})-1)/2", nphi=self.nphi)
-        self.H_fringe2 = bpmeth.Hamiltonian(0, self.len/2, self.fringe2)
-
-    
-    def track(self,coord):
-        ncoord,npart=coord.shape
-        
-        x = coord[0]
-        px = coord[1]
-        y = coord[2]
-        py = coord[3]
-
-        for i in range(npart):
-            qp0 = [x[i], y[i], 0, px[i], py[i], 0]
-            sol_fringe1 = self.H_fringe1.solve(qp0, s_span=[-self.len/2, 0])
-            sol_fringe2 = self.H_fringe1.solve(sol_fringe1.y[:,-1], s_span=[0, self.len/2])
-        
-            coord[0, i] = sol_fringe1.y[0][-1]
-            coord[1, i] = sol_fringe1.y[3][-1]
-            coord[2, i] = sol_fringe1.y[1][-1]
-            coord[3, i] = sol_fringe1.y[4][-1]
-
-
 class NumericalSextupole:
     def __init__(self, b3, len):
         self.b3 = b3
@@ -145,6 +97,104 @@ class NumericalSextupole:
             coord[1, i] = sol.y[3][-1]
             coord[2, i] = sol.y[1][-1]
             coord[3, i] = sol.y[4][-1]
+
+
+class NumericalFringe:
+    def __init__(self,b1,len=1,nphi=5):
+        """
+        :param b1: The shape of the fringe field as a string, example "0.1*(tanh(s/0.1)+1)/2"
+        :param len: Integration range
+        :param nphi: Number of terms included in expansion
+        """
+        
+        self.b1 = b1
+        self.len = len
+        self.nphi = nphi
+
+        self.fringe1 = bpmeth.FringeVectorPotential(self.b1, nphi=self.nphi)
+        self.H_fringe1 = bpmeth.Hamiltonian(-self.len/2, 0, self.fringe1)
+        self.fringe2 = bpmeth.FringeVectorPotential(self.b1, nphi=self.nphi)
+        self.H_fringe2 = bpmeth.Hamiltonian(0, self.len/2, self.fringe2)
+
+    
+    def track(self,coord):
+        ncoord,npart=coord.shape
+        
+        x = coord[0]
+        px = coord[1]
+        y = coord[2]
+        py = coord[3]
+
+        for i in range(npart):
+            qp0 = [x[i], y[i], 0, px[i], py[i], 0]
+            sol_fringe1 = self.H_fringe1.solve(qp0, s_span=[-self.len/2, 0])
+            sol_fringe2 = self.H_fringe1.solve(sol_fringe1.y[:,-1], s_span=[0, self.len/2])
+        
+            coord[0, i] = sol_fringe1.y[0][-1]
+            coord[1, i] = sol_fringe1.y[3][-1]
+            coord[2, i] = sol_fringe1.y[1][-1]
+            coord[3, i] = sol_fringe1.y[4][-1]
+
+
+class ForestFringe:
+    def __init__(self, b1, Kg):
+        """
+       :param b1: The design value for the magnet
+       :param Kg: The fringe field integral multiplied with the gap height of the magnet
+        """
+        
+        self.b1 = b1
+        self.Kg = Kg
+        x, y, px, py = sp.symbols("x y px py")
+        pz = sp.sqrt(1 - px**2 - py**2)
+        self.phi = self.b1*px/pz / (1+(py/pz)**2) - self.Kg*self.b1**2 * ((1-py**2)/pz**3 + (px/pz)**2*(1-px**2)/pz**3)
+        self.dphidpx = self.phi.diff(px)
+        self.dphidpy = self.phi.diff(py)
+        self.x, self.y, self.px, self.py = x, y, px, py
+        
+        
+    def track(self, coord):
+        """
+        No longitudinal coordinates yet, only 4d
+        """
+        
+        ncoord,npart=coord.shape
+
+        xi = coord[0]
+        pxi = coord[1]
+        yi = coord[2]
+        pyi = coord[3]
+        
+        for i in range(npart):
+            x, y, px, py = self.x, self.y, self.px, self.py
+            phi = float(self.phi.subs({x: xi[i], y: yi[i], px: pxi[i], py: pyi[i]}))
+            dphidpx = float(self.dphidpx.subs({x: xi[i], y: yi[i], px: pxi[i], py: pyi[i]}))
+            dphidpy = float(self.dphidpy.subs({x: xi[i], y: yi[i], px: pxi[i], py: pyi[i]}))
+            
+            yf = 2*yi[i] / (1 + np.sqrt(1 - 2*dphidpy*yi[i]))
+            xf = xi[i] + 1/2*dphidpx*yf**2
+            pyf = pyi[i] - phi*yf
+            
+            coord[0, i] = xf
+            coord[2, i] = yf
+            coord[3, i] = pyf
+        
+
+class Line4d:
+    def __init__(self,elements):
+        self.elements = elements
+
+    def track(self, coord, num_turns=1):
+        tcoord=coord.copy()
+        ncoord,npart=coord.shape
+        nelem=len(self.elements)
+        output=np.zeros((num_turns,nelem,ncoord,npart))
+        for nturn in range(num_turns):
+            print(f"Turn {nturn}")
+            for ielem,element in enumerate(self.elements):
+                element.track(tcoord)
+                output[nturn,ielem]=tcoord
+        return Output4d(coord.copy(),output)
 
 
 class Output4d:
@@ -236,28 +286,32 @@ class Output4d:
         cut=np.any((abs(x)>self.cut),axis=0)
         plt.plot(self.init[0],cut,'.')
 
-    def plot_spectrum_x(self,part,elem=-1):
+    def plot_spectrum_x(self,part,elem=-1,ax=None):
+        if ax is None:
+            fig, ax = plt.subplots()
         x=self.x(part,elem)
         px=self.px(part,elem)
         hfplus=np.abs(np.fft.fft(x+1j*px))
         ff=np.fft.fftfreq(len(x))
         hfplus=np.fft.fftshift(hfplus)
         ff=np.fft.fftshift(ff)
-        plt.plot(ff,np.log(hfplus), label="h+")
+        ax.plot(ff,np.log(hfplus), label="h+")
         
         # hfmin=np.abs(np.fft.fft(x-1j*px))
         # hfmin=np.fft.fftshift(hfmin)
         # plt.plot(ff,np.log(hfmin), label="h-")
         # plt.legend()
 
-    def plot_spectrum_y(self,part,elem=-1):
+    def plot_spectrum_y(self,part,elem=-1,ax=None):
+        if ax is None:
+            fig, ax = plt.subplots()
         y=self.y(part,elem)
         py=self.py(part,elem)
         hfplus=np.abs(np.fft.fft(y+1j*py))
         ff=np.fft.fftfreq(len(y))
         hfplus=np.fft.fftshift(hfplus)
         ff=np.fft.fftshift(ff)
-        plt.plot(ff,np.log(hfplus), label="h+")
+        ax.plot(ff,np.log(hfplus), label="h+")
 
 
 class NormalForms4d:
