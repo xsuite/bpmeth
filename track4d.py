@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import bpmeth
 import math
 import sympy as sp
+import warnings
 
 class Phase4d:
     def __init__(self, phase_x, phase_y):
@@ -100,21 +101,36 @@ class NumericalSextupole:
 
 
 class NumericalFringe:
-    def __init__(self,b1,len=1,nphi=5):
+    def __init__(self,b1,shape,len=1,nphi=5):
         """
-        :param b1: The shape of the fringe field as a string, example "0.1*(tanh(s/0.1)+1)/2"
+        :param b1: Amplitude of the dipole field
+        "param shape: The shape of the fringe field as a string, example "(tanh(s/0.1)+1)/2" normalized between zero and one
         :param len: Integration range
         :param nphi: Number of terms included in expansion
         """
         
         self.b1 = b1
+        self.shape = shape
         self.len = len
         self.nphi = nphi
 
-        self.fringe1 = bpmeth.FringeVectorPotential(self.b1, nphi=self.nphi)
-        self.H_fringe1 = bpmeth.Hamiltonian(-self.len/2, 0, self.fringe1)
-        self.fringe2 = bpmeth.FringeVectorPotential(self.b1, nphi=self.nphi)
-        self.H_fringe2 = bpmeth.Hamiltonian(0, self.len/2, self.fringe2)
+        # self.fringe1 = bpmeth.FringeVectorPotential(f"{self.b1}*{self.shape}", nphi=self.nphi)
+        # self.H_fringe1 = bpmeth.Hamiltonian(-self.len/2, 0, self.fringe1)
+        # self.fringe2 = bpmeth.FringeVectorPotential(f"{self.b1}*({self.shape}-1)", nphi=self.nphi)
+        # self.H_fringe2 = bpmeth.Hamiltonian(0, self.len/2, self.fringe2)
+        
+        
+        # First a backwards drift
+        self.drift = bpmeth.DriftVectorPotential()
+        self.H_drift = bpmeth.Hamiltonian(len/2, 0, self.drift)
+
+        # Then a fringe field map
+        self.fringe = bpmeth.FringeVectorPotential(f"{self.b1}*{self.shape}", nphi=0) # Only b1 and b1'
+        self.H_fringe = bpmeth.Hamiltonian(len, 0, self.fringe)
+
+        # Then a backwards bend
+        self.dipole = bpmeth.DipoleVectorPotential(0, self.b1)
+        self.H_dipole = bpmeth.Hamiltonian(len/2, 0, self.dipole)
 
     
     def track(self,coord):
@@ -127,13 +143,22 @@ class NumericalFringe:
 
         for i in range(npart):
             qp0 = [x[i], y[i], 0, px[i], py[i], 0]
-            sol_fringe1 = self.H_fringe1.solve(qp0, s_span=[-self.len/2, 0])
-            sol_fringe2 = self.H_fringe1.solve(sol_fringe1.y[:,-1], s_span=[0, self.len/2])
+            # sol_fringe1 = self.H_fringe1.solve(qp0, s_span=[-self.len/2, 0])
+            # sol_fringe2 = self.H_fringe1.solve(sol_fringe1.y[:,-1], s_span=[0, self.len/2])
         
-            coord[0, i] = sol_fringe1.y[0][-1]
-            coord[1, i] = sol_fringe1.y[3][-1]
-            coord[2, i] = sol_fringe1.y[1][-1]
-            coord[3, i] = sol_fringe1.y[4][-1]
+            # coord[0, i] = sol_fringe1.y[0][-1]
+            # coord[1, i] = sol_fringe1.y[3][-1]
+            # coord[2, i] = sol_fringe1.y[1][-1]
+            # coord[3, i] = sol_fringe1.y[4][-1]
+            
+            sol_drift = self.H_drift.solve(qp0, s_span=[0, -self.len/2])
+            sol_fringe = self.H_fringe.solve(sol_drift.y[:, -1], s_span=[-self.len/2, self.len/2])
+            sol_dipole = self.H_dipole.solve(sol_fringe.y[:, -1], s_span=[self.len/2, 0])
+            
+            coord[0, i] = sol_dipole.y[0][-1]
+            coord[1, i] = sol_dipole.y[3][-1]
+            coord[2, i] = sol_dipole.y[1][-1]
+            coord[3, i] = sol_dipole.y[4][-1]
 
 
 class ForestFringe:
@@ -190,7 +215,8 @@ class Line4d:
         nelem=len(self.elements)
         output=np.zeros((num_turns,nelem,ncoord,npart))
         for nturn in range(num_turns):
-            print(f"Turn {nturn}")
+            if nturn % 10 == 0:
+                print(f"Turn {nturn}")
             for ielem,element in enumerate(self.elements):
                 element.track(tcoord)
                 output[nturn,ielem]=tcoord
@@ -286,21 +312,34 @@ class Output4d:
         cut=np.any((abs(x)>self.cut),axis=0)
         plt.plot(self.init[0],cut,'.')
 
-    def plot_spectrum_x(self,part,elem=-1,ax=None):
+
+    def plot_spectrum_x(self,part,elem=-1,ax=None,log=True,padding=2**16,plot_hxmin=True,plot_hxplus=False):
         if ax is None:
             fig, ax = plt.subplots()
-        x=self.x(part,elem)
-        px=self.px(part,elem)
-        hfplus=np.abs(np.fft.fft(x+1j*px))
-        ff=np.fft.fftfreq(len(x))
-        hfplus=np.fft.fftshift(hfplus)
-        ff=np.fft.fftshift(ff)
-        ax.plot(ff,np.log(hfplus), label="h+")
+        x=np.r_[self.x(part,elem),np.zeros(padding-len(self.x(part,elem)))]
+        px=np.r_[self.px(part,elem),np.zeros(padding-len(self.px(part,elem)))]
         
-        # hfmin=np.abs(np.fft.fft(x-1j*px))
-        # hfmin=np.fft.fftshift(hfmin)
-        # plt.plot(ff,np.log(hfmin), label="h-")
-        # plt.legend()
+        hfplus=np.abs(np.fft.fft(x+1j*px))
+        hfplus=np.fft.fftshift(hfplus)
+        hfmin=np.abs(np.fft.fft(x-1j*px))
+        hfmin=np.fft.fftshift(hfmin)
+        ff=np.fft.fftfreq(len(x))
+        ff=np.fft.fftshift(ff)
+
+        if plot_hxmin:
+            if log:
+                ax.plot(ff,np.log(hfmin), label="h-")
+            else:
+                ax.plot(ff,hfmin, label="h-")
+
+        if plot_hxplus:
+            if log:
+                ax.plot(ff,np.log(hfplus), label="h+")
+            else:
+                ax.plot(ff,hfplus, label="h+")
+        
+        plt.legend()
+
 
     def plot_spectrum_y(self,part,elem=-1,ax=None):
         if ax is None:
@@ -345,6 +384,7 @@ class NormalForms4d:
         Ix = (part[0]**2 + part[1]**2)/2
         Iy = (part[2]**2 + part[3]**2)/2
         psi0x = np.where(part[0]!=0, np.arctan(part[1]/part[0]), 0)
+        print(part[2])
         psi0y = np.where(part[2]!=0, np.arctan(part[3]/part[2]), 0)
         Qx = self.Qx
         Qy = self.Qy
@@ -400,16 +440,27 @@ class NormalForms4d:
 
 
         x = (hxplus + hxmin) / 2
+        if any(abs(pp.imag) > 1e-10 for tt in x for pp in tt):
+            warnings.warn("x is not real, are you sure you gave a physical Hamiltonian?")
+            
         px = -1j * (hxplus - hxmin) / 2
+        if any(abs(pp.imag) > 1e-10 for tt in px for pp in tt):
+            warnings.warn("px is not real, are you sure you gave a physical Hamiltonian?")
 
         y = (hyplus + hymin) / 2
+        if any(abs(pp.imag) > 1e-10 for tt in y for pp in tt):
+            warnings.warn("y is not real, are you sure you gave a physical Hamiltonian?")
+
         py = -1j * (hyplus - hymin) / 2
+        if any(abs(pp.imag) > 1e-10 for tt in py for pp in tt):
+            warnings.warn("py is not real, are you sure you gave a physical Hamiltonian?")
 
-        output = np.zeros((self.num_turns, 1, 4, len(part[0])))
-
+        
+        output = np.zeros((self.num_turns, 1, 4, len(part[0])), dtype=complex)
+        
         for nturn in range(self.num_turns):
             output[nturn, 0] = np.array([x[nturn], px[nturn], y[nturn], py[nturn]])
-
+            
         return Output4d(part.copy(),output)
 
         
