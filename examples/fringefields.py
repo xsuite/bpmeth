@@ -1,7 +1,6 @@
 import bpmeth
 import numpy as np
 import matplotlib.pyplot as plt
-import track4d.py as xt4d
 
 """
 Plot the numerical solution for the Hamiltonian for a fringe field 
@@ -23,10 +22,10 @@ KKg = aa/2
 qp0 = [0,0,0,0,0,0]  # x, y, tau, px, py, ptau
 coord = np.array([[qp0[0]], [qp0[3]], [qp0[1]], [qp0[4]]])  # format that allows many particles
 
-fringe_thin = xt4d.ThinNumericalFringe(b1, b1shape, len=len, nphi=5)
+fringe_thin = bpmeth.ThinNumericalFringe(b1, b1shape, len=len, nphi=5)
 trajectory_thin = fringe_thin.track(coord.copy())[0]
 
-fringe_thick = xt4d.ThickNumericalFringe(b1, b1shape, len=len, nphi=5)
+fringe_thick = bpmeth.ThickNumericalFringe(b1, b1shape, len=len, nphi=5)
 trajectory_thick = fringe_thick.track(coord.copy())[0]
 
 fig3d = plt.figure()
