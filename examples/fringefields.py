@@ -1,33 +1,47 @@
 import bpmeth
 import numpy as np
 import matplotlib.pyplot as plt
+import track4d.py as xt4d
 
 """
-Plot the numerical solution for the Hamiltonian
+Plot the numerical solution for the Hamiltonian for a fringe field 
 """
+
 
 p_sp = bpmeth.SympyParticle()
 
-
-# Compare with the fringe field map
+# Properties
 h = 0
 len = 5
 b1 = 0.1
 aa = 1
-b1fringe = f"{b1}*(tanh(s/{aa})+1)/2" # Fringe field integral K = aa/(2g)
+b1shape = f"(tanh(s/{aa})+1)/2"
+b1fringe = f"{b1}*{b1shape}" # Fringe field integral K = aa/(2g)
 KKg = aa/2
 
-# First a backwards drift
-drift = bpmeth.DriftVectorPotential()
-H_drift = bpmeth.Hamiltonian(len/2, h, drift)
 
-# Then a fringe field map
-fringe = bpmeth.FringeVectorPotential(b1fringe, nphi=0) # Only b1 and b1'
-H_fringe = bpmeth.Hamiltonian(len, h, fringe)
+qp0 = [0,0,0,0,0,0]  # x, y, tau, px, py, ptau
+coord = np.array([[qp0[0]], [qp0[3]], [qp0[1]], [qp0[4]]])  # format that allows many particles
 
-# Then a backwards bend
-dipole = bpmeth.DipoleVectorPotential(h, b1)
-H_dipole = bpmeth.Hamiltonian(len/2, h, dipole)
+fringe_thin = xt4d.ThinNumericalFringe(b1, b1shape, len=len, nphi=5)
+trajectory_thin = fringe_thin.track(coord.copy())[0]
+
+fringe_thick = xt4d.ThickNumericalFringe(b1, b1shape, len=len, nphi=5)
+trajectory_thick = fringe_thick.track(coord.copy())[0]
+
+fig3d = plt.figure()
+ax3d = fig3d.add_subplot(111, projection='3d')
+trajectory_thin.plot_3d(ax=ax3d)
+trajectory_thick.plot_3d(ax=ax3d)
+
+fig, ax = plt.subplots()
+trajectory_thin.plot_x(ax=ax)
+trajectory_thick.plot_x(ax=ax)
+
+
+#################################
+# Make plots to see trends in y #
+#################################
 
 steps = 10
 xfs, yfs, pxfs, pyfs = np.zeros(steps), np.zeros(steps), np.zeros(steps), np.zeros(steps)
@@ -50,7 +64,6 @@ for i, y0 in enumerate(y0s):
     pxfs[i] = all_px[-1]
     pyfs[i] = all_py[-1]
 
-
 fig = plt.figure()
 ax = plt.axes(projection='3d')
 ax.plot3D(all_s, all_x, all_y, color='black')
@@ -68,7 +81,6 @@ ax1[0].set_ylabel('x')
 ax1[1].set_xlabel('s')
 ax1[1].set_ylabel('y')
 plt.show()
-
 
 fig, ax = plt.subplots(4)
 

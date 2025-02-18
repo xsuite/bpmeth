@@ -100,9 +100,12 @@ class NumericalSextupole:
             coord[3, i] = sol.y[4][-1]
 
 
-class NumericalFringe:
+class ThinNumericalFringe:   
     def __init__(self,b1,shape,len=1,nphi=5):
-        """
+        """    
+        Thick numerical fringe field at the edge of the magnet. 
+        It consists of a backwards drift, a fringe field map and a backwards bend.
+        
         :param b1: Amplitude of the dipole field
         "param shape: The shape of the fringe field as a string, example "(tanh(s/0.1)+1)/2" normalized between zero and one
         :param len: Integration range
@@ -110,30 +113,30 @@ class NumericalFringe:
         """
         
         self.b1 = b1
-        self.shape = shape
+        self.shape = shape        
+        self.b1fringe = f"{b1}*{shape}"
         self.len = len
-        self.nphi = nphi
-
-        # self.fringe1 = bpmeth.FringeVectorPotential(f"{self.b1}*{self.shape}", nphi=self.nphi)
-        # self.H_fringe1 = bpmeth.Hamiltonian(-self.len/2, 0, self.fringe1)
-        # self.fringe2 = bpmeth.FringeVectorPotential(f"{self.b1}*({self.shape}-1)", nphi=self.nphi)
-        # self.H_fringe2 = bpmeth.Hamiltonian(0, self.len/2, self.fringe2)
-        
+        self.nphi = nphi      
         
         # First a backwards drift
         self.drift = bpmeth.DriftVectorPotential()
-        self.H_drift = bpmeth.Hamiltonian(len/2, 0, self.drift)
+        self.H_drift = bpmeth.Hamiltonian(self.len/2, 0, self.drift)
 
         # Then a fringe field map
-        self.fringe = bpmeth.FringeVectorPotential(f"{self.b1}*{self.shape}", nphi=0) # Only b1 and b1'
-        self.H_fringe = bpmeth.Hamiltonian(len, 0, self.fringe)
+        self.fringe = bpmeth.FringeVectorPotential(self.b1fringe, nphi=0) # Only b1 and b1'
+        self.H_fringe = bpmeth.Hamiltonian(self.len, 0, self.fringe)
 
         # Then a backwards bend
         self.dipole = bpmeth.DipoleVectorPotential(0, self.b1)
-        self.H_dipole = bpmeth.Hamiltonian(len/2, 0, self.dipole)
+        self.H_dipole = bpmeth.Hamiltonian(self.len/2, 0, self.dipole)
 
     
-    def track(self,coord):
+    def track(self, coord):
+        """
+        :param coord: List of coordinates [x, px, y, py], 
+                      with x = coord[0] etc lists of coordinates for all N particles.
+        :return: A list of trajectory elements for all particles
+        """
         ncoord,npart=coord.shape
         
         x = coord[0]
@@ -141,16 +144,10 @@ class NumericalFringe:
         y = coord[2]
         py = coord[3]
 
+        trajectories = []
         for i in range(npart):
             qp0 = [x[i], y[i], 0, px[i], py[i], 0]
-            # sol_fringe1 = self.H_fringe1.solve(qp0, s_span=[-self.len/2, 0])
-            # sol_fringe2 = self.H_fringe1.solve(sol_fringe1.y[:,-1], s_span=[0, self.len/2])
-        
-            # coord[0, i] = sol_fringe1.y[0][-1]
-            # coord[1, i] = sol_fringe1.y[3][-1]
-            # coord[2, i] = sol_fringe1.y[1][-1]
-            # coord[3, i] = sol_fringe1.y[4][-1]
-            
+                        
             sol_drift = self.H_drift.solve(qp0, s_span=[0, -self.len/2])
             sol_fringe = self.H_fringe.solve(sol_drift.y[:, -1], s_span=[-self.len/2, self.len/2])
             sol_dipole = self.H_dipole.solve(sol_fringe.y[:, -1], s_span=[self.len/2, 0])
@@ -159,7 +156,101 @@ class NumericalFringe:
             coord[1, i] = sol_dipole.y[3][-1]
             coord[2, i] = sol_dipole.y[1][-1]
             coord[3, i] = sol_dipole.y[4][-1]
+        
+            all_s = np.append(sol_drift.t, [sol_fringe.t, sol_dipole.t])
+            all_x = np.append(sol_drift.y[0], [sol_fringe.y[0], sol_dipole.y[0]])
+            all_y = np.append(sol_drift.y[1], [sol_fringe.y[1], sol_dipole.y[1]])
+            all_px = np.append(sol_drift.y[3], [sol_fringe.y[3], sol_dipole.y[3]])
+            all_py = np.append(sol_drift.y[4], [sol_fringe.y[4], sol_dipole.y[4]])
+        
+            trajectories.append(Trajectory(all_s, all_x, all_px, all_y, all_py))
+            
+        return trajectories
 
+
+class ThickNumericalFringe:
+    def __init__(self,b1,shape,len=1,nphi=5):
+        """    
+        Thick numerical fringe field at the edge of the magnet. 
+        It consists of a backwards drift, a fringe field map and a backwards bend.
+        
+        :param b1: Amplitude of the dipole field
+        "param shape: The shape of the fringe field as a string, example "(tanh(s/0.1)+1)/2" normalized between zero and one
+        :param len: Integration range
+        :param nphi: Number of terms included in expansion
+        """
+        
+        self.b1 = b1
+        self.shape = shape
+        self.b1fringe = f"{b1}*{shape}"
+        self.len = len
+        self.nphi = nphi
+        
+        # Fringe up to the dipole edge
+        self.fringe1 = bpmeth.FringeVectorPotential(self.b1fringe, nphi=5)
+        self.H_fringe1 = bpmeth.Hamiltonian(len/2, 0, self.fringe1)
+
+        # Fringe inside dipole
+        self.fringe2 = bpmeth.FringeVectorPotential(f"{self.b1fringe} - {self.b1}", nphi=5)
+        self.H_fringe2 = bpmeth.Hamiltonian(len/2, 0, self.fringe2)
+        
+    def track(self, coord):
+        """
+        :param coord: List of coordinates [x, px, y, py], 
+                      with x = coord[0] etc lists of coordinates for all N particles.
+        :return: A list of trajectory elements for all particles
+        """
+        
+        ncoord,npart=coord.shape
+        
+        x = coord[0]
+        px = coord[1]
+        y = coord[2]
+        py = coord[3]
+        
+        p_sp = bpmeth.SympyParticle()
+        trajectories = []
+        for i in range(npart):
+            qp0 = [x[i], y[i], 0, px[i], py[i], 0]
+            print("qp0:", qp0)
+            
+            sol_fringe1 = self.H_fringe1.solve(qp0, s_span=[-self.len/2, 0])
+            
+            # Changing the canonical momenta: 
+            # x' and y' are continuous in changing vector potential, px and py are not! 
+            # Usually this is not an issue as a_x, a_y are typically zero in the regions between maps
+            xval, yval, tauval, pxval, pyval, ptauval = sol_fringe1.y[:, -1]
+
+            ax1 = self.fringe1.get_A(p_sp)[0].subs({p_sp.s:0, p_sp.x:xval, p_sp.y:yval}).evalf()
+            ax2 = self.fringe2.get_A(p_sp)[0].subs({p_sp.s:0, p_sp.x:xval, p_sp.y:yval}).evalf()
+
+            ay1 = self.fringe1.get_A(p_sp)[1].subs({p_sp.s:0, p_sp.x:xval, p_sp.y:yval}).evalf()
+            ay2 = self.fringe2.get_A(p_sp)[1].subs({p_sp.s:0, p_sp.x:xval, p_sp.y:yval}).evalf()
+            print("Vector potentials:", ax1, ax2, ay1, ay2)
+
+            # assert (h==0), "h is not zero, this is not implemented yet"
+            pxval += (ax2 - ax1)
+            pyval += (ay2 - ay1)
+            qp = [xval, yval, tauval, pxval, pyval, ptauval]
+            
+            sol_fringe2 = self.H_fringe2.solve(qp, s_span=[0, self.len/2])
+
+            coord[0, i] = sol_fringe2.y[0][-1]
+            coord[1, i] = sol_fringe2.y[3][-1]
+            coord[2, i] = sol_fringe2.y[1][-1]
+            coord[3, i] = sol_fringe2.y[4][-1]
+            
+            all_s = np.append(sol_fringe1.t, sol_fringe2.t)
+            all_x = np.append(sol_fringe1.y[0], sol_fringe2.y[0])
+            all_y = np.append(sol_fringe1.y[1], sol_fringe2.y[1])
+            all_px = np.append(sol_fringe1.y[3], sol_fringe2.y[3])
+            all_py = np.append(sol_fringe1.y[4], sol_fringe2.y[4])
+            
+            trajectories.append(Trajectory(all_s, all_x, all_px, all_y, all_py))
+        
+        return trajectories
+    
+    
 
 class ForestFringe:
     def __init__(self, b1, Kg):
@@ -204,6 +295,42 @@ class ForestFringe:
             coord[2, i] = yf
             coord[3, i] = pyf
         
+
+class Trajectory:
+    def __init__(self, s, x, px, y, py):
+        self.s = s
+        self.x = x
+        self.px = px
+        self.y = y
+        self.py = py
+
+    def plot_3d(self, ax=None):
+        if ax is None:
+            fig = plt.figure()
+            ax = fig.add_subplot(projection='3d')
+        ax.plot3D(self.s, self.x, self.y)
+        ax.set_xlabel('s')
+        ax.set_ylabel('x')
+        ax.set_zlabel('y')
+        
+    def plot_x(self, ax=None, label=None):
+        if ax is None:
+            fig, ax = plt.subplots()
+        ax.plot(self.s, self.x, label=label)
+        ax.set_xlabel('s')
+        ax.set_ylabel('x')
+        plt.legend()
+    
+    def plot_y(self, ax=None, label=None):
+        if ax is None:
+            fig, ax = plt.subplots()
+        ax.plot(self.s, self.y, label=label)
+        ax.set_xlabel('s')
+        ax.set_ylabel('y')
+        plt.legend()
+    
+    
+    
 
 class Line4d:
     def __init__(self,elements):
