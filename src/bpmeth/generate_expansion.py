@@ -92,7 +92,7 @@ class FieldExpansion:
             return Bx, By, Bs
 
 
-    def plotfield(self):
+    def plotfield(self, ax=None):
         ymin, ymax, ystep = -2, 2, 0.05
         zmin, zmax, zstep = -3, 3, 0.05
         Y = np.arange(ymin, ymax, ystep)
@@ -106,6 +106,8 @@ class FieldExpansion:
 
         bmagn = np.sqrt(By**2 + Bs**2)
 
+        if ax is None:
+            fig, ax = plt.subplots()
         plt.imshow(bmagn, extent=(zmin, zmax, ymin, ymax), origin='lower')
         plt.colorbar()
         skip = 4

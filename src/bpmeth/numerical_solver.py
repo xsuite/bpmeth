@@ -53,7 +53,7 @@ class Hamiltonian:
         if s_span is None:
             s_span = [0, self.length]
         if ivp_opt is None:
-            ivp_opt = {'t_eval': np.linspace(s_span[0], s_span[1], 500)}
+            ivp_opt = {'t_eval': np.linspace(s_span[0], s_span[1], 500), "rtol":1e-4, "atol":1e-7}
         f = self.vectorfield
         sol = solve_ivp(f, s_span, qp0, **ivp_opt)
         return sol
@@ -144,6 +144,15 @@ class FringeVectorPotential:  # In a straight coordinate frame
             Ay.subs({fringe.x: x, fringe.y: y, fringe.s: s}).evalf(),
             As.subs({fringe.x: x, fringe.y: y, fringe.s: s}).evalf()
         ]
+    
+    def plotfield(self):
+        fringe = FieldExpansion(b=(self.b1,), nphi=self.nphi)
+        fringe.plotfield()
+        
+    def get_Bfield(self):
+        fringe = FieldExpansion(b=(self.b1,), nphi=self.nphi)
+        return fringe.get_Bfield()
+
     
 class SolenoidVectorPotential:  # In straight coordinate frame
     def __init__(self, bs):
