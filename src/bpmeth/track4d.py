@@ -106,10 +106,11 @@ class ThinNumericalFringe:
         Thick numerical fringe field at the edge of the magnet. 
         It consists of a backwards drift, a fringe field map and a backwards bend.
         
-        :param b1: Amplitude of the dipole field
-        "param shape: The shape of the fringe field as a string, example "(tanh(s/0.1)+1)/2" normalized between zero and one
-        :param len: Integration range
-        :param nphi: Number of terms included in expansion
+        :param b1: Amplitude of the dipole field.
+        "param shape: The shape of the fringe field as a string, example "(tanh(s/0.1)+1)/2" 
+            normalized between zero and one.
+        :param len: Integration range.
+        :param nphi: Number of terms included in expansion.
         """
         
         self.b1 = b1
@@ -134,8 +135,8 @@ class ThinNumericalFringe:
     def track(self, coord):
         """
         :param coord: List of coordinates [x, px, y, py], 
-                      with x = coord[0] etc lists of coordinates for all N particles.
-        :return: A list of trajectory elements for all particles
+            with x = coord[0] etc lists of coordinates for all N particles.
+        :return: A list of trajectory elements for all particles.
         """
         
         ncoord,npart=coord.shape
@@ -176,10 +177,11 @@ class ThickNumericalFringe:
         Thick numerical fringe field at the edge of the magnet. 
         It consists of a backwards drift, a fringe field map and a backwards bend.
         
-        :param b1: Amplitude of the dipole field
-        "param shape: The shape of the fringe field as a string, example "(tanh(s/0.1)+1)/2" normalized between zero and one
-        :param len: Integration range
-        :param nphi: Number of terms included in expansion
+        :param b1: Amplitude of the dipole field.
+        "param shape: The shape of the fringe field as a string, example "(tanh(s/0.1)+1)/2" 
+            normalized between zero and one.
+        :param len: Integration range.
+        :param nphi: Number of terms included in expansion.
         """
         
         self.b1 = b1
@@ -203,9 +205,10 @@ class ThickNumericalFringe:
     def track(self, coord, makethin=True):
         """
         :param coord: List of coordinates [x, px, y, py], 
-                      with x = coord[0] etc lists of coordinates for all N particles.
-        :return: A list of trajectory elements for all particles 
-        :param makethin: If True, backwards drifts are included 0->-L/2 and L/2->0 to have a thin map at the edge
+            with x = coord[0] etc lists of coordinates for all N particles.
+        :param makethin: If True, backwards drifts are included 0->-L/2 and L/2->0 
+            to have a thin map at the edge.
+        :return: A list of trajectory elements for all particles. 
 
         """
         ncoord,npart=coord.shape
@@ -275,14 +278,16 @@ class ThickNumericalFringe:
     
 
 class ForestFringe:
-    def __init__(self, b1, Kg):
+    def __init__(self, b1, Kg, K0gg=0):
         """
-       :param b1: The design value for the magnet
-       :param Kg: The fringe field integral multiplied with the gap height of the magnet
+       :param b1: The design value for the magnet.
+       :param Kg: The fringe field integral K times gap height multiplied with the gap height of the magnet.
+       "param K0gg: Fringe field integral K0 times gap height squared for the closed orbit effect
         """
         
         self.b1 = b1
         self.Kg = Kg
+        self.K0gg = K0gg
         x, y, px, py = sp.symbols("x y px py")
         pz = sp.sqrt(1 - px**2 - py**2)
         self.phi = self.b1*px/pz / (1+(py/pz)**2) - self.Kg*self.b1**2 * ((1-py**2)/pz**3 + (px/pz)**2*(1-px**2)/pz**3)
@@ -291,9 +296,16 @@ class ForestFringe:
         self.x, self.y, self.px, self.py = x, y, px, py
         
         
-    def track(self, coord):
+    def track(self, coord, sadistic=False, closedorbit=False):
         """
         No longitudinal coordinates yet, only 4d
+        
+        :param coord: List of coordinates [x, px, y, py], 
+            with x = coord[0] etc lists of coordinates for all N particles.
+        :param sadistic: Include the sadistic term.
+        :param closedorbit: Include the closed orbit distortion as a shift in x.
+            (This is symplectic as long as the shift is independent of the coordinates.)
+        :return: A list of trajectory elements for all particles.
         """
         
         ncoord,npart=coord.shape
@@ -319,6 +331,11 @@ class ForestFringe:
             coord[2, i] = yf
             coord[3, i] = pyf
             
+            if closedorbit:
+                assert(self.K0gg != 0), "K0gg must be non-zero for closed orbit distortion"
+                xf -= self.K0gg / np.sqrt(1 - pxi[i]**2 - pyi[i]**2)
+                coord[0, i] = xf
+            
             trajectories.add_trajectory(Trajectory([0, 0], [xi[i], xf], [pxi[i], pxi[i]], [yi[i], yf], [pyi[i], pyf]))
             
         return trajectories
@@ -332,14 +349,15 @@ class Trajectory:
         self.y = y
         self.py = py
 
-    def plot_3d(self, ax=None):
+    def plot_3d(self, ax=None, label=None):
         if ax is None:
             fig = plt.figure()
             ax = fig.add_subplot(projection='3d')
-        ax.plot3D(self.s, self.x, self.y)
+        ax.plot3D(self.s, self.x, self.y, label=None)
         ax.set_xlabel('s')
         ax.set_ylabel('x')
         ax.set_zlabel('y')
+        plt.legend()
         return ax
     
     def plot_x(self, ax=None, label=None):
