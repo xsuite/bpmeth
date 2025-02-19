@@ -187,7 +187,7 @@ class ThickNumericalFringe:
         self.b1fringe = f"{b1}*{shape}"
         self.len = len
         self.nphi = nphi
-                
+        
         # Backwards drift
         self.drift = bpmeth.DriftVectorPotential()
         self.H_drift = bpmeth.Hamiltonian(self.len/2, 0, self.drift)
@@ -200,11 +200,13 @@ class ThickNumericalFringe:
         self.fringe2 = bpmeth.FringeVectorPotential(f"{self.b1fringe} - {self.b1}", nphi=nphi)
         self.H_fringe2 = bpmeth.Hamiltonian(len/2, 0, self.fringe2)
         
-    def track(self, coord):
+    def track(self, coord, makethin=True):
         """
         :param coord: List of coordinates [x, px, y, py], 
                       with x = coord[0] etc lists of coordinates for all N particles.
-        :return: A list of trajectory elements for all particles
+        :return: A list of trajectory elements for all particles 
+        :param makethin: If True, backwards drifts are included 0->-L/2 and L/2->0 to have a thin map at the edge
+
         """
         ncoord,npart=coord.shape
         
@@ -217,8 +219,12 @@ class ThickNumericalFringe:
         trajectories = MultiTrajectory(trajectories = [])
         for i in range(npart):
             qp0 = [x[i], y[i], 0, px[i], py[i], 0]
-            sol_drift1 = self.H_drift.solve(qp0, s_span=[0, -self.len/2])
-            sol_fringe1 = self.H_fringe1.solve(sol_drift1.y[:,-1], s_span=[-self.len/2, 0])
+            
+            if makethin:
+                sol_drift1 = self.H_drift.solve(qp0, s_span=[0, -self.len/2])
+                qp0 = sol_drift1.y[:,-1]
+                
+            sol_fringe1 = self.H_fringe1.solve(qp0, s_span=[-self.len/2, 0])
             
             # Changing the canonical momenta: 
             # x' and y' are continuous in changing vector potential, px and py are not! 
@@ -237,18 +243,30 @@ class ThickNumericalFringe:
             qp = [xval, yval, tauval, pxval, pyval, ptauval]
             
             sol_fringe2 = self.H_fringe2.solve(qp, s_span=[0, self.len/2])
-            sol_drift2 = self.H_drift.solve(sol_fringe2.y[:,-1], s_span=[self.len/2, 0])
-
-            coord[0, i] = sol_drift2.y[0][-1]
-            coord[1, i] = sol_drift2.y[3][-1]
-            coord[2, i] = sol_drift2.y[1][-1]
-            coord[3, i] = sol_drift2.y[4][-1]
+            xsol, ysol, tausol, pxsol, pysol, ptausol = sol_fringe2.y[:,-1]
             
-            all_s = np.append(sol_drift1.t, [sol_fringe1.t, sol_fringe2.t, sol_drift2.t])
-            all_x = np.append(sol_drift1.y[0], [sol_fringe1.y[0], sol_fringe2.y[0], sol_drift2.y[0]])
-            all_y = np.append(sol_drift1.y[1], [sol_fringe1.y[1], sol_fringe2.y[1], sol_drift2.y[1]])
-            all_px = np.append(sol_drift1.y[3], [sol_fringe1.y[3], sol_fringe2.y[3], sol_drift2.y[3]])
-            all_py = np.append(sol_drift1.y[4], [sol_fringe1.y[4], sol_fringe2.y[4], sol_drift2.y[4]])
+            if makethin:
+                sol_drift2 = self.H_drift.solve([xsol, ysol, tausol, pxsol, pysol, ptausol], 
+                                                s_span=[self.len/2, 0])
+                xsol, ysol, tausol, pxsol, pysol, ptausol = sol_drift2.y[:,-1]
+
+            coord[0, i] = xsol
+            coord[1, i] = pxsol
+            coord[2, i] = ysol
+            coord[3, i] = pysol
+            
+            if makethin:
+                all_s = np.append(sol_drift1.t, [sol_fringe1.t, sol_fringe2.t, sol_drift2.t])
+                all_x = np.append(sol_drift1.y[0], [sol_fringe1.y[0], sol_fringe2.y[0], sol_drift2.y[0]])
+                all_y = np.append(sol_drift1.y[1], [sol_fringe1.y[1], sol_fringe2.y[1], sol_drift2.y[1]])
+                all_px = np.append(sol_drift1.y[3], [sol_fringe1.y[3], sol_fringe2.y[3], sol_drift2.y[3]])
+                all_py = np.append(sol_drift1.y[4], [sol_fringe1.y[4], sol_fringe2.y[4], sol_drift2.y[4]])
+            else:
+                all_s = np.append(sol_fringe1.t, sol_fringe2.t)
+                all_x = np.append(sol_fringe1.y[0], sol_fringe2.y[0])
+                all_y = np.append(sol_fringe1.y[1], sol_fringe2.y[1])
+                all_px = np.append(sol_fringe1.y[3], sol_fringe2.y[3])
+                all_py = np.append(sol_fringe1.y[4], sol_fringe2.y[4])
             
             trajectories.add_trajectory(Trajectory(all_s, all_x, all_px, all_y, all_py))
         

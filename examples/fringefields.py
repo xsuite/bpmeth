@@ -37,7 +37,7 @@ figx, axx = plt.subplots()
 trajectory_thin.plot_x(ax=axx)
 trajectory_thick.plot_x(ax=axx)
 
-figx, axy = plt.subplots()
+figy, axy = plt.subplots()
 trajectory_thin.plot_y(ax=axy)
 trajectory_thick.plot_y(ax=axy)
 
