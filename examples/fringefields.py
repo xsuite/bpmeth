@@ -32,6 +32,11 @@ b1fringe = f"{b1}*{b1shape}" # Fringe field integral K = aa/(2g)
 Kg = aa/2
 K0gg = K0ggtanh(b1, aa, len/2)
 
+
+#################################
+# Compare the trajectories      #
+#################################
+
 qp0 = [0,1,0,0,0,0]  # x, y, tau, px, py, ptau
 coord = np.array([[qp0[0]], [qp0[3]], [qp0[1]], [qp0[4]]])  # format that allows many particles
 
@@ -43,10 +48,11 @@ fringe_thick = bpmeth.ThickNumericalFringe(b1, b1shape, len=len, nphi=5)
 trajectories_thick = fringe_thick.track(coord.copy())
 trajectory_thick = trajectories_thick.get_trajectory(0)
 
-fringe_forest = bpmeth.ForestFringe(b1, Kg, K0gg)
-trajectories_forest = fringe_forest.track(coord.copy(), closedorbit=False)
+fringe_forest = bpmeth.ForestFringe(b1, Kg, K0gg, closedorbit=False)
+trajectories_forest = fringe_forest.track(coord.copy())
 trajectory_forest = trajectories_forest.get_trajectory(0)
-trajectories_forest_co = fringe_forest.track(coord.copy(), closedorbit=True)
+fringe_forest_co = bpmeth.ForestFringe(b1, Kg, K0gg, closedorbit=True)
+trajectories_forest_co = fringe_forest.track(coord.copy())
 trajectory_forest_co = trajectories_forest_co.get_trajectory(0)
 
 fig3d = plt.figure()
@@ -80,6 +86,7 @@ trajectory_thick.plot_py(ax=axpy, label='thick')
 trajectory_forest.plot_py(ax=axpy, label='forest')
 trajectory_forest_co.plot_py(ax=axpy, label='forest with closed orbit effect')
 
+# => Thick fringe is not the real physical effect! It assumes that the maps commute which is not true
 
 
 #################################
@@ -118,4 +125,3 @@ trajectories_thick.get_trajectory(index).plot_y(ax=ax2, label='thick')
 trajectories_forest.get_trajectory(index).plot_y(ax=ax2, label='forest')
 
 # => The "focussing term" in forest is actually physical, with a third order correction (the sadistic term)
-

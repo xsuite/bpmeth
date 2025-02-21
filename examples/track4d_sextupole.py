@@ -11,7 +11,7 @@ Analysis of a ring with a single sextupole
 npart = 50
 part = np.zeros((4, npart))
 part[0] = np.linspace(0, 0.9, npart)
-Qx = 0.112
+Qx = 0.332
 Qy = 0.221
 nturns = 2**14
 xlims=[-1,1] 

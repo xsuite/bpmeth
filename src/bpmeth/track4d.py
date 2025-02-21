@@ -79,6 +79,9 @@ class NumericalSextupole:
     def __init__(self, b3, len):
         self.b3 = b3
         self.len = len
+        
+        self.sextupole = bpmeth.GeneralVectorPotential(0, b=("0", "0", f"{self.b3}"))
+        self.H_sextupole = bpmeth.Hamiltonian(self.len, 0, self.sextupole)
 
     def track(self, coord):
         ncoord,npart=coord.shape
@@ -86,13 +89,10 @@ class NumericalSextupole:
         x = coord[0]
         px = coord[1]
         y = coord[2]
-        py = coord[3]
-
-        sextupole = bpmeth.GeneralVectorPotential(0, b=("0", "0", f"{self.b3}"))
-        H_sextupole = bpmeth.Hamiltonian(self.len, 0, sextupole)
+        py = coord[3]       
         
         for i in range(npart):
-            sol = H_sextupole.solve([x[i], y[i], 0, px[i], py[i], 0], s_span=[0, self.len])
+            sol = self.H_sextupole.solve([x[i], y[i], 0, px[i], py[i], 0], s_span=[0, self.len])
 
             coord[0, i] = sol.y[0][-1]
             coord[1, i] = sol.y[3][-1]
@@ -149,7 +149,6 @@ class ThinNumericalFringe:
         trajectories = MultiTrajectory(trajectories=[])
         for i in range(npart):
             qp0 = [x[i], y[i], 0, px[i], py[i], 0]
-                        
             sol_drift = self.H_drift.solve(qp0, s_span=[0, -self.len/2])
             sol_fringe = self.H_fringe.solve(sol_drift.y[:, -1], s_span=[-self.len/2, self.len/2])
             sol_dipole = self.H_dipole.solve(sol_fringe.y[:, -1], s_span=[self.len/2, 0])
@@ -158,7 +157,7 @@ class ThinNumericalFringe:
             coord[1, i] = sol_dipole.y[3][-1]
             coord[2, i] = sol_dipole.y[1][-1]
             coord[3, i] = sol_dipole.y[4][-1]
-        
+
             all_s = np.append(sol_drift.t, [sol_fringe.t, sol_dipole.t])
             all_x = np.append(sol_drift.y[0], [sol_fringe.y[0], sol_dipole.y[0]])
             all_y = np.append(sol_drift.y[1], [sol_fringe.y[1], sol_dipole.y[1]])
@@ -278,7 +277,7 @@ class ThickNumericalFringe:
     
 
 class ForestFringe:
-    def __init__(self, b1, Kg, K0gg=0):
+    def __init__(self, b1, Kg, K0gg=0, closedorbit=False, sadistic=False):
         """
        :param b1: The design value for the magnet.
        :param Kg: The fringe field integral K times gap height multiplied with the gap height of the magnet.
@@ -294,9 +293,14 @@ class ForestFringe:
         self.dphidpx = self.phi.diff(px)
         self.dphidpy = self.phi.diff(py)
         self.x, self.y, self.px, self.py = x, y, px, py
+        self.closedorbit = closedorbit
+        self.sadistic = sadistic
+        if self.sadistic:
+            warnings.warn("Sadistic term not yet implemented")
         
         
-    def track(self, coord, sadistic=False, closedorbit=False):
+        
+    def track(self, coord):
         """
         No longitudinal coordinates yet, only 4d
         
@@ -331,7 +335,7 @@ class ForestFringe:
             coord[2, i] = yf
             coord[3, i] = pyf
             
-            if closedorbit:
+            if self.closedorbit:
                 assert(self.K0gg != 0), "K0gg must be non-zero for closed orbit distortion"
                 xf -= self.K0gg / np.sqrt(1 - pxi[i]**2 - pyi[i]**2)
                 coord[0, i] = xf
@@ -552,44 +556,104 @@ class Output4d:
         plt.plot(self.init[0],cut,'.')
 
 
-    def plot_spectrum_x(self,part,elem=-1,ax=None,log=True,padding=2**16,plot_hxmin=True,plot_hxplus=False):
+    def plot_spectrum_x(self,part,elem=-1,ax=None,log=True,padding=2**16,plot_hxmin=True,
+                        plot_hxplus=False,plot_phase=False,unwrap=True,ax_phase=None,label=None,color="black"):
         if ax is None:
             fig, ax = plt.subplots()
-        x=np.r_[self.x(part,elem),np.zeros(padding-len(self.x(part,elem)))]
-        px=np.r_[self.px(part,elem),np.zeros(padding-len(self.px(part,elem)))]
+        if plot_phase and ax_phase is None:
+            fig_phase, ax_phase = plt.subplots()
+            
+        x = np.r_[self.x(part,elem),np.zeros(padding-len(self.x(part,elem)))]
+        px = np.r_[self.px(part,elem),np.zeros(padding-len(self.px(part,elem)))]
         
-        hfplus=np.abs(np.fft.fft(x+1j*px))
-        hfplus=np.fft.fftshift(hfplus)
-        hfmin=np.abs(np.fft.fft(x-1j*px))
-        hfmin=np.fft.fftshift(hfmin)
-        ff=np.fft.fftfreq(len(x))
-        ff=np.fft.fftshift(ff)
+        hfplus = np.fft.fft(x+1j*px)
+        hfplusabs = np.abs(hfplus)
+        hfplusabs = np.fft.fftshift(hfplusabs)
+        hfplusangle = np.angle(hfplus)
+        hfplusangle = np.fft.fftshift(hfplusangle) 
+        if unwrap:
+            hfplusangle = np.unwrap(hfplusangle)
+        
+        hfmin = np.fft.fft(x-1j*px)
+        hfminabs = np.abs(hfmin)
+        hfminabs = np.fft.fftshift(hfminabs)
+        hfminangle = np.angle(hfmin)
+        hfminangle = np.fft.fftshift(hfminangle)
+        if unwrap:
+            hfminangle = np.unwrap(hfminangle)
+        
+        ff = np.fft.fftfreq(len(x))
+        ff = np.fft.fftshift(ff)
 
         if plot_hxmin:
             if log:
-                ax.plot(ff,np.log(hfmin), label="h-")
+                ax.plot(ff,np.log(hfminabs), label=f"h- {label}", color=color)
             else:
-                ax.plot(ff,hfmin, label="h-")
+                ax.plot(ff,hfminabs, label=f"h- {label}", color=color)
+        
+            if plot_phase:
+                ax_phase.plot(ff,hfminangle, label=f"Phase h- {label}", color=color, linestyle='--')  
 
         if plot_hxplus:
             if log:
-                ax.plot(ff,np.log(hfplus), label="h+")
+                ax.plot(ff,np.log(hfplusabs), label=f"h+ {label}", color=color)
             else:
-                ax.plot(ff,hfplus, label="h+")
-        
+                ax.plot(ff,hfplusabs, label=f"h+ {label}", color=color)
+                
+            if plot_phase:
+                ax_phase.plot(ff,hfplusangle, label=f"Phase h+ {label}", color=color, linestyle='--')
+                
         plt.legend()
 
 
-    def plot_spectrum_y(self,part,elem=-1,ax=None):
+    def plot_spectrum_y(self,part,elem=-1,ax=None,log=True,padding=2**16,plot_hxmin=True,
+                        plot_hxplus=False,plot_phase=False,unwrap=True,ax_phase=None,label=None,color="black"):
         if ax is None:
             fig, ax = plt.subplots()
-        y=self.y(part,elem)
-        py=self.py(part,elem)
-        hfplus=np.abs(np.fft.fft(y+1j*py))
-        ff=np.fft.fftfreq(len(y))
-        hfplus=np.fft.fftshift(hfplus)
-        ff=np.fft.fftshift(ff)
-        ax.plot(ff,np.log(hfplus), label="h+")
+        if plot_phase and ax_phase is None:
+            fig_phase, ax_phase = plt.subplots()
+            
+        y = np.r_[self.y(part,elem),np.zeros(padding-len(self.y(part,elem)))]
+        py = np.r_[self.py(part,elem),np.zeros(padding-len(self.py(part,elem)))]
+              
+        hfplus = np.fft.fft(y+1j*py)
+        hfplusabs = np.abs(hfplus)
+        hfplusabs = np.fft.fftshift(hfplusabs)
+        hfplusangle = np.angle(hfplus)
+        hfplusangle = np.fft.fftshift(hfplusangle)   
+        if unwrap:
+            hfplusangle = np.unwrap(hfplusangle)
+
+        hfmin = np.fft.fft(y-1j*py)
+        hfminabs = np.abs(hfmin)
+        hfminabs = np.fft.fftshift(hfminabs)
+        hfminangle = np.angle(hfmin)
+        hfminangle = np.fft.fftshift(hfminangle)
+        if unwrap:
+            hfminangle = np.unwrap(hfminangle)
+        
+        ff = np.fft.fftfreq(len(y))
+        ff = np.fft.fftshift(ff)
+        
+        if plot_hxmin:
+            if log:
+                ax.plot(ff,np.log(hfminabs), label=f"h- {label}", color=color)
+            else:
+                ax.plot(ff,hfminabs, label=f"h- {label}", color=color)
+                
+            if plot_phase:
+                ax_phase.plot(ff,hfminangle, label=f"Phase h- {label}", color=color, linestyle='--')
+                
+        if plot_hxplus:
+            if log:
+                ax.plot(ff,np.log(hfplusabs), label=f"h+ {label}", color=color)
+            else:
+                ax.plot(ff,hfplusabs, label=f"h+ {label}", color=color)
+                
+            if plot_phase:
+                ax_phase.plot(ff,hfplusangle, label=f"Phase h+ {label}", color=color, linestyle='--')
+                
+        plt.legend()
 
 
 class NormalForms4d:
