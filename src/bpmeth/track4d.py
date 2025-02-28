@@ -76,12 +76,12 @@ class Sextupole:
 
 
 class NumericalSextupole:
-    def __init__(self, b3, len):
+    def __init__(self, b3, length):
         self.b3 = b3
-        self.len = len
+        self.length = length
         
         self.sextupole = bpmeth.GeneralVectorPotential(0, b=("0", "0", f"{self.b3}"))
-        self.H_sextupole = bpmeth.Hamiltonian(self.len, 0, self.sextupole)
+        self.H_sextupole = bpmeth.Hamiltonian(self.length, 0, self.sextupole)
 
     def track(self, coord):
         ncoord,npart=coord.shape
@@ -92,7 +92,7 @@ class NumericalSextupole:
         py = coord[3]       
         
         for i in range(npart):
-            sol = self.H_sextupole.solve([x[i], y[i], 0, px[i], py[i], 0], s_span=[0, self.len])
+            sol = self.H_sextupole.solve([x[i], y[i], 0, px[i], py[i], 0], s_span=[0, self.length])
 
             coord[0, i] = sol.y[0][-1]
             coord[1, i] = sol.y[3][-1]
@@ -415,6 +415,16 @@ class Output4d:
 
 class NormalForms4d:
     def __init__(self, h, phi_x, phi_y, Qx, Qy, num_turns):
+        """
+        :param h: four or five dimensional array with the Hamiltonian coefficients. Each h[p,q,r,t] is either a 
+            complex number or a numpy array of complex numbers corresponding to different locations
+        :param phi_x: horizontal phase advance of the perturbation, either a float or a numpy array of floats
+        :param phi_y: vertical phase advance of the perturbation, either a float or a numpy array of floats
+        :param Qx: horizontal tune
+        :param Qy: vertical tune
+        :param num_turns: number of turns to track
+        """
+        
         self.h = h
         self.phi_x = phi_x
         self.phi_y = phi_y
@@ -425,17 +435,18 @@ class NormalForms4d:
 
     @property
     def f(self):
+        h = self.h
+        f = np.zeros((5,5,5,5), dtype=complex)
+        phi_x = self.phi_x
+        phi_y = self.phi_y
+        Qx = self.Qx 
+        Qy = self.Qy
+
         if len(h.shape) == 4:
             # Only one s-position with perturbation
             assert(isinstance(phi_x, float))
             assert(isinstance(phi_y, float))
-            
-            h = self.h
-            f = np.zeros_like(h, dtype=complex)
-            phi_x = self.phi_x
-            phi_y = self.phi_y
-            Qx = self.Qx
-            Qy = self.Qy
+        
             for p in range(len(h)):
                 for q in range(len(h[p])):
                     for r in range(len(h[p, q])):
@@ -444,28 +455,21 @@ class NormalForms4d:
                                 f[p, q, r, t] = (h[p, q, r, t] * np.exp(1j*(p-q)*phi_x + 1j*(r-t)*phi_y) /
                                                 (1 - np.exp(2*np.pi*1j * ((p-q)*Qx+(r-t)*Qy))))
         else:
-            assert(isinstance(phi_x, np.ndarray) and phi_x.shape == h.shape[4])
-            assert(isinstance(phi_y, np.ndarray) and phi_y.shape == h.shape[4])
-            h = self.h
-            f = np.zeros_like(h, dtype=complex)
-            phi_x = self.phi_x
-            phi_y = self.phi_y
-            Qx = self.Qx
-            Qy = self.Qy
+            assert(isinstance(phi_x, np.ndarray) and phi_x.shape[0] == h.shape[4])
+            assert(isinstance(phi_y, np.ndarray) and phi_y.shape[0] == h.shape[4])
             for p in range(len(h)):
                 for q in range(len(h[p])):
                     for r in range(len(h[p, q])):
                         for t in range(len(h[p, q, r])):
-                            f[p, q, r, t] = np.sum(h[p, q, r, t] * np.exp(1j*(p-q)*phi_x + 1j*(r-t)*phi_y) /
-                                                (1 - np.exp(2*np.pi*1j * ((p-q)*Qx+(r-t)*Qy))))
+                            f[p, q, r, t] = np.nansum(h[p, q, r, t] * np.exp(1j*(p-q)*phi_x + 1j*(r-t)*phi_y) /
+                                                (1 - np.exp(2*np.pi*1j * ((p-q)*Qx+(r-t)*Qy))), axis=0)
             
         return f
 
-    def calc_coords(self, part):
+    def calc_coords(self, part):        
         Ix = (part[0]**2 + part[1]**2)/2
         Iy = (part[2]**2 + part[3]**2)/2
         psi0x = np.where(part[0]!=0, np.arctan(part[1]/part[0]), 0)
-        print(part[2])
         psi0y = np.where(part[2]!=0, np.arctan(part[3]/part[2]), 0)
         Qx = self.Qx
         Qy = self.Qy
