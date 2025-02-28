@@ -13,7 +13,6 @@ def K0ggtanh(b1, a, L):
     """    
     K0 fringe field integral for a tanh times the gap height squared.
 
-    
     :param b1: fringe field coefficient.
     :param a: fringe field range.
     :param L: integral around the fringe field ranges from -L to L.
@@ -115,30 +114,38 @@ axy[1].set_xlim(-0.6, 0.6)
 axy[0].set_ylabel("Amplitude")
 axy[1].set_ylabel("Phase")
 
-"""
-Problem: 
-RDTs for fringe fields are s-dependent. What happens for the phase advance inside the fringe field?
-Should we approximate the fringe field with a single RDT based on solid approximations?
-"""
 
-# # Solution with normal forms
-# h = np.zeros((4,4,4,4))
 
-# # First term Hamiltonian: closed orbit distortion
-# h[1,0,0,0] = 1/2 * b1sym
-# h[0,1,0,0] = 1/2 * b1sym
 
-# # Second term Hamiltonian: "sextupole-like"
-# h[1,0,2,0] = -1/16 * 1j * b1sym.diff(s)
-# h[0,1,2,0] =  1/16 * 1j * b1sym.diff(s)
-# h[1,0,0,2] = -1/16 * 1j * b1sym.diff(s)
-# h[0,1,0,2] =  1/16 * 1j * b1sym.diff(s)
-# h[1,0,1,1] = -1/16 * 2 * 1j * b1sym.diff(s)
-# h[0,1,1,1] =  1/16 * 2 * 1j * b1sym.diff(s)
+nsvals = 10
+
+# Solution with normal forms
+hsym = list(np.zeros((4,4,4,4)))
+hsym = np.zeros((4,4,4,4,nsvals))
+
+
+# First term Hamiltonian: closed orbit distortion
+hsym[1,0,0,0] += 1/2 * b1sym
+hsym[0,1,0,0] += 1/2 * b1sym
+
+# Second term Hamiltonian: "sextupole-like"
+hsym[1,0,2,0] += -1/16 * 1j * b1sym.diff(s)
+hsym[0,1,2,0] +=  1/16 * 1j * b1sym.diff(s)
+hsym[1,0,0,2] += -1/16 * 1j * b1sym.diff(s)
+hsym[0,1,0,2] +=  1/16 * 1j * b1sym.diff(s)
+hsym[1,0,1,1] += -1/16 * 2 * 1j * b1sym.diff(s)
+hsym[0,1,1,1] +=  1/16 * 2 * 1j * b1sym.diff(s)
 
 # Third term Hamiltonian
 
+for p in range(len(h)):
+    for q in range(len(h[p])):
+        for r in range(len(h[p, q])):
+            for t in range(len(h[p, q, r])):
+                
 
-# frin4d = bpmeth.NormalForms4d(h, 2*np.pi*Qx, 2*np.pi*Qy, Qx, Qy, nturns)
-# o_norm = sext4d.calc_coords(part)
-# o_norm.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
+
+
+frin4d = bpmeth.NormalForms4d(h, 2*np.pi*Qx, 2*np.pi*Qy, Qx, Qy, nturns)
+o_norm = sext4d.calc_coords(part)
+o_norm.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
