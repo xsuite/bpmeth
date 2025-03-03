@@ -461,12 +461,28 @@ class NormalForms4d:
                 for q in range(len(h[p])):
                     for r in range(len(h[p, q])):
                         for t in range(len(h[p, q, r])):
-                            f[p, q, r, t] = np.nansum(h[p, q, r, t] * np.exp(1j*(p-q)*phi_x + 1j*(r-t)*phi_y) /
-                                                (1 - np.exp(2*np.pi*1j * ((p-q)*Qx+(r-t)*Qy))), axis=0)
+                            if p!=q or r!=t:  # Drop the detuning terms
+                                f[p, q, r, t] = np.nansum(h[p, q, r, t] * np.exp(1j*(p-q)*phi_x + 1j*(r-t)*phi_y) /
+                                                    (1 - np.exp(2*np.pi*1j * ((p-q)*Qx+(r-t)*Qy))), axis=0)
             
         return f
+    
+    def calc_deltaQ(self, Jx, Jy):
+        """
+        :param Jx: Linear horizontal action
+        :param Jy: Linear vertical action
+        """
+        h = self.h
+        delta_Qx, delta_Qy = 0, 0
+        for p in range(len(h)):
+            for r in range(len(h[p, p])):
+                # Terms pprr give the detuning with amplitude
+                delta_Qx += np.nansum(-1/(2*np.pi) * h[p, p, r, r]) * p/2*Jx**(p/2-1) * Jy**(r/2)
+                delta_Qy += np.nansum(-1/(2*np.pi) * h[p, p, r, r]) * Jx**(p/2) * r/2*Jy**(r/2-1)
+        return delta_Qx, delta_Qy
 
-    def calc_coords(self, part):        
+    def calc_coords(self, part, detuning=False):
+        # Nonlinear action, but here calculated neglecting nonlinear terms (so as if it was linear action)
         Ix = (part[0]**2 + part[1]**2)/2
         Iy = (part[2]**2 + part[3]**2)/2
         psi0x = np.where(part[0]!=0, np.arctan(part[1]/part[0]), 0)
@@ -474,6 +490,12 @@ class NormalForms4d:
         Qx = self.Qx
         Qy = self.Qy
         f = self.f
+        
+        if detuning:
+            deltaQ = self.calc_deltaQ(Ix, Iy)
+            Qx += deltaQ[0]
+            Qy += deltaQ[1]
+            print("Detuning with amplitude included")
 
         hxplus = np.array([np.sqrt(2*Ix) * np.exp(-1j*(2*np.pi*Qx*N + psi0x)) for N in range(self.num_turns)])
         for p in range(len(f)):

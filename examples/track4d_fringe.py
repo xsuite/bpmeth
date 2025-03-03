@@ -103,12 +103,11 @@ m=1
 n=1
 for k in range(2*(m+n)+1):
     l = 2*(m+n) - k
-    if k!=l:  # Not a detuning term, I still have to find how to threat these but not included in RDTs
-        h[0,0,k,l] = [(-1)**((k+l)/2) / (math.factorial(2*n) * math.factorial(k+l-2*n))
-                    * math.factorial(k+l) / (math.factorial(k) * math.factorial(l) * 2**(k+l+1)) 
-                    * b1sym.diff(s, 2*n-1).subs({s:sval}).evalf()
-                    * b1sym.diff(s, k+l-2*n-1).subs({s:sval}).evalf()
-                    * betx**((k+l)/2) * ds for sval in svals]
+    h[0,0,k,l] = [(-1)**((k+l)/2) / (math.factorial(2*n) * math.factorial(k+l-2*n))
+                * math.factorial(k+l) / (math.factorial(k) * math.factorial(l) * 2**(k+l+1)) 
+                * b1sym.diff(s, 2*n-1).subs({s:sval}).evalf()
+                * b1sym.diff(s, k+l-2*n-1).subs({s:sval}).evalf()
+                * betx**((k+l)/2) * ds for sval in svals]
 
 # Phase advance: beta=1 so the phase advance is equal to the s position
 # Fringe field is situated at the end of the lattice
@@ -116,14 +115,15 @@ phi_x = (svals + 2*np.pi*Qx) % (2*np.pi*Qx)
 phi_y = (svals + 2*np.pi*Qy) % (2*np.pi*Qy)
 
 frin_normalforms = bpmeth.NormalForms4d(h, phi_x, phi_y, Qx, Qy, nturns)
-o_normalforms = frin_normalforms.calc_coords(part)
+o_normalforms = frin_normalforms.calc_coords(part, detuning=False)
+o_normalforms_withdet = frin_normalforms.calc_coords(part, detuning=True)
 
 
 ######################
 # Plot spectra       #
 ######################
 
-index=5
+index=1
 padding=nturns
 log=True
 unwrap=False
@@ -144,6 +144,9 @@ o_forest_co.plot_spectrum_x(index, ax=axx[0], padding=padding,
 o_normalforms.plot_spectrum_x(index, ax=axx[0], padding=padding,
                               label="Normal forms", log=log, plot_phase=True, unwrap=unwrap, ax_phase=axx[1], 
                               color="purple")
+o_normalforms_withdet.plot_spectrum_x(index, ax=axx[0], padding=padding,
+                                    label="Normal forms with detuning", log=log, plot_phase=True, unwrap=unwrap, ax_phase=axx[1], 
+                                    color="pink")
 
 sl_x = [(0,0), (0, -2), (0, 2), (0, -4), (0, 4)]
 for xx, yy in sl_x:
@@ -174,6 +177,9 @@ o_forest_co.plot_spectrum_y(index, ax=axy[0], padding=padding,
 o_normalforms.plot_spectrum_y(index, ax=axy[0], padding=padding,
                               label="Normal forms", log=log, plot_phase=True, unwrap=unwrap, ax_phase=axy[1], 
                               color="purple")
+o_normalforms_withdet.plot_spectrum_y(index, ax=axy[0], padding=padding,
+                                    label="Normal forms with detuning", log=log, plot_phase=True, unwrap=unwrap, ax_phase=axy[1], 
+                                    color="pink")
 
 sl_y = [(-1, -1), (1, -1), (-1, 1), (1, 1), (-1, -3), (1, -3), (-1, 3), (1, 3), (0, 3), (0, 1), (0, -1), (0, -3)]
 for xx, yy in sl_y:
