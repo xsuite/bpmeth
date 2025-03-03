@@ -50,26 +50,17 @@ K0gg = K0ggtanh(b1, aa, length/2)
 # Fringe field maps  #
 ######################
 
-xlims=[-1,1] 
-ylims=[-1,1]
-
 print("Calculating thin fringe")
 line_thinfringe = bpmeth.Line4d([bpmeth.Phase4d(Qx, Qy), bpmeth.ThinNumericalFringe(b1, b1shape, length=length, nphi=5)])
 o_thinfringe = line_thinfringe.track(part, num_turns=nturns)
-# o_thinfringe.plot_xpx(xlims=xlims, ylims=ylims)
-# o_thinfringe.plot_ypy(xlims=xlims, ylims=ylims)
 
 print("Calculating forest fringe")
 line_forest = bpmeth.Line4d([bpmeth.Phase4d(Qx, Qy), bpmeth.ForestFringe(b1, Kg)])
 o_forest = line_forest.track(part, num_turns=nturns)
-# o_forest.plot_xpx(xlims=xlims, ylims=ylims)
-# o_forest.plot_ypy(xlims=xlims, ylims=ylims)
 
 print("Calculating forest fringe with closed orbit")
 line_forest_co = bpmeth.Line4d([bpmeth.Phase4d(Qx, Qy), bpmeth.ForestFringe(b1, Kg, K0gg, closedorbit=True)])
 o_forest_co = line_forest_co.track(part, num_turns=nturns)
-# o_forest_co.plot_xpx(xlims=xlims, ylims=ylims)
-# o_forest_co.plot_ypy(xlims=xlims, ylims=ylims)
 
 
 ######################
@@ -90,7 +81,7 @@ h = np.zeros((5,5,5,5,nsvals), dtype=complex)
 
 # First term Hamiltonian: b1(s) x => closed orbit distortion
 h[1,0,0,0] = [np.sqrt(betx)/2 * (b1sym - b1*sp.Heaviside(s)).subs({s:sval}).evalf() * ds for sval in svals]
-h[0,1,0,0] = [np.sqrt(betx)/2 * b1sym.subs({s:sval}).evalf() * ds for sval in svals]
+h[0,1,0,0] = [np.sqrt(betx)/2 * (b1sym - b1*sp.Heaviside(s)).subs({s:sval}).evalf() * ds for sval in svals]
 
 # Second term Hamiltonian: -px ax
 for n in [1, 2]:
@@ -112,11 +103,12 @@ m=1
 n=1
 for k in range(2*(m+n)+1):
     l = 2*(m+n) - k
-    h[0,0,k,l] = [(-1)**((k+l)/2) / (math.factorial(2*n) * math.factorial(k+l-2*n))
-                  * math.factorial(k+l) / (math.factorial(k) * math.factorial(l) * 2**(k+l+1)) 
-                  * b1sym.diff(s, 2*n-1).subs({s:sval}).evalf()
-                  * b1sym.diff(s, k+l-2*n-1).subs({s:sval}).evalf()
-                  * betx**((k+l)/2) * ds for sval in svals]
+    if k!=l:  # Not a detuning term, I still have to find how to threat these but not included in RDTs
+        h[0,0,k,l] = [(-1)**((k+l)/2) / (math.factorial(2*n) * math.factorial(k+l-2*n))
+                    * math.factorial(k+l) / (math.factorial(k) * math.factorial(l) * 2**(k+l+1)) 
+                    * b1sym.diff(s, 2*n-1).subs({s:sval}).evalf()
+                    * b1sym.diff(s, k+l-2*n-1).subs({s:sval}).evalf()
+                    * betx**((k+l)/2) * ds for sval in svals]
 
 # Phase advance: beta=1 so the phase advance is equal to the s position
 # Fringe field is situated at the end of the lattice
@@ -196,3 +188,27 @@ axy[0].set_ylabel("Amplitude")
 axy[1].set_ylabel("Phase")
 
 plt.savefig("fringe_spectra_y.png")
+
+
+######################
+# Plot phase space   #
+######################
+
+xlims=[-1,1] 
+ylims=[-1,1]
+
+o_thinfringe.plot_xpx(xlims=xlims, ylims=ylims)
+o_forest.plot_xpx(xlims=xlims, ylims=ylims)
+o_forest_co.plot_xpx(xlims=xlims, ylims=ylims)
+o_normalforms.plot_xpx(xlims=xlims, ylims=ylims)
+
+fig, ax = plt.subplots()
+o_thinfringe.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
+#o_forest.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
+o_forest_co.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
+o_normalforms.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
+
+o_thinfringe.plot_ypy(xlims=xlims, ylims=ylims)
+o_forest.plot_ypy(xlims=xlims, ylims=ylims)
+o_forest_co.plot_ypy(xlims=xlims, ylims=ylims)
+o_normalforms.plot_ypy(xlims=xlims, ylims=ylims)
