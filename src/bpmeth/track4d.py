@@ -526,19 +526,19 @@ class NormalForms4d:
 
         x = (hxplus + hxmin) / 2
         if any(abs(pp.imag) > 1e-10 for tt in x for pp in tt):
-            warnings.warn("x is not real, are you sure you gave a physical Hamiltonian?")
+            warnings.warn(f"x is not real, are you sure you gave a physical Hamiltonian? \n Imaginary part is {pp.imag}")
             
         px = -1j * (hxplus - hxmin) / 2
         if any(abs(pp.imag) > 1e-10 for tt in px for pp in tt):
-            warnings.warn("px is not real, are you sure you gave a physical Hamiltonian?")
+            warnings.warn(f"px is not real, are you sure you gave a physical Hamiltonian? \n Imaginary part is {pp.imag}")
 
         y = (hyplus + hymin) / 2
         if any(abs(pp.imag) > 1e-10 for tt in y for pp in tt):
-            warnings.warn("y is not real, are you sure you gave a physical Hamiltonian?")
+            warnings.warn(f"y is not real, are you sure you gave a physical Hamiltonian? \n Imaginary part is {pp.imag}")
 
         py = -1j * (hyplus - hymin) / 2
         if any(abs(pp.imag) > 1e-10 for tt in py for pp in tt):
-            warnings.warn("py is not real, are you sure you gave a physical Hamiltonian?")
+            warnings.warn(f"py is not real, are you sure you gave a physical Hamiltonian? \n Imaginary part is {pp.imag}")
 
         
         output = np.zeros((self.num_turns, 1, 4, len(part[0])), dtype=complex)

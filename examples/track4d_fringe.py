@@ -35,15 +35,13 @@ Qxdec = Qx%1
 Qy = 10.252
 Qydec = Qy%1
 nturns = 1000
-xlims=[-1,1] 
-ylims=[-1,1]
 
 b1 = 0.1
 aa = 1
 Kg = aa/2
 b1shape = f"(tanh(s/{aa})+1)/2"
 s = sp.symbols("s")
-b1sym = eval(b1shape, sp.__dict__, {"s": s})
+b1sym = b1*eval(b1shape, sp.__dict__, {"s": s})
 length = 5
 K0gg = K0ggtanh(b1, aa, length/2)
 
@@ -51,6 +49,9 @@ K0gg = K0ggtanh(b1, aa, length/2)
 ######################
 # Fringe field maps  #
 ######################
+
+xlims=[-1,1] 
+ylims=[-1,1]
 
 print("Calculating thin fringe")
 line_thinfringe = bpmeth.Line4d([bpmeth.Phase4d(Qx, Qy), bpmeth.ThinNumericalFringe(b1, b1shape, length=length, nphi=5)])
@@ -81,44 +82,46 @@ nsvals = 50
 ds = length/(nsvals-1)
 svals = np.arange(-length/2, length/2+ds, ds)
 
+betx=1
+bety=1
+alphx=0
+alphy=0
 h = np.zeros((5,5,5,5,nsvals), dtype=complex)
 
-# First term Hamiltonian: closed orbit distortion
-h[1,0,0,0] = [1/2 * b1sym.subs({s:sval}).evalf() * ds for sval in svals]
-h[0,1,0,0] = [1/2 * b1sym.subs({s:sval}).evalf() * ds for sval in svals]
+# First term Hamiltonian: b1(s) x => closed orbit distortion
+h[1,0,0,0] = [np.sqrt(betx)/2 * (b1sym - b1*sp.Heaviside(s)).subs({s:sval}).evalf() * ds for sval in svals]
+h[0,1,0,0] = [np.sqrt(betx)/2 * b1sym.subs({s:sval}).evalf() * ds for sval in svals]
 
-# Second term Hamiltonian: "sextupole-like"
-h[1,0,2,0] = [-1/16 * 1j * b1sym.diff(s).subs({s:sval}).evalf() * ds for sval in svals] 
-h[0,1,2,0] = [ 1/16 * 1j * b1sym.diff(s).subs({s:sval}).evalf() * ds for sval in svals] 
-h[1,0,0,2] = [-1/16 * 1j * b1sym.diff(s).subs({s:sval}).evalf() * ds for sval in svals] 
-h[0,1,0,2] = [ 1/16 * 1j * b1sym.diff(s).subs({s:sval}).evalf() * ds for sval in svals] 
-h[1,0,1,1] = [-1/16 * 2 * 1j * b1sym.diff(s).subs({s:sval}).evalf() * ds for sval in svals] 
-h[0,1,1,1] = [ 1/16 * 2 * 1j * b1sym.diff(s).subs({s:sval}).evalf() * ds for sval in svals]
-
-h[1,0,4,0] = [1j / 32 * 1/ 24 * b1sym.diff(s, 3).subs({s:sval}).evalf() * ds for sval in svals] 
-h[0,1,4,0] = [1j / 32 * 1/ 24 * b1sym.diff(s, 3).subs({s:sval}).evalf() * ds for sval in svals]
-h[1,0,3,1] = [1j / 32 * 1/ 6 * b1sym.diff(s, 2).subs({s:sval}).evalf() * ds for sval in svals]
-h[0,1,3,1] = [1j / 32 * 1/ 6 * b1sym.diff(s, 2).subs({s:sval}).evalf() * ds for sval in svals]
-h[1,0,2,2] = [1j / 32 * 1/ 4 * b1sym.diff(s, 1).subs({s:sval}).evalf() * ds for sval in svals]
-h[0,1,2,2] = [1j / 32 * 1/ 4 * b1sym.diff(s, 1).subs({s:sval}).evalf() * ds for sval in svals]
-h[1,0,1,3] = [1j / 32 * 1/ 6 * b1sym.diff(s, 2).subs({s:sval}).evalf() * ds for sval in svals]
-h[0,1,1,3] = [1j / 32 * 1/ 6 * b1sym.diff(s, 2).subs({s:sval}).evalf() * ds for sval in svals]
-h[1,0,0,4] = [1j / 32 * 1/ 24 * b1sym.diff(s, 3).subs({s:sval}).evalf() * ds for sval in svals]
-h[0,1,0,4] = [1j / 32 * 1/ 24 * b1sym.diff(s, 3).subs({s:sval}).evalf() * ds for sval in svals]
-
-# Third term Hamiltonian
-h[0,0,4,0] = [3/16 / 24 * b1sym.diff(s).subs({s:sval}).evalf()**2 * ds for sval in svals]
-h[0,0,3,1] = [3/16 / 6 *  b1sym.diff(s).subs({s:sval}).evalf()**2 * ds for sval in svals]
-h[0,0,1,3] = [3/16 / 6 *  b1sym.diff(s).subs({s:sval}).evalf()**2 * ds for sval in svals]
-h[0,0,0,4] = [3/16 / 24 * b1sym.diff(s).subs({s:sval}).evalf()**2 * ds for sval in svals]
-# Detuning term: not included in normal forms??
-h[0,0,2,2] = [3/16 / 4 *  b1sym.diff(s).subs({s:sval}).evalf()**2 * ds for sval in svals]
-
+# Second term Hamiltonian: -px ax
+for n in [1, 2]:
+    for k in range(2*n+1):
+        l = 2*n - k
+        h[1,0,k,l] = [(-1)**n / (2**(2*n+1) * math.factorial(2*n))
+                    * math.factorial(k+l) / (math.factorial(k) * math.factorial(l))
+                    * b1sym.diff(s, 2*n-1).subs({s:sval}).evalf()
+                    * (alphx + 1j)
+                    * bety**n / np.sqrt(betx) * ds for sval in svals]
+        h[0,1,k,l] = [(-1)**n / (2**(2*n+1) * math.factorial(2*n))
+                    * math.factorial(k+l) / (math.factorial(k) * math.factorial(l))
+                    * b1sym.diff(s, 2*n-1).subs({s:sval}).evalf()
+                    * (alphx - 1j)
+                    * bety**n / np.sqrt(betx) * ds for sval in svals]
+        
+# Third term Hamiltonian: 1/2 ax^2
+m=1
+n=1
+for k in range(2*(m+n)+1):
+    l = 2*(m+n) - k
+    h[0,0,k,l] = [(-1)**((k+l)/2) / (math.factorial(2*n) * math.factorial(k+l-2*n))
+                  * math.factorial(k+l) / (math.factorial(k) * math.factorial(l) * 2**(k+l+1)) 
+                  * b1sym.diff(s, 2*n-1).subs({s:sval}).evalf()
+                  * b1sym.diff(s, k+l-2*n-1).subs({s:sval}).evalf()
+                  * betx**((k+l)/2) * ds for sval in svals]
 
 # Phase advance: beta=1 so the phase advance is equal to the s position
 # Fringe field is situated at the end of the lattice
-phi_x = (svals + Qx) % Qx
-phi_y = (svals + Qy) % Qy
+phi_x = (svals + 2*np.pi*Qx) % (2*np.pi*Qx)
+phi_y = (svals + 2*np.pi*Qy) % (2*np.pi*Qy)
 
 frin_normalforms = bpmeth.NormalForms4d(h, phi_x, phi_y, Qx, Qy, nturns)
 o_normalforms = frin_normalforms.calc_coords(part)
@@ -128,7 +131,7 @@ o_normalforms = frin_normalforms.calc_coords(part)
 # Plot spectra       #
 ######################
 
-index=1
+index=5
 padding=nturns
 log=True
 unwrap=False
@@ -162,6 +165,7 @@ axx[1].set_xlim(-0.6, 0.6)
 axx[0].set_ylabel("Amplitude")
 axx[1].set_ylabel("Phase")
 
+plt.savefig("fringe_spectra_x.png")
 
 figy, axy = plt.subplots(2)
 plt.title('Spectrum y')
@@ -191,4 +195,4 @@ axy[1].set_xlim(-0.6, 0.6)
 axy[0].set_ylabel("Amplitude")
 axy[1].set_ylabel("Phase")
 
-
+plt.savefig("fringe_spectra_y.png")
