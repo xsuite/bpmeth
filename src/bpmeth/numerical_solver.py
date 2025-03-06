@@ -116,8 +116,7 @@ class Hamiltonian:
         return f'Hamiltonian({self.length}, {self.curv}, {self.vectp})'
 
 
-class DriftVectorPotential(FieldExpansion):  
-    # In a straight coordinate frame
+class DriftVectorPotential:  
     def __init__(self):
         super().__init__(nphi=0)
         
@@ -125,13 +124,18 @@ class DriftVectorPotential(FieldExpansion):
         return [0, 0, 0]
 
 
-
-class DipoleVectorPotential(FieldExpansion):  
-    # No s-dependence
+class DipoleVectorPotential:
     def __init__(self, curv, b1):
+        """
+        Dipoles without s-dependence, in this case the vector potential is known analytically.
+        
+        :param curv (float): Curvature of the reference frame.
+        :param b1 (float): Dipole field strength.
+        """
+        
         self.curv = curv
         self.b1 = b1
-        super().__init__(b1=(f"{b1}",), hs=f"{hs}", nphi=0)
+        super().__init__(b=(f"{b1}",), hs=f"{hs}", nphi=0)
 
     def get_Aval(self, coords):
         x, y, s = coords.x, coords.y, coords.s
@@ -140,9 +144,34 @@ class DipoleVectorPotential(FieldExpansion):
         return [0, 0, As]
     
 
-class FringeVectorPotential(FieldExpansion):  
-    def __init__(self, b1, hs="0", nphi=5):
-        super().__init__(b=(b1,), hs=hs, nphi=nphi)
+class SolenoidVectorPotential:
+    def __init__(self, bs):
+        """ 
+        Solenoids without s-dependence, in this case the vector potential is known analytically.
+        Curvature of the reference frame is not implemented, use GeneralVectorPotential instead.
+        
+        :param bs (float): Solenoid field strength.
+        """
+        
+        self.bs = bs
+        super().__init__(bs=bs, nphi=0)
+
+    def get_Aval(self, coords):
+        x, y, s = coords.x, coords.y, coords.s
+        bs = self.bs
+        return [-bs*y/2, bs*x/2, 0]
+
+
+class FringeVectorPotential:
+    def __init__(self, b1, nphi=5):
+        """
+        Fringe fields in a straight coordinate frame.
+        
+        :param b1 (str): Fringe field b1 as a function of s.
+        :param nphi (int): Number of terms in the expansion of the scalar potential.
+        """
+        
+        super().__init__(b=(b1,), nphi=nphi)
     
     def get_Aval(self, coords):
         x, y, s = coords.x, coords.y, coords.s
@@ -152,23 +181,20 @@ class FringeVectorPotential(FieldExpansion):
             Ay.subs({self.x: x, self.y: y, self.s: s}).evalf(),
             As.subs({self.x: x, self.y: y, self.s: s}).evalf()
         ]
-
-    
-class SolenoidVectorPotential(FieldExpansion):  
-    # In straight coordinate frame, no s-dependence
-    def __init__(self, bs):
-        self.bs = bs
-        super().__init__(bs=bs, nphi=0)
-
-    def get_Aval(self, coords):
-        x, y, s = coords.x, coords.y, coords.s
-        bs = self.bs
-        return [-bs*y/2, bs*x/2, 0]
     
     
-class GeneralVectorPotential(FieldExpansion):  
-    # In bent coordinate frame
+class GeneralVectorPotential(FieldExpansion):
     def __init__(self, a=("0*s",), b=("0*s",), bs="0", hs="0", nphi=5):
+        """ 
+        General field expansion.
+        
+        :param a (tuple of str): a coefficients as a function of s.
+        :param b (tuple of str): b coefficients as a function of s.
+        :param bs (str): bs coefficient as a function of s.
+        :param hs (str): Curvature of the reference frame as a function of s. (to be tested for not constant hs)
+        :param nphi (int): Number of terms in the expansion of the scalar potential.
+        """
+        
         super().__init__(a=a, b=b, bs=bs, hs=hs, nphi=nphi)
   
     def get_Aval(self, coords):
