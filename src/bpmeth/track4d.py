@@ -1,9 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import bpmeth
 import math
 import sympy as sp
 import warnings
+from .numerical_solver import Hamiltonian, GeneralVectorPotential
+
 
 class Phase4d:
     def __init__(self, phase_x, phase_y):
@@ -80,8 +81,8 @@ class NumericalSextupole:
         self.b3 = b3
         self.length = length
         
-        self.sextupole = bpmeth.GeneralVectorPotential(0, b=("0", "0", f"{self.b3}"))
-        self.H_sextupole = bpmeth.Hamiltonian(self.length, 0, self.sextupole)
+        self.sextupole = GeneralVectorPotential(0, b=("0", "0", f"{self.b3}"))
+        self.H_sextupole = Hamiltonian(self.length, 0, self.sextupole)
 
     def track(self, coord):
         ncoord,npart=coord.shape
@@ -410,7 +411,8 @@ class Output4d:
             if plot_phase:
                 ax_phase.plot(ff,hfplusangle, label=f"Phase h+ {label}", color=color, linestyle='--')
                 
-        plt.legend()
+        ax.legend()
+        ax_phase.legend()
 
 
 class NormalForms4d:

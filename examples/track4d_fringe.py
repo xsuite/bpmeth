@@ -123,7 +123,7 @@ o_normalforms_withdet = frin_normalforms.calc_coords(part, detuning=True)
 # Plot spectra       #
 ######################
 
-index=1
+index=5
 padding=nturns
 log=True
 unwrap=False
@@ -210,7 +210,7 @@ o_normalforms.plot_xpx(xlims=xlims, ylims=ylims)
 
 fig, ax = plt.subplots()
 o_thinfringe.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
-#o_forest.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
+o_forest.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
 o_forest_co.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
 o_normalforms.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
 
