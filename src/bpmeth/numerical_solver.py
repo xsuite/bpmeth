@@ -21,7 +21,7 @@ class Hamiltonian:
         px, py, ptau = coords.px, coords.py, coords.ptau
         beta0 = coords.beta0
         h = self.curv
-        A = self.vectp.get_A(coords)
+        A = self.vectp.get_Aval(coords)
         sqrt = coords._m.sqrt
         tmp1 = sqrt(1+2*ptau/beta0+ptau**2-(px-A[0])**2-(py-A[1])**2)
         H = ptau/beta0 - (1+h*x)*(tmp1 + A[2])
@@ -116,75 +116,70 @@ class Hamiltonian:
         return f'Hamiltonian({self.length}, {self.curv}, {self.vectp})'
 
 
-class DriftVectorPotential:
-    def get_A(self, coords):
+class DriftVectorPotential(FieldExpansion):  
+    # In a straight coordinate frame
+    def __init__(self):
+        super().__init__(nphi=0)
+        
+    def get_Aval(self, coords):
         return [0, 0, 0]
 
 
-class DipoleVectorPotential:
+
+class DipoleVectorPotential(FieldExpansion):  
+    # No s-dependence
     def __init__(self, curv, b1):
         self.curv = curv
         self.b1 = b1
+        super().__init__(b1=(f"{b1}",), hs=f"{hs}", nphi=0)
 
-    def get_A(self, coords):
+    def get_Aval(self, coords):
         x, y, s = coords.x, coords.y, coords.s
         h = self.curv
         As = -(x+h/2*x**2)/(1+h*x) * self.b1
         return [0, 0, As]
     
 
-class FringeVectorPotential:  # In a straight coordinate frame
+class FringeVectorPotential(FieldExpansion):  
+    # In a straight coordinate frame
     def __init__(self, b1, nphi=5):
-        self.b1 = b1
-        self.nphi = nphi
+        super().__init__(b=(b1,), nphi=nphi)
     
-    def get_A(self, coords):
+    def get_Aval(self, coords):
         x, y, s = coords.x, coords.y, coords.s
-        fringe = FieldExpansion(b=(self.b1,), nphi=self.nphi)
-        Ax, Ay, As = fringe.get_A()
+        Ax, Ay, As = self.get_A()
         return [
-            Ax.subs({fringe.x: x, fringe.y: y, fringe.s: s}).evalf(),
-            Ay.subs({fringe.x: x, fringe.y: y, fringe.s: s}).evalf(),
-            As.subs({fringe.x: x, fringe.y: y, fringe.s: s}).evalf()
+            Ax.subs({self.x: x, self.y: y, self.s: s}).evalf(),
+            Ay.subs({self.x: x, self.y: y, self.s: s}).evalf(),
+            As.subs({self.x: x, self.y: y, self.s: s}).evalf()
         ]
-    
-    def plotfield(self):
-        fringe = FieldExpansion(b=(self.b1,), nphi=self.nphi)
-        fringe.plotfield()
-        
-    def get_Bfield(self):
-        fringe = FieldExpansion(b=(self.b1,), nphi=self.nphi)
-        return fringe.get_Bfield()
 
     
-class SolenoidVectorPotential:  # In straight coordinate frame
+class SolenoidVectorPotential(FieldExpansion):  
+    # In straight coordinate frame, no s-dependence
     def __init__(self, bs):
         self.bs = bs
+        super().__init__(bs=bs, nphi=0)
 
-    def get_A(self, coords):
+    def get_Aval(self, coords):
         x, y, s = coords.x, coords.y, coords.s
         bs = self.bs
         return [-bs*y/2, bs*x/2, 0]
-
-
-class GeneralVectorPotential:  # In bent coordinate frame
-    def __init__(self, curv, a=("0*s",), b=("0*s",), bs="0", nphi=5):
-        self.curv = f"{curv}"
-        self.a = a
-        self.b = b
-        self.bs = bs
-        self.nphi = nphi
     
-    def get_A(self, coords):
+    
+class GeneralVectorPotential(FieldExpansion):  
+    # In bent coordinate frame
+    def __init__(self, a=("0*s",), b=("0*s",), bs="0", hs="0", nphi=5):
+        super().__init__(a=a, b=b, bs=bs, hs=hs, nphi=nphi)
+  
+    def get_Aval(self, coords):
         x, y, s = coords.x, coords.y, coords.s
-        field = FieldExpansion(a=self.a, b=self.b, bs=self.bs, hs=self.curv, nphi=self.nphi)
-        Ax, Ay, As = field.get_A()
+        Ax, Ay, As = self.get_A()
         return [
-            Ax.subs({field.x: x, field.y: y, field.s: s}).evalf(),
-            Ay.subs({field.x: x, field.y: y, field.s: s}).evalf(),
-            As.subs({field.x: x, field.y: y, field.s: s}).evalf()
+            Ax.subs({self.x: x, self.y: y, self.s: s}).evalf(),
+            Ay.subs({self.x: x, self.y: y, self.s: s}).evalf(),
+            As.subs({self.x: x, self.y: y, self.s: s}).evalf()
         ]
-    
 
 
 
