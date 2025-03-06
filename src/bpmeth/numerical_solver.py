@@ -54,6 +54,9 @@ class Hamiltonian:
             s_span = [0, self.length]
         if ivp_opt is None:
             ivp_opt = {'t_eval': np.linspace(s_span[0], s_span[1], 500), "rtol":1e-4, "atol":1e-7}
+        elif 't_eval' not in ivp_opt:
+            ivp_opt['t_eval'] = np.linspace(s_span[0], s_span[1], 500)
+            
         f = self.vectorfield
         sol = solve_ivp(f, s_span, qp0, **ivp_opt)
         return sol
