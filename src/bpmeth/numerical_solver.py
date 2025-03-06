@@ -141,9 +141,8 @@ class DipoleVectorPotential(FieldExpansion):
     
 
 class FringeVectorPotential(FieldExpansion):  
-    # In a straight coordinate frame
-    def __init__(self, b1, nphi=5):
-        super().__init__(b=(b1,), nphi=nphi)
+    def __init__(self, b1, hs="0", nphi=5):
+        super().__init__(b=(b1,), hs=hs, nphi=nphi)
     
     def get_Aval(self, coords):
         x, y, s = coords.x, coords.y, coords.s
