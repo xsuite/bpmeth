@@ -11,7 +11,7 @@ curv=0  # Curvature of the reference frame
 length=10
 k=2
 amp=0.3
-b1 = f"{amp}*sin({k}*s)" 
+b1 = f"{amp}*cos({k}*s)" 
 
 wiggler = bpmeth.GeneralVectorPotential(hs=f"{curv}", b=(f"{b1}",))
 # wiggler = bpmeth.FringeVectorPotential(hs=f"{curv}", b1=b1) # Does the same as above
