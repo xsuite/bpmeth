@@ -118,8 +118,8 @@ class FieldExpansion:
             st = s*sp.cos(theta_E) - x*sp.sin(theta_E)
 
         else:  # Curved frame
+            xt = (rho+x)*(sp.cos(theta_E-s/rho)) - rho*sp.cos(theta_E)
             st = rho*sp.sin(theta_E) - (rho+x)*(sp.sin(theta_E-s/rho))
-            xt = (rho+x)*(sp.sin(theta_E-s/rho)) + rho*sp.cos(theta_E)
 
         phi0 = phi0.subs([(x,xt), (s,st)])
         phi1 = phi1.subs([(x,xt), (s,st)])
@@ -217,7 +217,20 @@ class FieldExpansion:
 
         plt.show()
         
-
+        
+    def calc_RDTs(self):
+        x, y, s = self.x, self.y, self.s
+        hs = self.hs
+        Ax, Ay, As = self.get_A()
+        
+        # As terms
+        
+        # px Ax terms
+        
+        #Ax^2 terms
+        
+        return
+        
 
     def writefile(self, xarr, yarr, zarr, filename):
         X, Y, Z = np.meshgrid(xarr, yarr, zarr)

@@ -10,7 +10,6 @@ Plot the numerical solution for the Hamiltonian for a fringe field
 def K0ggtanh(b1, a, L):
     """    
     K0 fringe field integral for a tanh times the gap height squared.
-
     
     :param b1: fringe field coefficient.
     :param a: fringe field range.

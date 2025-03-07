@@ -181,7 +181,7 @@ class FringeVectorPotential(FieldExpansion):
             Ay.subs({self.x: x, self.y: y, self.s: s}).evalf(),
             As.subs({self.x: x, self.y: y, self.s: s}).evalf()
         ]
-    
+        
     
 class GeneralVectorPotential(FieldExpansion):
     def __init__(self, a=("0*s",), b=("0*s",), bs="0", hs="0", nphi=5):
@@ -196,7 +196,7 @@ class GeneralVectorPotential(FieldExpansion):
         """
         
         super().__init__(a=a, b=b, bs=bs, hs=hs, nphi=nphi)
-  
+          
     def get_Aval(self, coords):
         x, y, s = coords.x, coords.y, coords.s
         Ax, Ay, As = self.get_A()
