@@ -113,18 +113,17 @@ class FieldExpansion:
         phi0 = sum((an * x ** (n + 1) / sp.factorial(n + 1) for n, an in enumerate(at))) + sp.integrate(bst, s)
         phi1 = sum((bn * x**n / sp.factorial(n) for n, bn in enumerate(bt))) 
 
-        if rho==np.inf:
-            # Straight frame
-            # st = s*np.cos(theta_E) - x*np.sin(theta_E)
-            # xt = s*np.sin(theta_E) + x*np.cos(theta_E)
+        if rho==np.inf:  # Straight frame
+            xt = s*sp.sin(theta_E) + x*sp.cos(theta_E)
+            st = s*sp.cos(theta_E) - x*sp.sin(theta_E)
+
+        else:  # Curved frame
+            st = rho*sp.sin(theta_E) - (rho+x)*(sp.sin(theta_E-s/rho))
+            xt = (rho+x)*(sp.sin(theta_E-s/rho)) + rho*sp.cos(theta_E)
+
+        phi0 = phi0.subs([(x,xt), (s,st)])
+        phi1 = phi1.subs([(x,xt), (s,st)])
             
-            phi0 = phi0.subs([(x,s*sp.sin(theta_E)+x*sp.cos(theta_E)), 
-                              (s,s*sp.cos(theta_E)-x*sp.sin(theta_E))])
-            phi1 = phi1.subs([(x,s*sp.sin(theta_E)+x*sp.cos(theta_E)), 
-                              (s,s*sp.cos(theta_E)-x*sp.sin(theta_E))])
-        else:
-            pass    
-        
         phi0 = phi0.series(x, 0, maxpow).removeO().as_poly(x)
         phi1 = phi1.series(x, 0, maxpow).removeO().as_poly(x)
         
@@ -142,9 +141,6 @@ class FieldExpansion:
             b.append(phi1.coeff_monomial(x**i))
             
         return FieldExpansion(a=a, b=b, bs=bs, nphi=nphi)
-
-            
-
             
 
     def plotfield_yz(self, X=0, ax=None, bmin=None, bmax=None, includebx=False):
