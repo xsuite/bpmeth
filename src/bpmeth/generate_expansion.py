@@ -97,8 +97,57 @@ class FieldExpansion:
         else:
             return Bx, By, Bs
 
+    
+    def transform(self, theta_E=0, rho=np.inf, maxpow=None):
+        assert self.hs==0, "Transform only implemented starting from straight frame!"        
+        
+        x, y, s = self.x, self.y, self.s
+        at = self.a
+        bt = self.b
+        bst = self.bs
+        nphi = self.nphi
+        if maxpow is None:
+            maxpow = nphi
+        
+        # Determine the scalar potential 0 and 1 terms and transform to new frame
+        phi0 = sum((an * x ** (n + 1) / sp.factorial(n + 1) for n, an in enumerate(at))) + sp.integrate(bst, s)
+        phi1 = sum((bn * x**n / sp.factorial(n) for n, bn in enumerate(bt))) 
 
-    def plotfield(self, ax=None):
+        if rho==np.inf:
+            # Straight frame
+            # st = s*np.cos(theta_E) - x*np.sin(theta_E)
+            # xt = s*np.sin(theta_E) + x*np.cos(theta_E)
+            
+            phi0 = phi0.subs([(x,s*sp.sin(theta_E)+x*sp.cos(theta_E)), 
+                              (s,s*sp.cos(theta_E)-x*sp.sin(theta_E))])
+            phi1 = phi1.subs([(x,s*sp.sin(theta_E)+x*sp.cos(theta_E)), 
+                              (s,s*sp.cos(theta_E)-x*sp.sin(theta_E))])
+        else:
+            pass    
+        
+        phi0 = phi0.series(x, 0, maxpow).removeO().as_poly(x)
+        phi1 = phi1.series(x, 0, maxpow).removeO().as_poly(x)
+        
+        # Extract the multipole coefficients.
+        a = []
+        degree0 = 0 if phi0==0 else phi0.degree(x)
+        for i in range(1, degree0+1):
+            a.append(phi0.coeff_monomial(x**i))
+            
+        bs = phi0.coeff_monomial(x**0).diff(s)
+
+        b = []
+        degree1 = 0 if phi1==0 else phi1.degree(x)
+        for i in range(degree1+1):
+            b.append(phi1.coeff_monomial(x**i))
+            
+        return FieldExpansion(a=a, b=b, bs=bs, nphi=nphi)
+
+            
+
+            
+
+    def plotfield_yz(self, X=0, ax=None, bmin=None, bmax=None, includebx=False):
         ymin, ymax, ystep = -2, 2, 0.05
         zmin, zmax, zstep = -3, 3, 0.05
         Y = np.arange(ymin, ymax, ystep)
@@ -107,14 +156,24 @@ class FieldExpansion:
 
         Bxfun, Byfun, Bsfun = self.get_Bfield()
 
-        By = Byfun(0, Y, Z)
-        Bs = Bsfun(0, Y, Z)
+        By = Byfun(X, Y, Z)
+        Bs = Bsfun(X, Y, Z)
 
         bmagn = np.sqrt(By**2 + Bs**2)
+        if includebx:
+            Bx = Bxfun(X, Y, Z)
+            bmagn_color = np.sqrt(bmagn**2 + Bx**2)
+        else:
+            bmagn_color = bmagn
+            
+        if bmin is None:
+            bmin = bmagn_color.min()
+        if bmax is None:
+            bmax = bmagn_color.max()
 
         if ax is None:
             fig, ax = plt.subplots()
-        plt.imshow(bmagn, extent=(zmin, zmax, ymin, ymax), origin='lower', vmin=0, vmax=2)
+        plt.imshow(bmagn_color, extent=(zmin, zmax, ymin, ymax), origin='lower', vmin=bmin, vmax=bmax)
         plt.colorbar()
         skip = 4
         plt.quiver(Z[::skip, ::skip], Y[::skip, ::skip], Bs[::skip, ::skip]/bmagn[::skip, ::skip], 
@@ -124,6 +183,44 @@ class FieldExpansion:
         plt.ylabel("y")
 
         plt.show()
+        
+    def plotfield_xz(self, Y=0, ax=None, bmin=None, bmax=None, includeby=False):
+        xmin, xmax, xstep = -2, 2, 0.05
+        zmin, zmax, zstep = -3, 3, 0.05
+        X = np.arange(xmin, xmax, xstep)
+        Z = np.arange(zmin, zmax, zstep)
+        Z, X = np.meshgrid(Z, X)
+
+        Bxfun, Byfun, Bsfun = self.get_Bfield()
+
+        Bx = Bxfun(X, Y, Z)
+        Bs = Bsfun(X, Y, Z)
+
+        bmagn = np.sqrt(Bx**2 + Bs**2)
+        if includeby:
+            By = Byfun(X, Y, Z)
+            bmagn_color = np.sqrt(bmagn**2 + By**2)
+        else:
+            bmagn_color = bmagn
+            
+        if bmin is None:
+            bmin = bmagn_color.min()
+        if bmax is None:
+            bmax = bmagn_color.max()
+
+        if ax is None:
+            fig, ax = plt.subplots()
+        plt.imshow(bmagn_color, extent=(zmin, zmax, xmin, xmax), origin='lower', vmin=bmin, vmax=bmax)
+        plt.colorbar()
+        skip = 4
+        plt.quiver(Z[::skip, ::skip], X[::skip, ::skip], Bs[::skip, ::skip]/bmagn[::skip, ::skip], 
+                Bx[::skip, ::skip]/bmagn[::skip, ::skip], scale=50, pivot='mid') 
+        
+        plt.xlabel("s")
+        plt.ylabel("x")
+
+        plt.show()
+        
 
 
     def writefile(self, xarr, yarr, zarr, filename):
