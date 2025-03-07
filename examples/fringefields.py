@@ -24,13 +24,13 @@ def K0ggtanh(b1, a, L):
 
 # Properties
 h = 0
-len = 5
+lenght = 5
 b1 = 0.1
 aa = 1
 b1shape = f"(tanh(s/{aa})+1)/2"
 b1fringe = f"{b1}*{b1shape}" # Fringe field integral K = aa/(2g)
 Kg = aa/2
-K0gg = K0ggtanh(b1, aa, len/2)
+K0gg = K0ggtanh(b1, aa, lenght/2)
 
 
 #################################
@@ -40,11 +40,11 @@ K0gg = K0ggtanh(b1, aa, len/2)
 qp0 = [0,1,0,0,0,0]  # x, y, tau, px, py, ptau
 coord = np.array([[qp0[0]], [qp0[3]], [qp0[1]], [qp0[4]]])  # format that allows many particles
 
-fringe_thin = bpmeth.ThinNumericalFringe(b1, b1shape, len=len, nphi=5)
+fringe_thin = bpmeth.ThinNumericalFringe(b1, b1shape, length=lenght, nphi=5)
 trajectories_thin = fringe_thin.track(coord.copy())
 trajectory_thin = trajectories_thin.get_trajectory(0)
 
-fringe_thick = bpmeth.ThickNumericalFringe(b1, b1shape, len=len, nphi=5)
+fringe_thick = bpmeth.ThickNumericalFringe(b1, b1shape, lenght=lenght, nphi=5)
 trajectories_thick = fringe_thick.track(coord.copy())
 trajectory_thick = trajectories_thick.get_trajectory(0)
 
@@ -98,10 +98,10 @@ part = np.zeros((4, npart))
 part[2] = np.linspace(-1, 1, npart)
 part[3] = 0.2
 
-fringe_thin = bpmeth.ThinNumericalFringe(b1, b1shape, len=len, nphi=5)
+fringe_thin = bpmeth.ThinNumericalFringe(b1, b1shape, lenght=lenght, nphi=5)
 trajectories_thin = fringe_thin.track(part.copy())
 
-fringe_thick = bpmeth.ThickNumericalFringe(b1, b1shape, len=len, nphi=5)
+fringe_thick = bpmeth.ThickNumericalFringe(b1, b1shape, lenght=lenght, nphi=5)
 trajectories_thick = fringe_thick.track(part.copy())
 
 fringe_forest = bpmeth.ForestFringe(b1, Kg, K0gg)
