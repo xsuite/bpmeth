@@ -135,7 +135,7 @@ class DipoleVectorPotential(FieldExpansion):
         
         self.curv = curv
         self.b1 = b1
-        super().__init__(b=(f"{b1}",), hs=f"{hs}", nphi=0)
+        super().__init__(b=(f"{b1}",), hs=f"{curv}", nphi=0)
 
     def get_Aval(self, coords):
         x, y, s = coords.x, coords.y, coords.s
@@ -154,7 +154,7 @@ class SolenoidVectorPotential(FieldExpansion):
         """
         
         self.bs = bs
-        super().__init__(bs=bs, nphi=0)
+        super().__init__(bs=f"{bs}", nphi=0)
 
     def get_Aval(self, coords):
         x, y, s = coords.x, coords.y, coords.s
