@@ -116,7 +116,7 @@ class Hamiltonian:
         return f'Hamiltonian({self.length}, {self.curv}, {self.vectp})'
 
 
-class DriftVectorPotential:  
+class DriftVectorPotential(FieldExpansion):  
     def __init__(self):
         super().__init__(nphi=0)
         
@@ -124,7 +124,7 @@ class DriftVectorPotential:
         return [0, 0, 0]
 
 
-class DipoleVectorPotential:
+class DipoleVectorPotential(FieldExpansion):
     def __init__(self, curv, b1):
         """
         Dipoles without s-dependence, in this case the vector potential is known analytically.
@@ -144,7 +144,7 @@ class DipoleVectorPotential:
         return [0, 0, As]
     
 
-class SolenoidVectorPotential:
+class SolenoidVectorPotential(FieldExpansion):
     def __init__(self, bs):
         """ 
         Solenoids without s-dependence, in this case the vector potential is known analytically.
@@ -162,7 +162,7 @@ class SolenoidVectorPotential:
         return [-bs*y/2, bs*x/2, 0]
 
 
-class FringeVectorPotential:
+class FringeVectorPotential(FieldExpansion):
     def __init__(self, b1, nphi=5):
         """
         Fringe fields in a straight coordinate frame.
