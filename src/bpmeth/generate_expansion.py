@@ -233,18 +233,25 @@ class FieldExpansion:
         pxsubs = - 1/(2*sp.sqrt(betx))*((alphx + 1j)*hxp + (alphx - 1j)*hxm)
         pysubs = - 1/(2*sp.sqrt(bety))*((alphy + 1j)*hyp + (alphy - 1j)*hym)
         
-        # H = -As
-        H_As_poly= -As.subs([(x, xsubs), (y, ysubs)]).as_poly(hxp, hxm, hyp, hym)
+        # H = -(1+hx) As
+        H_As = ((1+hs*x) * As).series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)])
+        H_As_poly = H_As.as_poly(hxp, hxm, hyp, hym)
         
-        # H = -px Ax
-        H_pxAx_poly = -(pxsubs * Ax.subs([(x, xsubs), (y, ysubs)])).as_poly(hxp, hxm, hyp, hym)
-        # H = 1/2 Ax^2
-        H_Ax2_poly = (1/2 * Ax.subs([(x, xsubs), (y, ysubs)])**2).as_poly(hxp, hxm, hyp, hym)
+        # H = -(1+hx) px Ax
+        H_pxAx = -((1+hs*x) * pxsubs * Ax).series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
+        H_pxAx_poly = H_pxAx.as_poly(hxp, hxm, hyp, hym)
+        
+        # H = (1+hx) 1/2 Ax^2
+        H_Ax2 = ((1+hs*x) * 1/2 * Ax**2).series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
+        H_Ax2_poly = H_Ax2.as_poly(hxp, hxm, hyp, hym)
 
-        # H = -py Ay
-        H_pyAy_poly = -(pysubs * Ay.subs([(x, xsubs), (y, ysubs)])).as_poly(hxp, hxm, hyp, hym)
-        # H = 1/2 Ay^2
-        H_Ay2_poly = (1/2 * Ay.subs([(x, xsubs), (y, ysubs)])**2).as_poly(hxp, hxm, hyp, hym)
+        # H = -(1+hx) py Ay
+        H_pyAy = -((1+hs*x) * pysubs * Ay).series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
+        H_pyAy_poly = H_pyAy.as_poly(hxp, hxm, hyp, hym)
+        
+        # H = (1+hx) 1/2 Ay^2
+        H_Ay2 = ((1+hs*x) * 1/2 * Ay**2).series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
+        H_Ay2_poly = H_Ay2.as_poly(hxp, hxm, hyp, hym)
         
         h = sp.MutableDenseNDimArray(np.zeros((n+1, n+1, n+1, n+1), dtype=object))
 
