@@ -227,8 +227,6 @@ class FieldExpansion:
         hs = self.hs
         Ax, Ay, As = self.get_A()
         
-        assert Ay == 0, "RDTs are not implemented yet for this gauge"
-
         hxp, hxm, hyp, hym = sp.symbols("hxp hxm hyp hym")
         xsubs = sp.sqrt(betx)/2*(hxp + hxm)
         ysubs = sp.sqrt(bety)/2*(hyp + hym)
@@ -240,9 +238,13 @@ class FieldExpansion:
         
         # H = -px Ax
         H_pxAx_poly = -(pxsubs * Ax.subs([(x, xsubs), (y, ysubs)])).as_poly(hxp, hxm, hyp, hym)
-        
         # H = 1/2 Ax^2
         H_Ax2_poly = (1/2 * Ax.subs([(x, xsubs), (y, ysubs)])**2).as_poly(hxp, hxm, hyp, hym)
+
+        # H = -py Ay
+        H_pyAy_poly = -(pysubs * Ay.subs([(x, xsubs), (y, ysubs)])).as_poly(hxp, hxm, hyp, hym)
+        # H = 1/2 Ay^2
+        H_Ay2_poly = (1/2 * Ay.subs([(x, xsubs), (y, ysubs)])**2).as_poly(hxp, hxm, hyp, hym)
         
         h = sp.MutableDenseNDimArray(np.zeros((n+1, n+1, n+1, n+1), dtype=object))
 
@@ -253,6 +255,8 @@ class FieldExpansion:
                         h[p,q,r,t] += H_As_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
                         h[p,q,r,t] += H_pxAx_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
                         h[p,q,r,t] += H_Ax2_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
+                        h[p,q,r,t] += H_pyAy_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
+                        h[p,q,r,t] += H_Ay2_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
 
         return h
         
