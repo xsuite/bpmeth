@@ -69,7 +69,7 @@ o_forest_co = line_forest_co.track(part, num_turns=nturns)
 
 print("Calculating normal forms")
 
-nsvals = 50
+nsvals = 10
 ds = length/(nsvals-1)
 svals = np.arange(-length/2, length/2+ds, ds)
 

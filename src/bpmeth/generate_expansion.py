@@ -218,18 +218,44 @@ class FieldExpansion:
         plt.show()
         
         
-    def calc_RDTs(self):
+    def calc_RDTs(self, n, betx=1, bety=1, alphx=0, alphy=0):
+        """
+        Calculate the RDTs of the given element symbolically as a function of s
+        
+        """
         x, y, s = self.x, self.y, self.s
         hs = self.hs
         Ax, Ay, As = self.get_A()
         
-        # As terms
+        assert Ay == 0, "RDTs are not implemented yet for this gauge"
+
+        hxp, hxm, hyp, hym = sp.symbols("hxp hxm hyp hym")
+        xsubs = sp.sqrt(betx)/2*(hxp + hxm)
+        ysubs = sp.sqrt(bety)/2*(hyp + hym)
+        pxsubs = - 1/(2*sp.sqrt(betx))*((alphx + 1j)*hxp + (alphx - 1j)*hxm)
+        pysubs = - 1/(2*sp.sqrt(bety))*((alphy + 1j)*hyp + (alphy - 1j)*hym)
         
-        # px Ax terms
+        # H = -As
+        H_As_poly= -As.subs([(x, xsubs), (y, ysubs)]).as_poly(hxp, hxm, hyp, hym)
         
-        #Ax^2 terms
+        # H = -px Ax
+        H_pxAx_poly = -(pxsubs * Ax.subs([(x, xsubs), (y, ysubs)])).as_poly(hxp, hxm, hyp, hym)
         
-        return
+        # H = 1/2 Ax^2
+        H_Ax2_poly = (1/2 * Ax.subs([(x, xsubs), (y, ysubs)])**2).as_poly(hxp, hxm, hyp, hym)
+        
+        h = sp.MutableDenseNDimArray(np.zeros((n+1, n+1, n+1, n+1), dtype=object))
+
+        for p in range(n+1):
+            for q in range(n+1-p):
+                for r in range(n+1-p-q):
+                    for t in range(n+1-p-q-r):
+                        h[p,q,r,t] += H_As_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
+                        h[p,q,r,t] += H_pxAx_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
+                        h[p,q,r,t] += H_Ax2_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
+
+        return h
+        
         
 
     def writefile(self, xarr, yarr, zarr, filename):
