@@ -99,6 +99,9 @@ class FieldExpansion:
 
     
     def transform(self, theta_E=0, rho=np.inf, maxpow=None):
+        """
+        So far only implemented for the entrance of the element. Some signs will differ for the exit!
+        """
         assert self.hs==0, "Transform only implemented starting from straight frame!"        
         
         x, y, s = self.x, self.y, self.s
@@ -116,10 +119,12 @@ class FieldExpansion:
         if rho==np.inf:  # Straight frame
             xt = s*sp.sin(theta_E) + x*sp.cos(theta_E)
             st = s*sp.cos(theta_E) - x*sp.sin(theta_E)
+            print(f"Rotating over angle {theta_E} to new straight frame...")
 
         else:  # Curved frame
             xt = (rho+x)*(sp.cos(theta_E-s/rho)) - rho*sp.cos(theta_E)
             st = rho*sp.sin(theta_E) - (rho+x)*(sp.sin(theta_E-s/rho))
+            print(f"Rotating over angle {theta_E} to new curved frame with bending radius {rho}...")
 
         phi0 = phi0.subs([(x,xt), (s,st)])
         phi1 = phi1.subs([(x,xt), (s,st)])
@@ -222,7 +227,15 @@ class FieldExpansion:
         """
         Calculate the RDTs of the given element symbolically as a function of s
         
+        :param n (int): Highest order of the RDTs to calculate.
+        :param betx (float or sp.symbol): Beta function in x.
+        :param bety (float or sp.symbol): Beta function in y.
+        :param alphx (float or sp.symbol): Alpha function in x.
+        :param alphy (float or sp.symbol): Alpha function in y.
+        :return (List of lists of sp expressions): Symbolic expression of the h values h_pqrt 
+        to calculate the RDTs as a function of s.
         """
+
         x, y, s = self.x, self.y, self.s
         hs = self.hs
         Ax, Ay, As = self.get_A()
@@ -238,19 +251,19 @@ class FieldExpansion:
         H_As_poly = H_As.as_poly(hxp, hxm, hyp, hym)
         
         # H = -(1+hx) px Ax
-        H_pxAx = -((1+hs*x) * pxsubs * Ax).series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
+        H_pxAx = -((1+hs*x) * pxsubs * Ax).cancel().series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
         H_pxAx_poly = H_pxAx.as_poly(hxp, hxm, hyp, hym)
         
         # H = (1+hx) 1/2 Ax^2
-        H_Ax2 = ((1+hs*x) * 1/2 * Ax**2).series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
+        H_Ax2 = ((1+hs*x) * 1/2 * Ax**2).cancel().series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
         H_Ax2_poly = H_Ax2.as_poly(hxp, hxm, hyp, hym)
 
         # H = -(1+hx) py Ay
-        H_pyAy = -((1+hs*x) * pysubs * Ay).series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
+        H_pyAy = -((1+hs*x) * pysubs * Ay).cancel().series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
         H_pyAy_poly = H_pyAy.as_poly(hxp, hxm, hyp, hym)
         
         # H = (1+hx) 1/2 Ay^2
-        H_Ay2 = ((1+hs*x) * 1/2 * Ay**2).series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
+        H_Ay2 = ((1+hs*x) * 1/2 * Ay**2).cancel().series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
         H_Ay2_poly = H_Ay2.as_poly(hxp, hxm, hyp, hym)
         
         h = sp.MutableDenseNDimArray(np.zeros((n+1, n+1, n+1, n+1), dtype=object))

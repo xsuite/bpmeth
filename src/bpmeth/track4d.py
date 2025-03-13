@@ -416,10 +416,11 @@ class Output4d:
 
 
 class NormalForms4d:
-    def __init__(self, h, phi_x, phi_y, Qx, Qy, num_turns):
+    def __init__(self, h, phi_x, phi_y, Qx, Qy, num_turns=100):
         """
         :param h: four or five dimensional array with the Hamiltonian coefficients. Each h[p,q,r,t] is either a 
-            complex number or a numpy array of complex numbers corresponding to different locations
+            complex number or a numpy array of complex numbers corresponding to different locations.
+            Make sure to include the ds in this contribution if you want to perform an integral!
         :param phi_x: horizontal phase advance of the perturbation, either a float or a numpy array of floats
         :param phi_y: vertical phase advance of the perturbation, either a float or a numpy array of floats
         :param Qx: horizontal tune
