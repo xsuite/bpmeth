@@ -74,7 +74,7 @@ class FieldExpansion:
 
         Ax = - sp.integrate(Bs, (y, 0, y))
         Ay = sp.S(0)
-        As = sp.integrate(Bx, (y, 0, y)) - 1/(1+hs*x) * sp.integrate((1+hs*x)*By, (x, 0, x)).subs({y:0})
+        As = sp.integrate(Bx, (y, 0, y)) - 1/(1+hs*x) * sp.integrate((1+hs*x)*By.subs({y:0}), (x, 0, x))
 
         return Ax, Ay, As
 
@@ -215,7 +215,7 @@ class FieldExpansion:
         plt.colorbar()
         skip = 4
         plt.quiver(Z[::skip, ::skip], X[::skip, ::skip], Bs[::skip, ::skip]/bmagn[::skip, ::skip], 
-                Bx[::skip, ::skip]/bmagn[::skip, ::skip], scale=50, pivot='mid') 
+                Bx[::skip, ::skip]/bmagn[::skip, ::skip], scale=50, pivot='mid')
         
         plt.xlabel("s")
         plt.ylabel("x")
