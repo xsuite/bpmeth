@@ -62,12 +62,13 @@ class Hamiltonian:
         return sol
     
 
-    def track(self, particle):
+    def track(self, particle, return_sol=False, ivp_opt=None):
         if isinstance(particle.x, np.ndarray) or isinstance(particle.x, list):
             results = []
+            out = []
             for i in range(len(particle.x)):
                 qp0 = [particle.x[i], particle.y[i], particle.beta0[i] * particle.zeta[i], particle.px[i], particle.py[i], particle.ptau[i]]
-                sol = self.solve(qp0)
+                sol = self.solve(qp0, ivp_opt=ivp_opt)
                 s = sol.t
                 x, y, tau, px, py, ptau = sol.y
                 results.append({
@@ -77,7 +78,9 @@ class Hamiltonian:
                     'px': px[-1],
                     'py': py[-1],
                     'ptau': ptau[-1],
-                })
+                })                
+                if return_sol:
+                    out.append(sol)
             particle.x = [res['x'] for res in results]
             particle.y = [res['y'] for res in results]
             particle.zeta = [res['zeta'] for res in results]
@@ -97,7 +100,11 @@ class Hamiltonian:
             particle.py = py[-1]
             particle.ptau = ptau[-1]
             particle.s += self.length
+            if return_sol:
+                out = sol
 
+        if return_sol:
+            return out
 
     def plotsol(self, qp0, s_span=None, ivp_opt=None, figname_zx=None, figname_zxy=None, canvas_zx=None, canvas_zxy=None):
         sol = self.solve(qp0, s_span, ivp_opt)
