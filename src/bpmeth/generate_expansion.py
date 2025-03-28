@@ -157,9 +157,7 @@ class FieldExpansion:
         return FieldExpansion(a=a, b=b, bs=bs, nphi=nphi)
             
 
-    def plotfield_yz(self, X=0, ax=None, bmin=None, bmax=None, includebx=False):
-        ymin, ymax, ystep = -2, 2, 0.05
-        zmin, zmax, zstep = -3, 3, 0.05
+    def plotfield_yz(self, X=0, ax=None, bmin=None, bmax=None, includebx=False, ymin=-2, ymax=2, ystep=0.05, zmin=-3, zmax=3, zstep=0.05):
         Y = np.arange(ymin, ymax, ystep)
         Z = np.arange(zmin, zmax, zstep)
         Z, Y = np.meshgrid(Z, Y)
@@ -194,9 +192,7 @@ class FieldExpansion:
 
         plt.show()
         
-    def plotfield_xz(self, Y=0, ax=None, bmin=None, bmax=None, includeby=False):
-        xmin, xmax, xstep = -2, 2, 0.05
-        zmin, zmax, zstep = -3, 3, 0.05
+    def plotfield_xz(self, Y=0, ax=None, bmin=None, bmax=None, includeby=False, xmin=-2, xmax=2, xstep=0.05, zmin=-3, zmax=3, zstep=0.05):
         X = np.arange(xmin, xmax, xstep)
         Z = np.arange(zmin, zmax, zstep)
         Z, X = np.meshgrid(Z, X)
