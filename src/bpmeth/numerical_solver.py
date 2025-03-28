@@ -68,6 +68,8 @@ class Hamiltonian:
             out = []
             for i in range(len(particle.x)):
                 qp0 = [particle.x[i], particle.y[i], particle.beta0[i] * particle.zeta[i], particle.px[i], particle.py[i], particle.ptau[i]]
+                if s_span is None:
+                    s_span = [particle.s[i], particle.s[i] + self.length]
                 sol = self.solve(qp0, s_span=s_span, ivp_opt=ivp_opt)
                 s = sol.t
                 x, y, tau, px, py, ptau = sol.y
@@ -90,7 +92,9 @@ class Hamiltonian:
             particle.s += self.length
         else:
             qp0 = [particle.x, particle.y, particle.beta0 * particle.zeta, particle.px, particle.py, particle.ptau]
-            sol = self.solve(qp0)
+            if s_span is None:
+                s_span = [particle.s, particle.s + self.length]
+            sol = self.solve(qp0, s_span=s_span, ivp_opt=ivp_opt)
             s = sol.t
             x, y, tau, px, py, ptau = sol.y
             particle.x = x[-1]
