@@ -67,7 +67,7 @@ class FieldExpansion:
         
 
     
-    def get_A(self):
+    def get_A(self, coords=None):
         x, y, s = self.x, self.y, self.s
         hs = self.hs
         Bx, By, Bs = self.get_Bfield(lambdify=False)
@@ -75,8 +75,17 @@ class FieldExpansion:
         Ax = - sp.integrate(Bs, (y, 0, y))
         Ay = sp.S(0)
         As = sp.integrate(Bx, (y, 0, y)) - 1/(1+hs*x) * sp.integrate((1+hs*x)*By.subs({y:0}), (x, 0, x))
+        
+        if coords is None:
+            return Ax, Ay, As
 
-        return Ax, Ay, As
+        else:
+            xval, yval, sval = coords.x, coords.y, coords.s
+            return [
+                Ax.subs({x: xval, y: yval, s: sval}).evalf(),
+                Ay.subs({x: xval, y: yval, s: sval}).evalf(),
+                As.subs({x: xval, y: yval, s: sval}).evalf()
+            ]
 
     
     def get_Bfield(self, lambdify=True):

@@ -21,7 +21,7 @@ class Hamiltonian:
         px, py, ptau = coords.px, coords.py, coords.ptau
         beta0 = coords.beta0
         h = self.curv
-        A = self.vectp.get_Aval(coords)
+        A = self.vectp.get_A(coords=coords)
         sqrt = coords._m.sqrt
         tmp1 = sqrt(1+2*ptau/beta0+ptau**2-(px-A[0])**2-(py-A[1])**2)
         H = ptau/beta0 - (1+h*x)*(tmp1 + A[2])
@@ -62,13 +62,13 @@ class Hamiltonian:
         return sol
     
 
-    def track(self, particle, return_sol=False, ivp_opt=None):
+    def track(self, particle, s_span=None, return_sol=False, ivp_opt=None):
         if isinstance(particle.x, np.ndarray) or isinstance(particle.x, list):
             results = []
             out = []
             for i in range(len(particle.x)):
                 qp0 = [particle.x[i], particle.y[i], particle.beta0[i] * particle.zeta[i], particle.px[i], particle.py[i], particle.ptau[i]]
-                sol = self.solve(qp0, ivp_opt=ivp_opt)
+                sol = self.solve(qp0, s_span=s_span, ivp_opt=ivp_opt)
                 s = sol.t
                 x, y, tau, px, py, ptau = sol.y
                 results.append({
@@ -123,11 +123,16 @@ class Hamiltonian:
         return f'Hamiltonian({self.length}, {self.curv}, {self.vectp})'
 
 
+###########################################
+# A few common cases, to make life easier #
+###########################################
+
+
 class DriftVectorPotential(FieldExpansion):  
     def __init__(self):
         super().__init__(nphi=0)
         
-    def get_Aval(self, coords):
+    def get_A(self, coords):
         return [0, 0, 0]
 
 
@@ -144,7 +149,7 @@ class DipoleVectorPotential(FieldExpansion):
         self.b1 = b1
         super().__init__(b=(f"{b1}",), hs=f"{curv}", nphi=0)
 
-    def get_Aval(self, coords):
+    def get_A(self, coords):
         x, y, s = coords.x, coords.y, coords.s
         h = self.curv
         As = -(x+h/2*x**2)/(1+h*x) * self.b1
@@ -163,7 +168,7 @@ class SolenoidVectorPotential(FieldExpansion):
         self.bs = bs
         super().__init__(bs=f"{bs}", nphi=0)
 
-    def get_Aval(self, coords):
+    def get_A(self, coords):
         x, y, s = coords.x, coords.y, coords.s
         bs = self.bs
         return [-bs*y/2, bs*x/2, 0]
@@ -179,15 +184,6 @@ class FringeVectorPotential(FieldExpansion):
         """
         
         super().__init__(b=(b1,), nphi=nphi)
-    
-    def get_Aval(self, coords):
-        x, y, s = coords.x, coords.y, coords.s
-        Ax, Ay, As = self.get_A()
-        return [
-            Ax.subs({self.x: x, self.y: y, self.s: s}).evalf(),
-            Ay.subs({self.x: x, self.y: y, self.s: s}).evalf(),
-            As.subs({self.x: x, self.y: y, self.s: s}).evalf()
-        ]
         
     
 class GeneralVectorPotential(FieldExpansion):
@@ -204,15 +200,6 @@ class GeneralVectorPotential(FieldExpansion):
         
         super().__init__(a=a, b=b, bs=bs, hs=hs, nphi=nphi)
           
-    def get_Aval(self, coords):
-        x, y, s = coords.x, coords.y, coords.s
-        Ax, Ay, As = self.get_A()
-        return [
-            Ax.subs({self.x: x, self.y: y, self.s: s}).evalf(),
-            Ay.subs({self.x: x, self.y: y, self.s: s}).evalf(),
-            As.subs({self.x: x, self.y: y, self.s: s}).evalf()
-        ]
-
 
 
 class SympyParticle:
