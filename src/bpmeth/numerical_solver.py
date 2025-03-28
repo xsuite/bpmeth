@@ -49,20 +49,23 @@ class Hamiltonian:
             return qpdot
 
 
-    def solve(self, qp0, s_span=None, ivp_opt=None):
+    def solve(self, qp0, s_span=None, ivp_opt={}):
+        ivp_opt = ivp_opt.copy()
         if s_span is None:
             s_span = [0, self.length]
-        if ivp_opt is None:
-            ivp_opt = {'t_eval': np.linspace(s_span[0], s_span[1], 500), "rtol":1e-4, "atol":1e-7}
-        elif 't_eval' not in ivp_opt:
+        if 't_eval' not in ivp_opt:
             ivp_opt['t_eval'] = np.linspace(s_span[0], s_span[1], 500)
+        if "rtol" not in ivp_opt:
+            ivp_opt["rtol"] = 1e-4
+        if "atol" not in ivp_opt:
+            ivp_opt["atol"] = 1e-7
             
         f = self.vectorfield
         sol = solve_ivp(f, s_span, qp0, **ivp_opt)
         return sol
     
 
-    def track(self, particle, s_span=None, return_sol=False, ivp_opt=None):
+    def track(self, particle, s_span=None, return_sol=False, ivp_opt={}):
         if isinstance(particle.x, np.ndarray) or isinstance(particle.x, list):
             results = []
             out = []
