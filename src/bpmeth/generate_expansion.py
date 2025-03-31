@@ -205,6 +205,19 @@ class FieldExpansion:
             
         return FieldExpansion(a=a, b=b, bs=bs, nphi=nphi)
     
+    def plot_components(self, smin=-2, smax=2, plot_b=True, plot_a=True, plot_bs=True):
+        ss = np.linspace(smin, smax, 100)
+        
+        if plot_a:
+            for i, aa in enumerate(self.a):
+                plt.plot(ss, [aa.subs(self.s, sval).evalf() for sval in ss], label=f"a_{i+1}")
+        if plot_b:
+            for i, bb in enumerate(self.b):
+                plt.plot(ss, [bb.subs(self.s, sval).evalf() for sval in ss], label=f"b_{i+1}")
+        if plot_bs:
+            plt.plot(ss, [self.bs.subs(self.s, sval).evalf() for sval in ss], label=f"bs")
+        plt.legend()
+        plt.show()
     
     def plotfield_z(self, X=0, Y=0, ax=None, zmin=-2, zmax=2, zstep=0.01):
         if ax is None:
