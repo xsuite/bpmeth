@@ -110,7 +110,13 @@ class FieldExpansion:
     def transform(self, theta_E=0, rho=np.inf, maxpow=None):
         """
         So far only implemented for the entrance of the element. Some signs will differ for the exit!
+        
+        param theta_E (float): Rotation angle in radians.
+        param rho (float): Bending radius of the frame. If rho=np.inf, the frame is straight.
+        param maxpow (int): Maximum power of the series expansion to keep.
+        return (FieldExpansion): New field expansion in the rotated frame.
         """
+        
         assert self.hs==0, "Transform only implemented starting from straight frame!"        
         
         x, y, s = self.x, self.y, self.s
@@ -156,6 +162,62 @@ class FieldExpansion:
             
         return FieldExpansion(a=a, b=b, bs=bs, nphi=nphi)
             
+            
+    def cut_at_angle(self, theta_E, maxpow=None):
+        """
+        Cut a general magnet at an angle theta_E. theta_E = 0 means no edge angle.
+        
+        :param theta_E (float): Edge angle in radians.
+        """
+        
+        x, y, s = self.x, self.y, self.s
+        at = self.a
+        bt = self.b
+        bst = self.bs
+        nphi = self.nphi
+        if maxpow is None:
+            maxpow = nphi
+            
+        phi0 = sum((an * x ** (n + 1) / sp.factorial(n + 1) for n, an in enumerate(at))) + sp.integrate(bst, s)
+        phi1 = sum((bn * x**n / sp.factorial(n) for n, bn in enumerate(bt))) 
+
+        st = s - x*sp.sin(theta_E)
+        print(f"Cutting magnet at angle {theta_E}...")
+        
+        phi0 = phi0.subs([(s,st)])
+        phi1 = phi1.subs([(s,st)])
+            
+        phi0 = phi0.series(x, 0, maxpow).removeO().as_poly(x)
+        phi1 = phi1.series(x, 0, maxpow).removeO().as_poly(x)        
+        
+        # Extract the multipole coefficients.
+        a = []
+        degree0 = 0 if phi0==0 else phi0.degree(x)
+        for i in range(1, degree0+1):
+            a.append(phi0.coeff_monomial(x**i))
+            
+        bs = phi0.coeff_monomial(x**0).diff(s)
+
+        b = []
+        degree1 = 0 if phi1==0 else phi1.degree(x)
+        for i in range(degree1+1):
+            b.append(phi1.coeff_monomial(x**i))
+            
+        return FieldExpansion(a=a, b=b, bs=bs, nphi=nphi)
+    
+    
+    def plotfield_z(self, X=0, Y=0, ax=None, zmin=-2, zmax=2, zstep=0.01):
+        if ax is None:
+            fig, ax = plt.subplots()
+            
+        Bxfun, Byfun, Bsfun = self.get_Bfield()
+        Z = np.arange(zmin, zmax, zstep)
+        
+        ax.plot(Bxfun(X, Y, Z), label="Bx")
+        ax.plot(Byfun(X, Y, Z), label="By")
+        ax.plot(Bsfun(X, Y, Z), label="Bs")
+        plt.legend()
+        
 
     def plotfield_yz(self, X=0, ax=None, bmin=None, bmax=None, includebx=False, ymin=-2, ymax=2, ystep=0.05, zmin=-3, zmax=3, zstep=0.05):
         Y = np.arange(ymin, ymax, ystep)
