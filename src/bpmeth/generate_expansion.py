@@ -264,6 +264,7 @@ class FieldExpansion:
         Bx = Bxfun(X, Y, Z)
         Bs = Bsfun(X, Y, Z)
 
+
         bmagn = np.sqrt(Bx**2 + Bs**2)
         if includeby:
             By = Byfun(X, Y, Z)
@@ -289,7 +290,30 @@ class FieldExpansion:
 
         plt.show()
         
+    def plot_By(self, Y=0, ax=None, bmin=None, bmax=None, includeby=False, xmin=-2, xmax=2, xstep=0.05, zmin=-3, zmax=3, zstep=0.05):
+        X = np.arange(xmin, xmax, xstep)
+        Z = np.arange(zmin, zmax, zstep)
+        Z, X = np.meshgrid(Z, X)
+
+        Bxfun, Byfun, Bsfun = self.get_Bfield()
+        By = Byfun(X, Y, Z)
+            
+        if bmin is None:
+            bmin = By.min()
+        if bmax is None:
+            bmax = By.max()
+
+        if ax is None:
+            fig, ax = plt.subplots()
+        plt.imshow(By, extent=(zmin, zmax, xmin, xmax), origin='lower', vmin=bmin, vmax=bmax)
+        plt.colorbar()
         
+        plt.xlabel("s")
+        plt.ylabel("x")
+
+        plt.show()
+                
+                
     def calc_RDTs(self, n, betx=1, bety=1, alphx=0, alphy=0):
         """
         Calculate the RDTs of the given element symbolically as a function of s
