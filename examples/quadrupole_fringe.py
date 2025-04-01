@@ -31,3 +31,6 @@ for i in range(len(rot_quadfringe.b)):
     print(f"- Integral for cut fringe: \t {np.trapezoid([cut_quadfringe.b[i].subs({quadfringe.s:sval}).evalf() for sval in ss], ss)}")
     print(f"- Integral for rotated fringe: \t {np.trapezoid([rot_quadfringe.b[i].subs({quadfringe.s:sval}).evalf() for sval in ss], ss)}")
 ax.legend()
+
+# Make a continuous differentiable b1 that goes to zero on both sides
+symmetricfringe = bpmeth.FieldExpansion(b=(-sp.sign(rot_quadfringe.s)*rot_quadfringe.b[0].subs({rot_quadfringe.s:-abs(rot_quadfringe.s)}), *rot_quadfringe.b[1:]))
