@@ -131,19 +131,21 @@ class FieldExpansion:
         phi0 = sum((an * x ** (n + 1) / sp.factorial(n + 1) for n, an in enumerate(at))) + sp.integrate(bst, s)
         phi1 = sum((bn * x**n / sp.factorial(n) for n, bn in enumerate(bt))) 
 
+        ss, xx = sp.symbols("ss xx")
+        
         if rho==np.inf:  # Straight frame
-            xt = s*sp.sin(theta_E) + x*sp.cos(theta_E)
-            st = s*sp.cos(theta_E) - x*sp.sin(theta_E)
+            xt = ss*sp.sin(theta_E) + xx*sp.cos(theta_E)
+            st = ss*sp.cos(theta_E) - xx*sp.sin(theta_E)
             print(f"Rotating over angle {theta_E} to new straight frame...")
 
         else:  # Curved frame
-            xt = (rho+x)*(sp.cos(theta_E-s/rho)) - rho*sp.cos(theta_E)
-            st = rho*sp.sin(theta_E) - (rho+x)*(sp.sin(theta_E-s/rho))
+            xt = (rho+xx)*(sp.cos(theta_E-ss/rho)) - rho*sp.cos(theta_E)
+            st = rho*sp.sin(theta_E) - (rho+xx)*(sp.sin(theta_E-ss/rho))
             print(f"Rotating over angle {theta_E} to new curved frame with bending radius {rho}...")
 
-        phi0 = phi0.subs([(x,xt), (s,st)])
-        phi1 = phi1.subs([(x,xt), (s,st)])
-            
+        phi0 = phi0.subs({x:xt, s:st}).subs({xx:x, ss:s})
+        phi1 = phi1.subs({x:xt, s:st}).subs({xx:x, ss:s})
+
         phi0 = phi0.series(x, 0, maxpow).removeO().as_poly(x)
         phi1 = phi1.series(x, 0, maxpow).removeO().as_poly(x)
         
