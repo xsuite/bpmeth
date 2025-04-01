@@ -131,7 +131,7 @@ class FieldExpansion:
         phi0 = sum((an * x ** (n + 1) / sp.factorial(n + 1) for n, an in enumerate(at))) + sp.integrate(bst, s)
         phi1 = sum((bn * x**n / sp.factorial(n) for n, bn in enumerate(bt))) 
 
-        ss, xx = sp.symbols("ss xx")
+        ss, xx = sp.symbols("ss xx")  # Needed for simultaneous substitution
         
         if rho==np.inf:  # Straight frame
             xt = ss*sp.sin(theta_E) + xx*sp.cos(theta_E)
@@ -207,19 +207,20 @@ class FieldExpansion:
             
         return FieldExpansion(a=a, b=b, bs=bs, nphi=nphi)
     
-    def plot_components(self, smin=-2, smax=2, plot_b=True, plot_a=True, plot_bs=True):
+    def plot_components(self, ax=None, smin=-2, smax=2, plot_b=True, plot_a=True, plot_bs=True):
         ss = np.linspace(smin, smax, 100)
+        if ax is None:
+            fig, ax = plt.subplots()
         
         if plot_a:
             for i, aa in enumerate(self.a):
-                plt.plot(ss, [aa.subs(self.s, sval).evalf() for sval in ss], label=f"a_{i+1}")
+                ax.plot(ss, [aa.subs(self.s, sval).evalf() for sval in ss], label=f"a_{i+1}")
         if plot_b:
             for i, bb in enumerate(self.b):
-                plt.plot(ss, [bb.subs(self.s, sval).evalf() for sval in ss], label=f"b_{i+1}")
+                ax.plot(ss, [bb.subs(self.s, sval).evalf() for sval in ss], label=f"b_{i+1}")
         if plot_bs:
-            plt.plot(ss, [self.bs.subs(self.s, sval).evalf() for sval in ss], label=f"bs")
-        plt.legend()
-        plt.show()
+            ax.plot(ss, [self.bs.subs(self.s, sval).evalf() for sval in ss], label=f"bs")
+        ax.legend()
     
     def plotfield_z(self, X=0, Y=0, ax=None, zmin=-2, zmax=2, zstep=0.01):
         if ax is None:
