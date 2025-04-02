@@ -126,7 +126,7 @@ class ThickNumericalFringe:
         y = coord[2]
         py = coord[3]
         
-        p_sp = bpmeth.SympyParticle()
+        p_sp = SympyParticle()
         trajectories = MultiTrajectory(trajectories = [])
         for i in range(npart):
             qp0 = [x[i], y[i], 0, px[i], py[i], 0]
@@ -248,6 +248,10 @@ class ForestFringe:
                 assert(self.K0gg != 0), "K0gg must be non-zero for closed orbit distortion"
                 xf -= self.K0gg / np.sqrt(1 - pxi[i]**2 - pyi[i]**2)
                 coord[0, i] = xf
+            
+            if self.sadistic:
+                pyf -= 4*self.b1**2 /(36*self.Kg) * yf**3 #/(1+delta)
+                coord[3, i] = pyf
             
             trajectories.add_trajectory(Trajectory([0, 0], [xi[i], xf], [pxi[i], pxi[i]], [yi[i], yf], [pyi[i], pyf]))
             
