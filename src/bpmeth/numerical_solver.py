@@ -217,6 +217,7 @@ class SympyParticle:
         self.px, self.py, self.ptau = sp.symbols('px py ptau')
         self.beta0 = beta0
         self._m = sp
+        self.npart = 1
 
 class NumpyParticle:
     def __init__(self, qp0, s=0, beta0=1):
@@ -225,6 +226,7 @@ class NumpyParticle:
         self.zeta = self.tau * self.beta0
         self.s = s
         self._m = np
+        self.npart = 1
         
 class MultiParticle:
     def __init__(self, npart, x=0, y=0, tau=0, px=0, py=0, ptau=0, s=0, beta0=1):
@@ -265,7 +267,6 @@ class MultiParticle:
         self.s = np.array(s)
         
         self._m = np
-        
         
     def copy(self):
         return MultiParticle(self.npart, x=self.x.copy(), y=self.y.copy(), tau=self.tau.copy(), 

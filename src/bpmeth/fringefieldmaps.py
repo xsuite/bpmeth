@@ -233,26 +233,38 @@ class ForestFringe:
         :return: A list of trajectory elements for all particles.
         """
                 
-        npart = part.npart
         xi, pxi, yi, pyi, zetai, ptaui = part.x, part.px, part.y, part.py, part.zeta, part.ptau
         beta0 = part.beta0
         
         m = part._m
-        
         deltai = m.sqrt(1 + 2*ptaui / beta0 + ptaui**2) - 1
         betai = m.sqrt(1-(1-beta0)/(1+beta0*ptaui)**2)
         li = betai * zetai / beta0
         
         trajectories = MultiTrajectory(trajectories = [])
         
+        singleparticle=False
+        npart = part.npart
+        if npart == 1 and not (isinstance(xi, list) or isinstance(xi, np.ndarray)):
+            xi, pxi, yi, pyi, zetai, ptaui = [xi], [pxi], [yi], [pyi], [zetai], [ptaui]
+            deltai, betai, li = [deltai], [betai], [li]
+            singleparticle = True
+
+            
         for i in range(npart):
             x, y, px, py = self.x, self.y, self.px, self.py
             delta, l = self.delta, self.l
             
-            phi = float(self.phi.subs({x: xi[i], y: yi[i], px: pxi[i], py: pyi[i], delta:deltai[i], l:li[i]}))
-            dphidpx = float(self.dphidpx.subs({x: xi[i], y: yi[i], px: pxi[i], py: pyi[i], delta:deltai[i], l:li[i]}))
-            dphidpy = float(self.dphidpy.subs({x: xi[i], y: yi[i], px: pxi[i], py: pyi[i], delta:deltai[i], l:li[i]}))
-            dphiddelta = float(self.dphiddelta.subs({x: xi[i], y: yi[i], px: pxi[i], py: pyi[i], delta:deltai[i], l:li[i]}))
+            phi = self.phi.subs({x: xi[i], y: yi[i], px: pxi[i], py: pyi[i], delta:deltai[i], l:li[i]})
+            dphidpx = self.dphidpx.subs({x: xi[i], y: yi[i], px: pxi[i], py: pyi[i], delta:deltai[i], l:li[i]})
+            dphidpy = self.dphidpy.subs({x: xi[i], y: yi[i], px: pxi[i], py: pyi[i], delta:deltai[i], l:li[i]})
+            dphiddelta = self.dphiddelta.subs({x: xi[i], y: yi[i], px: pxi[i], py: pyi[i], delta:deltai[i], l:li[i]})
+            
+            if part._m == np:
+                phi = float(phi)
+                dphidpx = float(dphidpx)
+                dphidpy = float(dphidpy)
+                dphiddelta = float(dphiddelta)
             
             yf = 2*yi[i] / (1 + m.sqrt(1 - 2*dphidpy*yi[i]))
             xf = xi[i] + 1/2*dphidpx*yf**2
@@ -271,12 +283,12 @@ class ForestFringe:
             betaf = m.sqrt(1-(1-beta0)/(1+beta0*ptauf)**2)
             zetaf = beta0 * lf / betaf
 
-            # Update particle position 
-            part.x[i] = xf
-            part.y[i] = yf
-            part.zeta[i] = zetaf
-            part.py[i] = pyf
-            
+            # Update particle position
+            if singleparticle:
+                part.x, part.y, part.zeta, part.py = xf, yf, zetaf, pyf
+            else:
+                part.x[i], part.y[i], part.zeta[i], part.py[i],  = xf, yf, zetaf, pyf
+
             # Save all trajectory points (thin map so only initial and final position)        
             trajectories.add_trajectory(Trajectory([0, 0], [xi[i], xf], [pxi[i], pxi[i]], [yi[i], yf], [pyi[i], pyf]))
             
