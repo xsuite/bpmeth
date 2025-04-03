@@ -226,3 +226,48 @@ class NumpyParticle:
         self.s = s
         self._m = np
         
+class MultiParticle:
+    def __init__(self, npart, x=0, y=0, tau=0, px=0, py=0, ptau=0, s=0, beta0=1):
+        if isinstance(x, int) or isinstance(x, float):
+            x = np.full(npart, x)
+        if isinstance(y, int) or isinstance(y, float):
+            y = np.full(npart, y)
+        if isinstance(tau, int) or isinstance(tau, float):
+            tau = np.full(npart, tau)
+        if isinstance(px, int) or isinstance(px, float):
+            px = np.full(npart, px)
+        if isinstance(py, int) or isinstance(py, float):
+            py = np.full(npart, py)
+        if isinstance(ptau, int) or isinstance(ptau, float):
+            ptau = np.full(npart, ptau)
+        if isinstance(s, int) or isinstance(s, float):
+            s = np.full(npart, s)
+
+        assert len(x) == npart, "Invalid x"
+        assert len(y) == npart, "Invalid y"
+        assert len(tau) == npart, "Invalid tau"
+        assert len(px) == npart, "Invalid px"
+        assert len(py) == npart, "Invalid py"
+        assert len(ptau) == npart, "Invalid ptau"
+        assert len(s) == npart, "Invalid s"
+        assert isinstance(beta0, int) or isinstance(beta0, float), "Invalid beta0"
+        
+        self.beta0 = beta0
+        self.npart = npart
+        
+        self.x = np.array(x)
+        self.y = np.array(y)
+        self.tau = np.array(tau)
+        self.px = np.array(px)
+        self.py = np.array(py)
+        self.ptau = np.array(ptau)
+        self.zeta = self.tau * self.beta0
+        self.s = np.array(s)
+        
+        self._m = np
+        
+        
+    def copy(self):
+        return MultiParticle(self.npart, x=self.x.copy(), y=self.y.copy(), tau=self.tau.copy(), 
+                             px=self.px.copy(), py=self.py.copy(), ptau=self.ptau.copy(), s=self.s.copy())
+        

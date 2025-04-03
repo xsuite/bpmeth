@@ -11,11 +11,8 @@ class Phase4d:
         self.phase_x = phase_x
         self.phase_y = phase_y
 
-    def track(self, coord):
-        x = coord[0]
-        px = coord[1]
-        y = coord[2]
-        py = coord[3]
+    def track(self, part):
+        x, px, y, py = part.x, part.px, part.y, part.py
 
         arg_x = 2*np.pi*self.phase_x
         cx = np.cos(arg_x)
@@ -29,10 +26,7 @@ class Phase4d:
         y1 = y*cy + py*sy
         py1 = -y*sy + py*cy
 
-        coord[0] = x1
-        coord[1] = px1
-        coord[2] = y1
-        coord[3] = py1
+        part.x, part.px, part.y, part.py = x1, px1, y1, py1
 
     def __repr__(self):
         return f"Phase4d({self.phase_x}, {self.phase_y})"
@@ -42,9 +36,9 @@ class Kick_x:
         self.kick = kick
         self.order = order
 
-    def track(self, coord):
-        x = coord[0]
-        coord[1] += self.kick*x**self.order/math.factorial(self.order)
+    def track(self, part):
+        x = part.x
+        part.px += self.kick * x**self.order / math.factorial(self.order)
 
     def __repr__(self):
         return f"Kick_x({self.kick})"
@@ -55,8 +49,8 @@ class Kick_y:
         self.order = order
 
     def track(self, coord):
-        y = coord[2]
-        coord[3] += self.kick*y**self.order/math.factorial(self.order)
+        y = part.y
+        part.py += self.kick * y**self.order / math.factorial(self.order)
 
     def __repr__(self):
         return f"Kick_y({self.kick})"
@@ -66,14 +60,11 @@ class Sextupole:
     def __init__(self, b3):
         self.b3 = b3
 
-    def track(self, coord):
-        x = coord[0]
-        px = coord[1]
-        y = coord[2]
-        py = coord[3]
+    def track(self, part):
+        x, px, y, py = part.x, part.px, part.y, part.py
 
-        coord[1] += self.b3/2 * x**2
-        coord[3] += self.b3/2 * x*y
+        part.px += self.b3/2 * x**2
+        part.py += self.b3/2 * x*y
 
 
 class NumericalSextupole:
@@ -81,24 +72,17 @@ class NumericalSextupole:
         self.b3 = b3
         self.length = length
         
-        self.sextupole = GeneralVectorPotential(0, b=("0", "0", f"{self.b3}"))
+        self.sextupole = GeneralVectorPotential(b=("0", "0", f"{self.b3}"))
         self.H_sextupole = Hamiltonian(self.length, 0, self.sextupole)
 
-    def track(self, coord):
-        ncoord,npart=coord.shape
-
-        x = coord[0]
-        px = coord[1]
-        y = coord[2]
-        py = coord[3]       
+    def track(self, part):
+        x, px, y, py, tau, ptau = part.x, part.px, part.y, part.py, part.tau, part.ptau
+        npart = part.npart
         
         for i in range(npart):
-            sol = self.H_sextupole.solve([x[i], y[i], 0, px[i], py[i], 0], s_span=[0, self.length])
-
-            coord[0, i] = sol.y[0][-1]
-            coord[1, i] = sol.y[3][-1]
-            coord[2, i] = sol.y[1][-1]
-            coord[3, i] = sol.y[4][-1]
+            sol = self.H_sextupole.solve([x[i], y[i], tau[i], px[i], py[i], ptau[i]], s_span=[0, self.length])
+            print(sol.y[:,-1])
+            part.x[i], part.y[i], part.tau[i], part.px[i], part.py[i], part.ptau[i] = sol.y[:,-1]
 
 
         
@@ -210,22 +194,35 @@ class Line4d:
     def __init__(self,elements):
         self.elements = elements
 
-    def track(self, coord, num_turns=1):
-        tcoord=coord.copy()
-        ncoord,npart=coord.shape
+    def track(self, part, num_turns=1):
+        tpart = part.copy()
+        init_part = np.array([tpart.x, tpart.px, tpart.y, tpart.py])
+        
+        ncoord, npart = 4, part.npart
         nelem=len(self.elements)
+        
         output=np.zeros((num_turns,nelem,ncoord,npart))
         for nturn in range(num_turns):
             if nturn % 10 == 0:
                 print(f"Turn {nturn}")
             for ielem,element in enumerate(self.elements):
-                element.track(tcoord)
-                output[nturn,ielem]=tcoord
-        return Output4d(coord.copy(),output)
+                element.track(tpart)
+                output[nturn,ielem]=np.array([tpart.x, tpart.px, tpart.y, tpart.py])
+                
+        return Output4d(init_part,output)
 
 
 class Output4d:
     def __init__(self, init, output, cut=None):
+        """
+        Class to handle output of tracking of a 4d line.
+        
+        :param init: Initial coordinates of the particles.
+        :param output: Full trajectories of the particles, shape (num_turns, num_elements, num_coordinates, num_particles)
+            with for the coordinates x, px, y, py.
+        :param cut: only particles with coordinates smaller than the cut will be plotted.
+        """
+        
         self.init = init
         self.output = output
         self.cut = cut
@@ -486,10 +483,12 @@ class NormalForms4d:
 
     def calc_coords(self, part, detuning=False):
         # Nonlinear action, but here calculated neglecting nonlinear terms (so as if it was linear action)
-        Ix = (part[0]**2 + part[1]**2)/2
-        Iy = (part[2]**2 + part[3]**2)/2
-        psi0x = np.where(part[0]!=0, np.arctan(part[1]/part[0]), 0)
-        psi0y = np.where(part[2]!=0, np.arctan(part[3]/part[2]), 0)
+        xi, pxi, yi, pyi = part.x, part.px, part.y, part.py
+        
+        Ix = (xi**2 + pxi**2)/2
+        Iy = (yi**2 + pyi**2)/2
+        psi0x = np.where(xi!=0, np.arctan(pxi/xi), 0)
+        psi0y = np.where(yi!=0, np.arctan(pyi/yi), 0)
         Qx = self.Qx
         Qy = self.Qy
         f = self.f
@@ -566,7 +565,7 @@ class NormalForms4d:
             warnings.warn("py is not real, are you sure you gave a physical Hamiltonian?")
 
         
-        output = np.zeros((self.num_turns, 1, 4, len(part[0])), dtype=complex)
+        output = np.zeros((self.num_turns, 1, 4, part.npart), dtype=complex)
         
         for nturn in range(self.num_turns):
             output[nturn, 0] = np.array([x[nturn], px[nturn], y[nturn], py[nturn]])
