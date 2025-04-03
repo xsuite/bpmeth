@@ -41,19 +41,14 @@ class ThinNumericalFringe:
         self.H_dipole = Hamiltonian(self.length/2, 0, self.dipole)
             
     
-    def track(self, coord):
+    def track(self, part):
         """
-        :param coord: List of coordinates [x, px, y, py], 
-            with x = coord[0] etc lists of coordinates for all N particles.
+        :param part: Particles with part.x, part.px etc the coordinates for all part.npart particles.
         :return: A list of trajectory elements for all particles.
         """
         
-        ncoord,npart=coord.shape
-        
-        x = coord[0]
-        px = coord[1]
-        y = coord[2]
-        py = coord[3]
+        npart = part.npart
+        x, px, y, py, tau, ptau = part.x, part.px, part.y, part.py, part.tau, part.ptau
 
         trajectories = MultiTrajectory(trajectories=[])
         for i in range(npart):
@@ -62,11 +57,10 @@ class ThinNumericalFringe:
             sol_fringe = self.H_fringe.solve(sol_drift.y[:, -1], s_span=[-self.length/2, self.length/2])
             sol_dipole = self.H_dipole.solve(sol_fringe.y[:, -1], s_span=[self.length/2, 0])
             
-            coord[0, i] = sol_dipole.y[0][-1]
-            coord[1, i] = sol_dipole.y[3][-1]
-            coord[2, i] = sol_dipole.y[1][-1]
-            coord[3, i] = sol_dipole.y[4][-1]
+            # Update particle position
+            part.x[i], part.px[i], part.tau[i], part.px[i], part.py[i], part.ptau[i] = sol_dipole.y[:, -1]
 
+            # Save all trajectory points
             all_s = np.append(sol_drift.t, [sol_fringe.t, sol_dipole.t])
             all_x = np.append(sol_drift.y[0], [sol_fringe.y[0], sol_dipole.y[0]])
             all_y = np.append(sol_drift.y[1], [sol_fringe.y[1], sol_dipole.y[1]])
@@ -83,7 +77,10 @@ class ThickNumericalFringe:
     def __init__(self,b1,shape,length=1,nphi=5):
         """    
         Thick numerical fringe field at the edge of the magnet. 
-        It consists of a backwards drift, a fringe field map and a backwards bend.
+        It makes a map for the correction field to the hard edge dipole.
+        
+        THIS MAP DOES NOT REPRESENT REALITY, BUT ASSUMES THAT THE MAPS COMMUTE!
+        IT SHOULD NOT BE USED FOR REAL SIMULATIONS!
         
         :param b1: Amplitude of the dipole field.
         "param shape: The shape of the fringe field as a string, example "(tanh(s/0.1)+1)/2" 
@@ -91,6 +88,9 @@ class ThickNumericalFringe:
         :param len: Integration range.
         :param nphi: Number of terms included in expansion.
         """
+
+        warnings.warn("This map does not represent reality, but assumes that the maps commute! \
+            Are you sure you want to use this map?")
         
         self.b1 = b1
         self.shape = shape
@@ -110,26 +110,23 @@ class ThickNumericalFringe:
         self.fringe2 = FringeVectorPotential(f"{self.b1fringe} - {self.b1}", nphi=nphi)
         self.H_fringe2 = Hamiltonian(self.length/2, 0, self.fringe2)
         
-    def track(self, coord, makethin=True):
+
+    def track(self, part, makethin=True):
         """
-        :param coord: List of coordinates [x, px, y, py], 
-            with x = coord[0] etc lists of coordinates for all N particles.
+        :param part: Particles with part.x, part.px etc the coordinates for all part.npart particles.
         :param makethin: If True, backwards drifts are included 0->-L/2 and L/2->0 
             to have a thin map at the edge.
         :return: A list of trajectory elements for all particles. 
 
         """
-        ncoord,npart=coord.shape
         
-        x = coord[0]
-        px = coord[1]
-        y = coord[2]
-        py = coord[3]
+        npart = part.npart
+        x, px, y, py, tau, ptau = part.x, part.px, part.y, part.py, part.tau, part.ptau
         
         p_sp = SympyParticle()
         trajectories = MultiTrajectory(trajectories = [])
         for i in range(npart):
-            qp0 = [x[i], y[i], 0, px[i], py[i], 0]
+            qp0 = [x[i], y[i], tau[i], px[i], py[i], ptau[i]]
             
             if makethin:
                 sol_drift1 = self.H_drift.solve(qp0, s_span=[0, -self.length/2])
@@ -161,11 +158,10 @@ class ThickNumericalFringe:
                                                 s_span=[self.length/2, 0])
                 xsol, ysol, tausol, pxsol, pysol, ptausol = sol_drift2.y[:,-1]
 
-            coord[0, i] = xsol
-            coord[1, i] = pxsol
-            coord[2, i] = ysol
-            coord[3, i] = pysol
+            # Update particle position
+            part.x[i], part.px[i], part.tau[i], part.px[i], part.py[i], part.ptau[i] = xsol, pxsol, tausol, pxsol, pysol, ptausol
             
+            # Save all trajectory points
             if makethin:
                 all_s = np.append(sol_drift1.t, [sol_fringe1.t, sol_fringe2.t, sol_drift2.t])
                 all_x = np.append(sol_drift1.y[0], [sol_fringe1.y[0], sol_fringe2.y[0], sol_drift2.y[0]])
@@ -192,6 +188,7 @@ class ForestFringe:
         :param Kg: The fringe field integral K times gap height multiplied with the gap height of the magnet.
         "param K0gg: Fringe field integral K0 times gap height squared for the closed orbit effect
         :param sadistic: Include the sadistic term.
+            (To be checked, is this actually symplectic?)
         :param closedorbit: Include the closed orbit distortion as a shift in x.
             (This is symplectic as long as the shift is independent of the coordinates.)
         """
@@ -208,11 +205,10 @@ class ForestFringe:
         self.closedorbit = closedorbit
         self.sadistic = sadistic
         if self.sadistic:
-            warnings.warn("Sadistic term not yet implemented")
+            warnings.warn("Not sure if this map is symplectic")
+            
         
-        
-        
-    def track(self, coord):
+    def track(self, part):
         """
         No longitudinal coordinates yet, only 4d
         
@@ -221,12 +217,10 @@ class ForestFringe:
         :return: A list of trajectory elements for all particles.
         """
         
-        ncoord,npart=coord.shape
-
-        xi = coord[0]
-        pxi = coord[1]
-        yi = coord[2]
-        pyi = coord[3]
+        warnings.warn("Tracking in 4d only, no longitudinal coordinates yet")
+        
+        npart = part.npart
+        xi, pxi, yi, pyi, taui, ptaui = part.x, part.px, part.y, part.py, part.tau, part.ptau
         
         trajectories = MultiTrajectory(trajectories = [])
         
@@ -240,19 +234,17 @@ class ForestFringe:
             xf = xi[i] + 1/2*dphidpx*yf**2
             pyf = pyi[i] - phi*yf
             
-            coord[0, i] = xf
-            coord[2, i] = yf
-            coord[3, i] = pyf
-            
             if self.closedorbit:
                 assert(self.K0gg != 0), "K0gg must be non-zero for closed orbit distortion"
                 xf -= self.K0gg / np.sqrt(1 - pxi[i]**2 - pyi[i]**2)
-                coord[0, i] = xf
             
             if self.sadistic:
                 pyf -= 4*self.b1**2 /(36*self.Kg) * yf**3 #/(1+delta)
-                coord[3, i] = pyf
+
+            # Update particle position
+            part.x[i], part.y[i], part.py[i] = xf, yf, pyf
             
+            # Save all trajectory points (thin map so only initial and final position)        
             trajectories.add_trajectory(Trajectory([0, 0], [xi[i], xf], [pxi[i], pxi[i]], [yi[i], yf], [pyi[i], pyf]))
             
         return trajectories
