@@ -32,17 +32,20 @@ K0gg = K0ggtanh(b1, aa, length/2)
 sp_part = bpmeth.SympyParticle()
 xi, yi, zetai, pxi, pyi, ptaui = sp_part.x, sp_part.y, sp_part.zeta, sp_part.px, sp_part.py, sp_part.ptau
 beta0 = sp_part.beta0
-fringe_forest = bpmeth.ForestFringe(b1, Kg, K0gg)
+fringe_forest = bpmeth.ForestFringe(b1, Kg, K0gg, closedorbit=True)
 trajectories_forest = fringe_forest.track(sp_part)
 xf, yf, zetaf, pxf, pyf, ptauf = sp_part.x, sp_part.y, sp_part.zeta, sp_part.px, sp_part.py, sp_part.ptau
 
 matrix = sp.Matrix([xf, pxf, yf, pyf, zetaf/beta0, ptauf])
 J = matrix.jacobian([xi, pxi, yi, pyi, zetai/beta0, ptaui]).subs({zetai: 0, ptaui: 0}) 
 
-S = sp.Matrix.vstack(
-    sp.Matrix.hstack(sp.zeros(3), sp.eye(3)),
-    sp.Matrix.hstack(-sp.eye(3), sp.zeros(3)))
+S = sp.Matrix([[0, 1, 0, 0, 0, 0],
+               [-1,0, 0, 0, 0, 0],
+               [0, 0, 0, 1, 0, 0],
+               [0, 0,-1, 0, 0, 0],
+               [0, 0, 0, 0, 0, 1],
+               [0, 0, 0, 0,-1, 0]])
 
 symplectic_condition = J.T * S * J  # Has to be equal to S
 
-symplectic_condition.subs({xi:0, yi:0, pxi:0, pyi:0, zetai:0, ptaui:0})
+symplectic_condition.subs({xi:0.1, yi:0.2, pxi:0.4, pyi:0.3, zetai:0.1, ptaui:0.2})

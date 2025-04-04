@@ -239,7 +239,7 @@ class ForestFringe:
         m = part._m
         deltai = m.sqrt(1 + 2*ptaui / beta0 + ptaui**2) - 1
         betai = m.sqrt(1-(1-beta0)/(1+beta0*ptaui)**2)
-        li = betai * zetai / beta0
+        li = -betai * zetai / beta0
         
         trajectories = MultiTrajectory(trajectories = [])
         
@@ -273,6 +273,7 @@ class ForestFringe:
             
             if self.closedorbit:
                 assert(self.K0gg != 0), "K0gg must be non-zero for closed orbit distortion"
+                warnings.warn("With closed orbit distortion the map is not symplectic")
                 xf -= self.K0gg / m.sqrt(1 - pxi[i]**2 - pyi[i]**2)
             
             if self.sadistic:
@@ -281,7 +282,7 @@ class ForestFringe:
             # Required x, y, zeta, px, py, ptau
             ptauf = ptaui[i]
             betaf = m.sqrt(1-(1-beta0)/(1+beta0*ptauf)**2)
-            zetaf = beta0 * lf / betaf
+            zetaf = -beta0 * lf / betaf
 
             # Update particle position
             if singleparticle:
