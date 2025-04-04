@@ -44,3 +44,5 @@ S = sp.Matrix.vstack(
     sp.Matrix.hstack(-sp.eye(3), sp.zeros(3)))
 
 symplectic_condition = J.T * S * J  # Has to be equal to S
+
+symplectic_condition.subs({xi:0, yi:0, pxi:0, pyi:0, zetai:0, ptaui:0})
