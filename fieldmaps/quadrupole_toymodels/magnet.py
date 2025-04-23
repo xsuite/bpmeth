@@ -1,7 +1,17 @@
 import pyvista as pv
 import numpy as np
+import sympy as sp
 import math
+import scipy as sc
+import matplotlib.pyplot as plt
 
+
+def Enge(x, *params):
+    return params[0] / (1+np.exp(np.poly1d(params[1:])(x)))
+        
+        
+def spEnge(s, *params):
+    return params[0] / (1+sp.exp(sp.Poly(params[1:], s).as_expr()))
 
 class Magnet:
     def __init__(self, data):
@@ -87,6 +97,8 @@ class Magnet:
         x, fieldvals = self.xprofile(ypos, zpos, field, ax=ax, xmax=xmax)
 
         paramslist = np.array([np.polyfit(x, fieldvals, order+j)[j:] for j in range(5)])
+        params = np.mean(paramslist, axis=0)
+        paramsstd = np.std(paramslist, axis=0)
         coeffslist = [paramslist[:, order-i] * math.factorial(i) for i in range(order+1)]
         coeffs = np.mean(coeffslist, axis=1)
         coeffsstd = np.std(coeffslist, axis=1)
@@ -94,6 +106,8 @@ class Magnet:
         if ax:
             ax.scatter(x, fieldvals, label="data")
             xx = np.linspace(x.min(), x.max(), 100)
+            ax.plot(xx, np.polyval(params+paramsstd, xx), label="fit+std", color="gray")
+            ax.plot(xx, np.polyval(params-paramsstd, xx), label="fit-std", color="gray")
             ax.plot(xx, np.polyval(params, xx), label="fit", color="black")
             ax.legend()
             
@@ -135,4 +149,26 @@ class Magnet:
         b3err = np.sqrt(b2lstd**2 + b2rstd**2) / (x[x0ind+3]-x[x0ind-3])
         
         return b3, b3err
-            
+               
+               
+    def fit_b2_enge(self, degree=5, xmax=None, ax=None):
+        """
+        The fit is an Enge-function, a function defined as A /(1+exp(c0 + c1 s + c2 s^2 + ...))
+        """
+
+        zvals, coeffs, coeffsstd = self.z_multipoles(2, xmax=xmax)
+        b2 = coeffs[:, 1]
+        b2err = coeffsstd[:, 1]
+        
+        params, cov = sc.optimize.curve_fit(Enge, zvals, b2, sigma=b2err, p0=np.ones(degree+1))
+        
+        if ax is None:
+            fig, ax = plt.subplots()
+        ax.errorbar(zvals, b2, yerr=b2err, marker='.', capsize=5, label="b2", color="blue", ls='', zorder=0)
+        ax.plot(zvals, Enge(zvals, *params), label=f'Enge function fit of degree {degree}', color="black", zorder=10)
+        plt.legend()
+        plt.show()
+        
+        return params, cov
+        
+        
