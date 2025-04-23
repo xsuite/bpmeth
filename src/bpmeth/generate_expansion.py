@@ -152,15 +152,15 @@ class FieldExpansion:
         # Extract the multipole coefficients.
         a = []
         degree0 = 0 if phi0==0 else phi0.degree(x)
-        for i in range(1, degree0+1):
-            a.append(phi0.coeff_monomial(x**i))
+        for i in range(degree0+1):
+            a.append(phi0.coeff_monomial(x**(i+1)) * sp.factorial(i+1))
             
         bs = phi0.coeff_monomial(x**0).diff(s)
 
         b = []
         degree1 = 0 if phi1==0 else phi1.degree(x)
         for i in range(degree1+1):
-            b.append(phi1.coeff_monomial(x**i))
+            b.append(phi1.coeff_monomial(x**i) * sp.factorial(i))
             
         return FieldExpansion(a=a, b=b, bs=bs, nphi=nphi)
             
@@ -195,15 +195,15 @@ class FieldExpansion:
         # Extract the multipole coefficients.
         a = []
         degree0 = 0 if phi0==0 else phi0.degree(x)
-        for i in range(1, degree0+1):
-            a.append(phi0.coeff_monomial(x**i))
+        for i in range(degree0+1):
+            a.append(phi0.coeff_monomial(x**(i+1)) * sp.factorial(i+1))
             
         bs = phi0.coeff_monomial(x**0).diff(s)
 
         b = []
         degree1 = 0 if phi1==0 else phi1.degree(x)
         for i in range(degree1+1):
-            b.append(phi1.coeff_monomial(x**i))
+            b.append(phi1.coeff_monomial(x**i) * sp.factorial(i))
             
         return FieldExpansion(a=a, b=b, bs=bs, nphi=nphi)
     

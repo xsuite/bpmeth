@@ -27,22 +27,21 @@ class Magnet:
     def plot(self):
         self.src.plot(scalars="By")
         
-    def interpolate_points(self, xmin, xmax, nx, ymin, ymax, ny, zmin, zmax, nz, field, radius=0.01):
-        x = np.linspace(xmin, xmax, nx)
-        y = np.linspace(ymin, ymax, ny)
-        z = np.linspace(zmin, zmax, nz)
+    def interpolate_points(self, X, Y, Z, field, radius=0.01):
+        """
+        Interpolate the field at the given points (meshgrid)
+        """
         
-        X, Y, Z = np.meshgrid(x, y, z)
         XYZ = np.array([X.flatten(), Y.flatten(), Z.flatten()]).T
         dst = pv.PolyData(XYZ).interpolate(self.src, radius=radius)
         
-        dst.plot(scalars=field)
+        #dst.plot(scalars=field)
         
-        dst['x'] = x
-        dst['y'] = y
-        dst['z'] = z
+        dst['x'] = X.flatten()
+        dst['y'] = Y.flatten()
+        dst['z'] = Z.flatten()
         
-        return dst
+        return dst[field]
         
     def xprofile(self, ypos, zpos, field, ax=None, xmax=None):
         assert ypos in self.src['y'] and zpos in self.src['z'], "These values are not present in the data"
@@ -151,7 +150,7 @@ class Magnet:
         return b3, b3err
                
                
-    def fit_b2_enge(self, degree=5, xmax=None, ax=None):
+    def fit_b2_enge(self, degree=5, xmax=None, ax=None, guess=None):
         """
         The fit is an Enge-function, a function defined as A /(1+exp(c0 + c1 s + c2 s^2 + ...))
         """
@@ -160,7 +159,9 @@ class Magnet:
         b2 = coeffs[:, 1]
         b2err = coeffsstd[:, 1]
         
-        params, cov = sc.optimize.curve_fit(Enge, zvals, b2, sigma=b2err, p0=np.ones(degree+1))
+        if guess is None:
+            guess = np.ones(degree+1)
+        params, cov = sc.optimize.curve_fit(Enge, zvals, b2, sigma=b2err, p0=guess)
         
         if ax is None:
             fig, ax = plt.subplots()
