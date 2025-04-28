@@ -354,7 +354,7 @@ class FieldExpansion:
         pysubs = - 1/(2*sp.sqrt(bety))*((alphy + 1j)*hyp + (alphy - 1j)*hym)
         
         # H = -(1+hx) As
-        H_As = ((1+hs*x) * As).series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)])
+        H_As = -((1+hs*x) * As).series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)])
         H_As_poly = H_As.as_poly(hxp, hxm, hyp, hym)
         
         # H = -(1+hx) px Ax
