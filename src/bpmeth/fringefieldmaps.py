@@ -206,10 +206,7 @@ class ForestFringe:
         self.dphidpy = self.phi.diff(py)
         self.x, self.y, self.px, self.py = x, y, px, py
         self.closedorbit = closedorbit
-        self.sadistic = sadistic
-        if self.sadistic:
-            warnings.warn("Sadistic term not yet implemented")
-        
+        self.sadistic = sadistic        
         
         
     def track(self, coord):
@@ -220,6 +217,8 @@ class ForestFringe:
             with x = coord[0] etc lists of coordinates for all N particles.
         :return: A list of trajectory elements for all particles.
         """
+        
+        warnings.warn("This is a 4d map, no longitudinal coordinates yet")
         
         ncoord,npart=coord.shape
 
@@ -246,6 +245,7 @@ class ForestFringe:
             
             if self.closedorbit:
                 assert(self.K0gg != 0), "K0gg must be non-zero for closed orbit distortion"
+                warnings.warn("Closed orbit distortion as currently implemented is not symplectic - it depends on px and py")
                 xf -= self.K0gg / np.sqrt(1 - pxi[i]**2 - pyi[i]**2)
                 coord[0, i] = xf
             

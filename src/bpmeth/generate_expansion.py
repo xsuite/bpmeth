@@ -47,7 +47,7 @@ class FieldExpansion:
 
         """
         Truncating the expansion in phi will violate Maxwell equations. Verify if the 
-        derivation is not too large by checking if the laplacian of the potential remains 
+        deviation is not too large by checking if the laplacian of the potential remains 
         within the allowed tolerances.
         """
 
@@ -59,7 +59,7 @@ class FieldExpansion:
         laplval = lapl.subs({x: apperture, y: apperture, s: apperture}).evalf()
         if isinstance(laplval, float) or isinstance(laplval, sp.core.numbers.Float):
             assert laplval < tolerance, \
-                f"More terms are needed in the expansion, the laplacian is {laplval}"
+                f"More terms are needed in the expansion for aperture {apperture}m, the laplacian is {laplval}"
         else:
             warnings.warn("The laplacian could not be evaluated, are you doing symbolic calculations?")
         
@@ -332,7 +332,7 @@ class FieldExpansion:
                 
     def calc_RDTs(self, n, betx=1, bety=1, alphx=0, alphy=0):
         """
-        Calculate the RDTs of the given element symbolically as a function of s
+        Calculate the RDTs (the h_pqrt values) of the given element symbolically as a function of s
         
         :param n (int): Highest order of the RDTs to calculate.
         :param betx (float or sp.symbol): Beta function in x.

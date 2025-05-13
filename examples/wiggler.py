@@ -23,3 +23,8 @@ H_wiggler = bpmeth.Hamiltonian(length, curv, wiggler)
 ivp_opt={"rtol":1e-4, "atol":1e-7}
 sol_wiggler = H_wiggler.solve(qp0, ivp_opt=ivp_opt)
 H_wiggler.plotsol(qp0, ivp_opt=ivp_opt)
+
+import xtrack as xt
+
+p = xt.Particles(x = np.linspace(-1e-3, 1e-3, 10), energy0=10e9, mass0=xt.ELECTRON_MASS_EV)
+sol = H_wiggler.track(p, return_sol=True)
