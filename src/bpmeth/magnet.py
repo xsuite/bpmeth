@@ -1,4 +1,4 @@
-from .fieldmaps import Fieldmap, get_derivative
+from .fieldmaps import Fieldmap, get_derivative, spTanh, spEnge
 from .generate_expansion import FieldExpansion
 from .numerical_solver import Hamiltonian
 import numpy as np
@@ -9,7 +9,7 @@ import warnings
 
 
 class DipoleFromFieldmap:
-    def __init__(self, data, h, l_magn, order=3, degree=5, hgap=0.05, apt=0.05, radius=0.01):
+    def __init__(self, data, h, l_magn, shape, order=3, degree=5, hgap=0.05, apt=0.05, radius=0.01):
         """
         :param data: Fieldmap points as columns x, y, z, Bx, By, Bz.
         :param h: Curvature of the frame.
@@ -17,6 +17,8 @@ class DipoleFromFieldmap:
             If h!=0, the fieldmap is first converted in Frenet-Serrat coordinates consisting of a straight part before the 
             magnetic length, then a bent part with bending radius 1/h, then a straight part after the magnetic length.
         :param l_magn: Total magnetic length. For curved magnets, the bending angle is given by l_magn*h.
+        :param shape: string specifying the fringe field shape.
+            options: "tanh", "enge"
         :param order: Highest order multipole (dipole=1)
         :param degree: Degree of the polynomial in the Enge function and its derivatives used to fit the multipole shapes.
         :param hgap (optional): Half the gap of the magnet. Only used to estimate a reasonable range of the fringe field.
@@ -26,6 +28,8 @@ class DipoleFromFieldmap:
         """
 
         self.data = data
+        self.shape = shape
+
         self.h = h 
         self.l_magn = l_magn
         self.order = order
@@ -48,14 +52,27 @@ class DipoleFromFieldmap:
 
             self.fieldmap = self.fieldmap.calc_FS_coords(xFS, yFS, sFS, self.rho, self.phi, radius=radius)
             
-        #self.create_Hamiltonian()
+        self.create_Hamiltonian()
 
     def create_Hamiltonian(self):
         # Calculate the dipole, quadrupole, sextupole component for the two halves
         # BE CAREFUL: The parameters are given for the edge at zero
-        params_in_list, cov_in_list = self.fieldmap.fit_multipoles(components=np.arange(1,self.order+1,1), design=1, 
+
+        print("shape:", self.shape)
+        assert self.shape in ["tanh", "enge"]
+        
+        if self.shape == "tanh":
+            shape = spTanh
+            guess = [np.max(self.fieldmap.src["By"][(self.fieldmap.src["x"]==0) & (self.fieldmap.src["y"]==0)]), 0.1]
+            self.degree = 1
+        elif self.shape == "enge":
+            shape = spEnge
+            guess = [np.max(self.fieldmap.src["By"][(self.fieldmap.src["x"]==0) & (self.fieldmap.src["y"]==0)]), 0, 0, 0, 0, 0]
+
+        params_in_list, cov_in_list = self.fieldmap.fit_multipoles(shape, guess = guess, components=np.arange(1,self.order+1,1), design=1, 
                                                                    degree=self.degree, zmin=self.smin, zmax=0, zedge=-self.sedge)
-        params_out_list, cov_out_list = self.fieldmap.fit_multipoles(components=np.arange(1,self.order+1,1), design=1, 
+        guess[1] = -guess[1]
+        params_out_list, cov_out_list = self.fieldmap.fit_multipoles(shape, guess = guess, components=np.arange(1,self.order+1,1), design=1, 
                                                                      degree=self.degree, zmin=0, zmax=self.smax, zedge=self.sedge)
 
         # Make a field expansion
@@ -63,8 +80,8 @@ class DipoleFromFieldmap:
         b_out = []
         s = sp.symbols("s")
         for i in range(self.order):
-            b_in.append(get_enge_derivative(i, poly_order=5, lambdify=False)(s, *params_in_list[i]))
-            b_out.append(get_enge_derivative(i, poly_order=5, lambdify=False)(s, *params_out_list[i]))
+            b_in.append(get_derivative(i, poly_order=5, func=shape, lambdify=False)(s, *params_in_list[i]))
+            b_out.append(get_derivative(i, poly_order=5, func=shape, lambdify=False)(s, *params_out_list[i]))
         
         straight_in = FieldExpansion(b=b_in, hs="0")
         straight_out = FieldExpansion(b=b_in, hs="0")
@@ -72,9 +89,6 @@ class DipoleFromFieldmap:
         if not self.h==0:
             bent_in = FieldExpansion(b=b_in, hs=f"{self.h}")
             bent_out = FieldExpansion(b=b_out, hs=f"{self.h}")
-
-        return straight_in
-
 
         # Make a Hamiltonian
         if self.h==0: 
