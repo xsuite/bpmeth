@@ -15,7 +15,7 @@ def phinplus2(phi, x, s, hs):
 
 
 class FieldExpansion:
-    def __init__(self, a=("0*s",), b=("0*s",), bs="0", hs="0", nphi=5):
+    def __init__(self, a=(), b=(), bs="0", hs="0", nphi=2):
         self.x, self.y, self.s = sp.symbols("x y s", real=True)
         self.a = tuple(eval(aa, sp.__dict__, {"s": self.s}) if isinstance(aa, str) else aa.subs(sp.Symbol("s"), self.s) for aa in a) 
         self.b = tuple(eval(bb, sp.__dict__, {"s": self.s}) if isinstance(bb, str) else bb.subs(sp.Symbol("s"), self.s) for bb in b) 
@@ -23,78 +23,72 @@ class FieldExpansion:
         self.hs = eval(hs, sp.__dict__, {"s": self.s}) if isinstance(hs, str) else hs.subs(sp.Symbol("s"), self.s)
         self.nphi = nphi
 
+        
+        self.afun = [sp.Function(f"a{i+1}")(self.s) for i, an in enumerate(a)]
+        self.bfun = [sp.Function(f"b{i+1}")(self.s) for i, bn in enumerate(b)]
+        self.bsfun = sp.Function("bs")(self.s) if self.bs!=0 else sp.Integer(0)
 
-    def get_phi(self, tolerance=1e-4, apperture=0.05):
+
+    def subs(self, func, coord_subs={}):
+        return func.subs({**{sym.subs(coord_subs):val for sym, val in zip(self.afun,self.a)}, **{sym.subs(coord_subs):val for sym, val in zip(self.bfun,self.b)}, self.bsfun.subs(coord_subs):self.bs}).doit()
+
+
+    def get_phi(self, tolerance=1e-4, apperture=0.05, subs=True):
         """
         a=(a1,a2,a3,...)
         b=(b1,b2,b3,...)
         """
 
         x, y, s = self.x, self.y, self.s
-        a = self.a
-        b = self.b
-        bs = self.bs
+        a = self.afun
+        b = self.bfun
+        bs = self.bsfun
         hs = self.hs
         nphi = self.nphi
         
         phi0 = sum((an * x ** (n + 1) / sp.factorial(n + 1) for n, an in enumerate(a))) + sp.integrate(bs, s)
         phi1 = sum((bn * x**n / sp.factorial(n) for n, bn in enumerate(b)))        
         phiv = [phi0, phi1]
-        for i in range(nphi):
+        for i in range(nphi-2):
             phiv.append(phinplus2(phiv[i], x, s, hs).simplify())
         phi = sum(pp * y**i / sp.factorial(i) for i, pp in enumerate(phiv)).simplify()
-    
 
-        """
-        Truncating the expansion in phi will violate Maxwell equations. Verify if the 
-        deviation is not too large by checking if the laplacian of the potential remains 
-        within the allowed tolerances.
-        """
+        if subs:
+            """
+            Truncating the expansion in phi will violate Maxwell equations. Verify if the 
+            deviation is not too large by checking if the laplacian of the potential remains 
+            within the allowed tolerances.
+            """
+            
+            phi =  self.subs(phi)
 
-        lapl = (
-            1/(1 + hs*x) * (1/(1 + hs*x) * phi.diff(s)).diff(s) +
-            1/(1 + hs*x) * ((1 + hs*x) * phi.diff(x)).diff(x) +
-            phi.diff(y, 2)
-        )
-        laplval = lapl.subs({x: apperture, y: apperture, s: apperture}).evalf()
-        if isinstance(laplval, float) or isinstance(laplval, sp.core.numbers.Float):
-            assert laplval < tolerance, \
-                f"More terms are needed in the expansion for aperture {apperture}m, the laplacian is {laplval}"
-        else:
-            warnings.warn("The laplacian could not be evaluated, are you doing symbolic calculations?")
-        
+            lapl = (
+                1/(1 + hs*x) * (1/(1 + hs*x) * phi.diff(s)).diff(s) +
+                1/(1 + hs*x) * ((1 + hs*x) * phi.diff(x)).diff(x) +
+                phi.diff(y, 2)
+            )
+            laplval = lapl.subs({x: apperture, y: apperture, s: apperture}).evalf()
+            if isinstance(laplval, float) or isinstance(laplval, sp.core.numbers.Float):
+                if laplval < tolerance:
+                    warnings.warn(f"More terms are needed in the expansion for aperture {apperture}m, the laplacian is {laplval}")
+            else:
+                warnings.warn("The laplacian could not be evaluated, are you doing symbolic calculations?")
+
         return phi
         
-
     
-    def get_A(self, coords=None):
-        x, y, s = self.x, self.y, self.s
-        hs = self.hs
-        Bx, By, Bs = self.get_Bfield(lambdify=False)
-
-        Ax = - sp.integrate(Bs, (y, 0, y))
-        Ay = sp.S(0)
-        As = sp.integrate(Bx, (y, 0, y)) - 1/(1+hs*x) * sp.integrate((1+hs*x)*By.subs({y:0}), (x, 0, x))
-        
-        if coords is None:
-            return Ax, Ay, As
-
-        else:
-            xval, yval, sval = coords.x, coords.y, coords.s
-            return [
-                Ax.subs({x: xval, y: yval, s: sval}).evalf(),
-                Ay.subs({x: xval, y: yval, s: sval}).evalf(),
-                As.subs({x: xval, y: yval, s: sval}).evalf()
-            ]
-
-    
-    def get_Bfield(self, lambdify=True):
+    def get_Bfield(self, lambdify=True, subs=True):
         x = self.x
         y = self.y
         s = self.s
-        phi = self.get_phi()
+        phi = self.get_phi(subs=False)
         hs = self.hs
         Bx, By, Bs = phi.diff(x), phi.diff(y), 1/(1+hs*x)*phi.diff(s)
+
+        if subs or lambdify:
+            Bx = self.subs(Bx)
+            By = self.subs(By)
+            Bs = self.subs(Bs)
 
         if lambdify:
             return (
@@ -103,8 +97,36 @@ class FieldExpansion:
                 np.vectorize(sp.lambdify([x, y, s], Bs, "numpy")),
             )
 
-        else:
-            return Bx, By, Bs
+        return Bx, By, Bs
+
+
+    def get_A(self, lambdify=False, subs=True):
+        x, y, s = self.x, self.y, self.s
+        hs = self.hs
+        Bx, By, Bs = self.get_Bfield(lambdify=False, subs=False)
+
+        Ax = - sp.integrate(Bs, (y, 0, y))
+        Ay = sp.S(0)
+        As = sp.integrate(Bx, (y, 0, y)) - 1/(1+hs*x) * sp.integrate((1+hs*x)*By.subs({y:0}), (x, 0, x))
+
+        if subs:
+            Ax = self.subs(Ax)
+            Ay = self.subs(Ay)
+            As = self.subs(As)
+
+        if lambdify:
+            return (
+                np.vectorize(sp.lambdify([x, y, s], Ax, "numpy")),
+                np.vectorize(sp.lambdify([x, y, s], Ay, "numpy")),
+                np.vectorize(sp.lambdify([x, y, s], As, "numpy")),
+            )
+        
+        return Ax, Ay, As
+
+
+    #########################################
+    # TO BE OPTIMISED FROM HERE             #
+    #########################################
 
     
     def transform(self, theta_E=0, rho=np.inf, maxpow=None):

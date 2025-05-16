@@ -41,6 +41,8 @@ class DipoleFromFieldmap:
         self.smin = -(3.8*hgap + l_magn/2)
         self.smax = 3.8*hgap + l_magn/2
         self.sedge = l_magn/2
+
+        self.length = self.smax - self.smin
         
         if not h==0:
             self.rho = 1/h
@@ -75,6 +77,8 @@ class DipoleFromFieldmap:
         params_out_list, cov_out_list = self.fieldmap.fit_multipoles(shape, guess = guess, components=np.arange(1,self.order+1,1), design=1, 
                                                                      degree=self.degree, zmin=0, zmax=self.smax, zedge=self.sedge)
 
+        print("Creating field expansion...")
+
         # Make a field expansion
         b_in = []
         b_out = []
@@ -85,10 +89,19 @@ class DipoleFromFieldmap:
         
         straight_in = FieldExpansion(b=b_in, hs="0")
         straight_out = FieldExpansion(b=b_in, hs="0")
+        
+        self.A_straight_in = straight_in.get_A(lambdify=True)
+        self.A_straight_out = straight_out.get_A(lambdify=True)
 
         if not self.h==0:
             bent_in = FieldExpansion(b=b_in, hs=f"{self.h}")
             bent_out = FieldExpansion(b=b_out, hs=f"{self.h}")
+        
+            self.A_bent_in = bent_in.get_A(lambdify=True)
+            self.A_bent_out = bent_out.get_A(lambdify=True)
+        
+
+        print("Creating Hamiltonian...")
 
         # Make a Hamiltonian
         if self.h==0: 
@@ -105,16 +118,31 @@ class DipoleFromFieldmap:
     def track(self, particle, ivp_opt={}):
         # NEED TO CORRECT FOR DISCONTINUOUS VECTOR POTENTIALS!!!
         warnings.warn("Not correct for discontinuous vector potentials. This will not give the correct physics - to be implemented.")
+        warnings.warn("Units?")
         
         if self.h==0:
             self.h_straight_in.track(particle, s_span=[-self.smax, 0], ivp_opt=ivp_opt) 
+            # Correct for discontinuity in vector potential, velocity continuous!
+            #particle.px = particle.px - self.A_straight_in[0](particle.x, particle.y, particle.s) + self.A_straight_out[0](particle.x, particle.y, particle.s)
+            #particle.py = particle.py - self.A_straight_in[1](particle.x, particle.y, particle.s) + self.A_straight_out[1](particle.x, particle.y, particle.s)
+
             self.h_straight_out.track(particle, s_span=[0, self.smax], ivp_opt=ivp_opt)
         
         else:
             self.h_straight_in.track(particle, s_span=[-self.smax+self.sedge, 0], ivp_opt=ivp_opt) 
+            #particle.px = particle.px - self.A_straight_in[0](particle.x, particle.y, particle.s) + self.A_bent_in[0](particle.x, particle.y, particle.s)
+            #particle.py = particle.py - self.A_straight_in[1](particle.x, particle.y, particle.s) + self.A_bent_in[1](particle.x, particle.y, particle.s)
+
             self.h_bent_in.track(particle, s_span=[0, self.sedge], ivp_opt=ivp_opt)
+            #particle.px = particle.px - self.A_bent_in[0](particle.x, particle.y, particle.s) + self.A_bent_out[0](particle.x, particle.y, particle.s)
+            #particle.py = particle.py - self.A_bent_in[1](particle.x, particle.y, particle.s) + self.A_bent_out[1](particle.x, particle.y, particle.s)
+            
             self.h_bent_out.track(particle, s_span=[-self.sedge, 0], ivp_opt=ivp_opt)
+            #particle.px = particle.px - self.A_bent_out[0](particle.x, particle.y, particle.s) + self.A_straight_out[0](particle.x, particle.y, particle.s)
+            #particle.py = particle.py - self.A_bent_out[1](particle.x, particle.y, particle.s) + self.A_straight_out[1](particle.x, particle.y, particle.s)
+            
             self.h_straight_out.track(particle, s_span=[0, self.smax-self.sedge], ivp_opt=ivp_opt)
+
 
 
 
