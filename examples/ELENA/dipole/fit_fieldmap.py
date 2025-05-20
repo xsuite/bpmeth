@@ -5,6 +5,8 @@
 #     - bending angles               60°
 #     - bending radii                0.927 m
 #     - edge angles (beam focusing)  17°
+#     - field at (0,0,0)             5.3810e-07
+#     - Brho                         4.9749e-07
 
 import bpmeth
 import numpy as np
@@ -17,6 +19,8 @@ l_magn = rho*phi
 apt = 0.076
 hgap = apt/2
 theta_E = 17/180*np.pi
+B = 5.3810e-07
+Brho = B*rho
 
 # x,y,z,phi_m,Ax,Ay,Az,Bx,By,Bz
 data = np.loadtxt("ELENA_fieldmap.csv", skiprows=1, delimiter=",")[:, [0,1,2,7,8,9]]
@@ -90,9 +94,10 @@ plt.legend()
 # XSUITE TRACKING                             #
 ###############################################
 
-dipole = bpmeth.DipoleFromFieldmap(data, 1/rho, l_magn, "enge", hgap=apt/2, apt=apt, radius=0.05, order=1)
+dipole = bpmeth.DipoleFromFieldmap(data, 1/rho, l_magn, "enge", hgap=apt/2, apt=apt, radius=0.05, order=1, Brho=Brho)
 
 import xtrack as xt
-p = xt.Particles(x = np.linspace(-1e-3, 1e-3, 2), y=np.linspace(-1e-3, 1e-3, 2), energy0=10e9, mass0=xt.ELECTRON_MASS_EV)
+#p = xt.Particles(x = np.linspace(-1e-3, 1e-3, 2), y=np.linspace(-1e-3, 1e-3, 2), energy0=10e9, mass0=xt.ELECTRON_MASS_EV)
+p = xt.Particles(energy0=10e9, mass0=xt.ELECTRON_MASS_EV)
 dipole.track(p)
 
