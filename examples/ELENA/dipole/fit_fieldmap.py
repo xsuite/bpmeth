@@ -44,7 +44,7 @@ params, cov = ELENA_dipole_FS.fit_multipoles(bpmeth.spEnge, components=[1,2,3], 
 
 
 fig, ax = plt.subplots()
-params, cov = ELENA_dipole_FS.fit_multipoles(bpmeth.spTanh, components=[1,2,3], design=1, zmin=0, zmax=l_magn/2+3.8*hgap, zedge=l_magn/2, ax=ax, degree=1, guess=[5e-7, -0.1])
+params, cov = ELENA_dipole_FS.fit_multipoles(bpmeth.spTanh, components=[1,2,3], design=1, zmin=0, zmax=l_magn/2+3.8*hgap, zedge=l_magn/2, ax=ax, nparams=2, guess=[5e-7, -0.1])
 
 # These multipole coefficient expressions can now be given to a field expansion, to be used in tracking code.
 
@@ -94,10 +94,9 @@ plt.legend()
 # XSUITE TRACKING                             #
 ###############################################
 
-dipole = bpmeth.DipoleFromFieldmap(data, 1/rho, l_magn, "enge", hgap=apt/2, apt=apt, radius=0.05, order=1, Brho=Brho)
+dipole = bpmeth.DipoleFromFieldmap(data, 1/rho, l_magn, shape="enge", hgap=apt/2, apt=apt, radius=0.05, order=2, Brho=Brho, plot=True)
 
 import xtrack as xt
-#p = xt.Particles(x = np.linspace(-1e-3, 1e-3, 2), y=np.linspace(-1e-3, 1e-3, 2), energy0=10e9, mass0=xt.ELECTRON_MASS_EV)
-p = xt.Particles(energy0=10e9, mass0=xt.ELECTRON_MASS_EV)
+p = xt.Particles(x = np.linspace(-1e-3, 1e-3, 5), y=np.linspace(-1e-3, 1e-3, 5), energy0=10e9, mass0=xt.ELECTRON_MASS_EV)
+#p = xt.Particles(energy0=10e9, mass0=xt.ELECTRON_MASS_EV)
 dipole.track(p)
-

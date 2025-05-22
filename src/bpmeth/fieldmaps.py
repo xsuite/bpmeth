@@ -12,10 +12,22 @@ def Enge(x, *params):
 def spEnge(s, *params):
     return params[0] / (1+sp.exp(sp.Poly(params[1:], s).as_expr()))
 
-def get_derivative(deriv_order, poly_order, func, lambdify=True):
+def spEngeFullMagnet(s, *params):
+    """
+    :param s: s coordinate
+    :param params: [amplitude, s_edge_entrance, s_edge_exit, params_enge_entrance, params_enge_exit]
+        The params of the enge functions are passed without amplitude, this is treated as single value for both entrance and exit.
+    :return: Sum of two enge functions, for entrance and exit
+    """
+    
+    poly_order = int((len(params)-3)/2)
+    return params[0] * ( spEnge(s-params[1], 1, *params[3:3+poly_order]) + spEnge(params[2]-s, 1, *params[3+poly_order:3+2*poly_order]) ) - params[0]
+    
+    
+def get_derivative(deriv_order, nparams, func, lambdify=True):
     # Calculate the derivative
     x = sp.symbols('x')
-    params = sp.symbols(f'p0:{poly_order+1}')
+    params = sp.symbols(f'p0:{nparams}')
     derivative_sym = sp.diff(func(x, *params), x, deriv_order)
 
     if lambdify:  # Numpy
@@ -222,7 +234,7 @@ class Fieldmap:
         return zvals, coeffs, coeffsstd
                
                
-    def fit_multipoles(self, shape, components=[1,2], design=1, degree=5, xmax=None, zmin=-9999, zmax=9999, zedge=0, guess=None, ax=None):
+    def fit_multipoles(self, shape, components=[1,2], design=1, nparams=6, xmax=None, zmin=-9999, zmax=9999, zedge=0, guess=None, ax=None):
         """
         Fit appropriate functions to the multipoles in the fieldmap, taking into account the design of the magnet.
 
@@ -232,11 +244,11 @@ class Fieldmap:
                        The design component has an Enge as fringe field, each higher order
                        scales with a higher order derivative for fitting.
                        NO COMBINED FUNCTION ALLOWED 
-        :param degree (optional): Degree of the polynomial in the Enge function.
+        :param nparams (optional): Number of parameters in the shape, nparams-1 is the order of the polynomial in the Enge function.
         :param xmax: Range in x to take into account in multipole fitting in transverse plane.
         :param zmin: Longitudinal range.
         :param zmax: Longitudinal range.
-        :param zedge: Location of the magnet edge, default zero.
+        :param zedge: Location of the magnet edge in case only the fringe field shape is fitted, default zero.
         :param guess: Guess for parameters of the Enge function.
         :param ax: If given, plot the fit in these axis.
         :return: Parameters and covariances for all components.
@@ -247,8 +259,8 @@ class Fieldmap:
         mask = (zvals>zmin) & (zvals<zmax)
         zvals = zvals[mask]
 
-        params_list = np.zeros((len(components), degree+1))
-        cov_list = np.zeros((len(components), degree+1, degree+1))
+        params_list = np.zeros((len(components), nparams))
+        cov_list = np.zeros((len(components), nparams, nparams))
 
         
 
@@ -261,18 +273,18 @@ class Fieldmap:
             berr = berr[mask]
 
             if guess is None:
-                guess = np.zeros(degree+1)
+                guess = np.zeros(nparams)
                 guess[0] = b[np.argmax(np.abs(b))]
 
 
-            shape_derivative = get_derivative(component-design, degree, shape)
-            params, cov = sc.optimize.curve_fit(shape_derivative, zvals-zedge, b, sigma=berr, p0=guess)
+            shape_derivative = get_derivative(component-design, nparams, shape)
+            params, cov = sc.optimize.curve_fit(shape_derivative, zvals-zedge, b, sigma=berr, p0=guess, maxfev=10000)
             params_list[i] = params
             cov_list[i] = cov
             
             if ax is not None:
                 ax.errorbar(zvals, b, yerr=berr, marker='.', capsize=5, label=f"b{component}", ls='', zorder=0)
-                ax.plot(zvals, shape_derivative(zvals-zedge, *params), label=f'Fit of {component-design}th order derivative of Enge of degree {degree} to component b{component}', zorder=10)
+                ax.plot(zvals, shape_derivative(zvals-zedge, *params), label=f'Fit of {component-design}th order derivative with {nparams} parameters to component b{component}', zorder=10)
 
             guess=params
 

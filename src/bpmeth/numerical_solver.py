@@ -16,7 +16,7 @@ class Hamiltonian:
         self.vectorfield = self.get_vectorfield()
     
 
-    def get_H(self, coords, subs=True):
+    def get_H(self, coords):
         x, y, s = coords.x, coords.y, coords.s
         px, py, ptau = coords.px, coords.py, coords.ptau
         beta0 = coords.beta0
@@ -27,14 +27,11 @@ class Hamiltonian:
         sqrt = coords._m.sqrt
         tmp1 = sqrt(1+2*ptau/beta0+ptau**2-(px-A[0])**2-(py-A[1])**2)
         H = ptau/beta0 - (1+h*x)*(tmp1 + A[2])
-
-        #if subs:
-        #    coord_subs = {self.vectp.s:coords.s}
-        #    H = self.vectp.subs(H, coord_subs=coord_subs)
+        
         return H
     
 
-    def get_vectorfield(self, coords=None, lambdify=True, beta0=1, subs=True):
+    def get_vectorfield(self, coords=None, lambdify=True, beta0=1):
         if coords is None:
             coords = SympyParticle(beta0=beta0)
         x, y, tau = coords.x, coords.y, coords.beta0 * coords.zeta
@@ -48,8 +45,6 @@ class Hamiltonian:
         fptau = - H.diff(tau)
         qpdot = [fx, fy, ftau, fpx, fpy, fptau]
 
-#        if subs or lambdify:
-#            qpdot = [self.vectp.subs(ff) for ff in qpdot]
         if lambdify:
             qp = (x, y, tau, px, py, ptau)
             s = coords.s
