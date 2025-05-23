@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 
 class DipoleFromFieldmap:
-    def __init__(self, data, h, l_magn, order=3, nparams=6, hgap=0.05, apt=0.05, radius=0.05, shape="enge", plot=False, symmetric=True):
+    def __init__(self, data, h, l_magn, order=3, nparams=6, hgap=0.05, apt=0.05, radius=0.05, shape="enge", plot=False, symmetric=True, scalefactor=1):
         """
         :param data: Fieldmap points as columns x, y, z, Bx, By, Bz. Data in Tesla
         :param h: Curvature of the frame.
@@ -28,6 +28,7 @@ class DipoleFromFieldmap:
         :param shape: Shape of the fieldmap. "enge" or "tanh". Default is "enge".
         :param plot: If True, plot the fieldmap and the fitted multipoles when creating the element.
         :param symmetric: If True, the fieldmap is assumed to be symmetric. The multipole fit is mirrored
+        :param scalefactor: If you want to rescale the dipole field to ex. match the closed orbit
         """
 
         self.data = data
@@ -47,6 +48,7 @@ class DipoleFromFieldmap:
         self.shape = shape
 
         self.length = self.smax - self.smin
+        self.scalefactor = scalefactor
         
         if not h==0:
             self.rho = 1/h
@@ -78,12 +80,12 @@ class DipoleFromFieldmap:
         params_out_list, cov_out_list = self.fieldmap.fit_multipoles(shape, components=np.arange(1,self.order+1,1), design=1, 
                                                                      nparams=self.nparams, zmin=0, zmax=self.smax, zedge=self.sedge, ax=ax)
         self.Bfield = params_out_list[0, 0]
-        params_out_list[:, 0] = params_out_list[:, 0] / self.Bfield / self.rho
+        params_out_list[:, 0] = params_out_list[:, 0] / self.Bfield / self.rho * self.scalefactor
 
         if not symmetric:
             params_in_list, cov_in_list = self.fieldmap.fit_multipoles(shape, components=np.arange(1,self.order+1,1), design=1, 
                                                                    nparams=self.nparams, zmin=self.smin, zmax=0, zedge=-self.sedge, ax=ax)
-            params_in_list[:, 0] = params_in_list[:, 0] / self.Bfield / self.rho
+            params_in_list[:, 0] = params_in_list[:, 0] / self.Bfield / self.rho * self.scalefactor
         
         # Typically the first parameter is the amplitude.
 
