@@ -79,13 +79,17 @@ class DipoleFromFieldmap:
 
         params_out_list, cov_out_list = self.fieldmap.fit_multipoles(shape, components=np.arange(1,self.order+1,1), design=1, 
                                                                      nparams=self.nparams, zmin=0, zmax=self.smax, zedge=self.sedge, ax=ax)
-        self.Bfield = params_out_list[0, 0]
-        params_out_list[:, 0] = params_out_list[:, 0] / self.Bfield / self.rho * self.scalefactor
+        ss = np.linspace(0, self.smax, 100)
 
+        integrated_field = np.trapz(get_derivative(0, self.nparams, func=shape, lambdify=True)(ss, *params_out_list[0]), ss)
+        params_out_list[:, 0] = params_out_list[:, 0] / 2*integrated_field / self.rho * self.scalefactor
+        
         if not symmetric:
+            warnings.warn("Not correctly normalized for asymmetric magnets")
             params_in_list, cov_in_list = self.fieldmap.fit_multipoles(shape, components=np.arange(1,self.order+1,1), design=1, 
                                                                    nparams=self.nparams, zmin=self.smin, zmax=0, zedge=-self.sedge, ax=ax)
             params_in_list[:, 0] = params_in_list[:, 0] / self.Bfield / self.rho * self.scalefactor
+        
         
         # Typically the first parameter is the amplitude.
 
@@ -128,6 +132,8 @@ class DipoleFromFieldmap:
             self.H_bent_in = Hamiltonian(self.sedge, self.h, self.bent_in)
             self.H_bent_out = Hamiltonian(self.sedge, self.h, self.bent_out)
             self.H_straight_out = Hamiltonian(self.smax-self.sedge, 0, self.straight_out)
+
+
 
     
     def track(self, particle, ivp_opt={}):
