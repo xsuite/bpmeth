@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 
 class DipoleFromFieldmap:
-    def __init__(self, data, h, l_magn, Brho=1, order=3, nparams=6, hgap=0.05, apt=0.05, radius=0.01, shape="enge", plot=False):
+    def __init__(self, data, h, l_magn, order=3, nparams=6, hgap=0.05, apt=0.05, radius=0.05, shape="enge", plot=False, symmetric=True):
         """
         :param data: Fieldmap points as columns x, y, z, Bx, By, Bz. Data in Tesla
         :param h: Curvature of the frame.
@@ -18,7 +18,6 @@ class DipoleFromFieldmap:
             If h!=0, the fieldmap is first converted in Frenet-Serrat coordinates consisting of a straight part before the 
             magnetic length, then a bent part with bending radius 1/h, then a straight part after the magnetic length.
         :param l_magn: Total magnetic length. For curved magnets, the bending angle is given by l_magn*h.
-        :param Brho (optional): Beam rigidity to normalize the field. If not specified, the field is given in Tesla.
         :param order (optional): Highest order multipole (dipole=1)
         :param nparams (optional): Number of parameters in the function and its derivatives used to fit the multipole shapes. 
             nparams-1 is the order of the polynomial in an Enge function.
@@ -28,14 +27,13 @@ class DipoleFromFieldmap:
         :param radius (optional): Interpolation radius for determination of field in Frenet-Serrat coordinates.
         :param shape: Shape of the fieldmap. "enge" or "tanh". Default is "enge".
         :param plot: If True, plot the fieldmap and the fitted multipoles when creating the element.
+        :param symmetric: If True, the fieldmap is assumed to be symmetric. The multipole fit is mirrored
         """
 
         self.data = data
 
         self.h = h 
         self.l_magn = l_magn
-
-        self.Brho = Brho
 
         self.nparams = nparams
         self.order=order
@@ -56,40 +54,38 @@ class DipoleFromFieldmap:
 
             xFS = np.linspace(self.xmin, self.xmax, 31)
             yFS = [0]
-            sFS = np.linspace(self.smin, self.smax, 201)
+            sFS = np.linspace(-0.75*l_magn, 0.75*l_magn, 201)
 
             self.fieldmap = self.fieldmap.calc_FS_coords(xFS, yFS, sFS, self.rho, self.phi, radius=radius)
             
-        self.create_Hamiltonian(plot=plot)
+        self.create_Hamiltonian(plot=plot, symmetric=symmetric)
 
-    def create_Hamiltonian(self, plot=False):
+    def create_Hamiltonian(self, plot=False, symmetric=True):
         # Calculate the dipole, quadrupole, sextupole component for the two halves
         # BE CAREFUL: The parameters are given for the edge at zero
 
         if self.shape == "tanh":
             shape = spTanh
-            guess = [np.max(self.fieldmap.src["By"][(self.fieldmap.src["x"]==0) & (self.fieldmap.src["y"]==0)]), 0.1]
             self.degree = 1
           
         elif self.shape == "enge":
             shape = spEnge
-            guess = np.zeros(self.nparams)
-            guess[0] = np.max(self.fieldmap.src["By"][(self.fieldmap.src["x"]==0) & (self.fieldmap.src["y"]==0)])
 
         ax = None
         if plot:
             fig, ax = plt.subplots()
 
-        params_in_list, cov_in_list = self.fieldmap.fit_multipoles(shape, guess=guess, components=np.arange(1,self.order+1,1), design=1, 
-                                                                   nparams=self.nparams, zmin=self.smin, zmax=0, zedge=-self.sedge, ax=ax)
-        guess[1] = -guess[1]
-        params_out_list, cov_out_list = self.fieldmap.fit_multipoles(shape, guess=guess, components=np.arange(1,self.order+1,1), design=1, 
+        params_out_list, cov_out_list = self.fieldmap.fit_multipoles(shape, components=np.arange(1,self.order+1,1), design=1, 
                                                                      nparams=self.nparams, zmin=0, zmax=self.smax, zedge=self.sedge, ax=ax)
-        
+        self.Bfield = params_out_list[0, 0]
+        params_out_list[:, 0] = params_out_list[:, 0] / self.Bfield / self.rho
+
+        if not symmetric:
+            params_in_list, cov_in_list = self.fieldmap.fit_multipoles(shape, components=np.arange(1,self.order+1,1), design=1, 
+                                                                   nparams=self.nparams, zmin=self.smin, zmax=0, zedge=-self.sedge, ax=ax)
+            params_in_list[:, 0] = params_in_list[:, 0] / self.Bfield / self.rho
         
         # Typically the first parameter is the amplitude.
-        params_in_list[:, 0] = params_in_list[:, 0] / self.Brho
-        params_out_list[:, 0] = params_out_list[:, 0] / self.Brho
 
         print("Creating field expansion...")
 
@@ -98,11 +94,14 @@ class DipoleFromFieldmap:
         b_out = []
         s = sp.symbols("s")
         for i in range(self.order):
-            b_in.append(get_derivative(i, nparams=self.nparams, func=shape, lambdify=False)(s, *params_in_list[i]))
+            if not symmetric:
+                b_in.append(get_derivative(i, nparams=self.nparams, func=shape, lambdify=False)(s, *params_in_list[i]))
+            else:
+                b_in.append(get_derivative(i, nparams=self.nparams, func=shape, lambdify=False)(-s, *params_out_list[i]))
             b_out.append(get_derivative(i, nparams=self.nparams, func=shape, lambdify=False)(s, *params_out_list[i]))
         
         self.straight_in = FieldExpansion(b=b_in, hs="0")
-        self.straight_out = FieldExpansion(b=b_in, hs="0")
+        self.straight_out = FieldExpansion(b=b_out, hs="0")
         
         self.A_straight_in = self.straight_in.get_A(lambdify=True)
         self.A_straight_out = self.straight_out.get_A(lambdify=True)

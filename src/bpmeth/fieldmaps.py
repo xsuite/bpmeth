@@ -12,17 +12,6 @@ def Enge(x, *params):
 def spEnge(s, *params):
     return params[0] / (1+sp.exp(sp.Poly(params[1:], s).as_expr()))
 
-def spEngeFullMagnet(s, *params):
-    """
-    :param s: s coordinate
-    :param params: [amplitude, s_edge_entrance, s_edge_exit, params_enge_entrance, params_enge_exit]
-        The params of the enge functions are passed without amplitude, this is treated as single value for both entrance and exit.
-    :return: Sum of two enge functions, for entrance and exit
-    """
-    
-    poly_order = int((len(params)-3)/2)
-    return params[0] * ( spEnge(s-params[1], 1, *params[3:3+poly_order]) + spEnge(params[2]-s, 1, *params[3+poly_order:3+2*poly_order]) ) - params[0]
-    
     
 def get_derivative(deriv_order, nparams, func, lambdify=True):
     # Calculate the derivative
