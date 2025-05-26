@@ -44,6 +44,8 @@ class DipoleFromFieldmap:
         self.xmax = apt/2
         self.smin = -(3.8*hgap + l_magn/2)
         self.smax = 3.8*hgap + l_magn/2
+        # self.smin = -0.75*l_magn
+        # self.smax = 0.75*l_magn
         self.sedge = l_magn/2
         self.shape = shape
 
@@ -61,50 +63,56 @@ class DipoleFromFieldmap:
             self.fieldmap = self.fieldmap.calc_FS_coords(xFS, yFS, sFS, self.rho, self.phi, radius=radius)
             
         self.create_Hamiltonian(plot=plot, symmetric=symmetric)
+        
 
-    def create_Hamiltonian(self, plot=False, symmetric=True):
+    def fit_multipoles(self, plot=False, symmetric=True):
         # Calculate the dipole, quadrupole, sextupole component for the two halves
         # BE CAREFUL: The parameters are given for the edge at zero
 
         if self.shape == "tanh":
-            shape = spTanh
+            self.shapefun = spTanh
             self.degree = 1
           
         elif self.shape == "enge":
-            shape = spEnge
+            self.shapefun = spEnge
 
         ax = None
         if plot:
             fig, ax = plt.subplots()
 
-        params_out_list, cov_out_list = self.fieldmap.fit_multipoles(shape, components=np.arange(1,self.order+1,1), design=1, 
+        params_out_list, cov_out_list = self.fieldmap.fit_multipoles(self.shapefun, components=np.arange(1,self.order+1,1), design=1, 
                                                                      nparams=self.nparams, zmin=0, zmax=self.smax, zedge=self.sedge, ax=ax)
-        ss = np.linspace(0, self.smax, 100)
-
-        integrated_field = np.trapz(get_derivative(0, self.nparams, func=shape, lambdify=True)(ss, *params_out_list[0]), ss)
-        params_out_list[:, 0] = params_out_list[:, 0] / 2*integrated_field / self.rho * self.scalefactor
+        ss = np.linspace(0, self.smax, 500)
+        integrated_field = 2*np.trapz(get_derivative(0, self.nparams, func=self.shapefun, lambdify=True)(ss, *params_out_list[0]), ss)
+        average_field = integrated_field / self.l_magn
+        print("Average field in the magnet: ", average_field)
+        self.out_Bfield = params_out_list[0,0]
+        print("Central field in the magnet: ", self.out_Bfield)
+        params_out_list[:, 0] = params_out_list[:, 0] / self.out_Bfield / self.rho * self.scalefactor
         
         if not symmetric:
-            warnings.warn("Not correctly normalized for asymmetric magnets")
-            params_in_list, cov_in_list = self.fieldmap.fit_multipoles(shape, components=np.arange(1,self.order+1,1), design=1, 
+            params_in_list, cov_in_list = self.fieldmap.fit_multipoles(self.shapefun, components=np.arange(1,self.order+1,1), design=1, 
                                                                    nparams=self.nparams, zmin=self.smin, zmax=0, zedge=-self.sedge, ax=ax)
+            # The first parameter is the amplitude.
+            self.in_Bfield = params_in_list[0,0]
             params_in_list[:, 0] = params_in_list[:, 0] / self.Bfield / self.rho * self.scalefactor
+        else:
+            params_in_list = params_out_list
         
-        
-        # Typically the first parameter is the amplitude.
-
+        return params_in_list, params_out_list
+    
+    
+    def create_fieldexpansion(self, plot=False, symmetric=True):
         print("Creating field expansion...")
+        params_in_list, params_out_list = self.fit_multipoles(plot=plot, symmetric=symmetric)
 
         # Make a field expansion
         b_in = []
         b_out = []
         s = sp.symbols("s")
         for i in range(self.order):
-            if not symmetric:
-                b_in.append(get_derivative(i, nparams=self.nparams, func=shape, lambdify=False)(s, *params_in_list[i]))
-            else:
-                b_in.append(get_derivative(i, nparams=self.nparams, func=shape, lambdify=False)(-s, *params_out_list[i]))
-            b_out.append(get_derivative(i, nparams=self.nparams, func=shape, lambdify=False)(s, *params_out_list[i]))
+            b_in.append(get_derivative(i, nparams=self.nparams, func=self.shapefun, lambdify=False)(-s if symmetric else s, *params_in_list[i]))
+            b_out.append(get_derivative(i, nparams=self.nparams, func=self.shapefun, lambdify=False)(s, *params_out_list[i]))
         
         self.straight_in = FieldExpansion(b=b_in, hs="0")
         self.straight_out = FieldExpansion(b=b_out, hs="0")
@@ -120,8 +128,10 @@ class DipoleFromFieldmap:
             self.A_bent_out = self.bent_out.get_A(lambdify=True)
         
 
+    def create_Hamiltonian(self, plot=False, symmetric=True):
         print("Creating Hamiltonian...")
-
+        self.create_fieldexpansion(plot=plot, symmetric=symmetric)
+        
         # Make a Hamiltonian
         if self.h==0: 
             self.H_straight_in = Hamiltonian(-self.smin, 0, straight_in)
@@ -137,7 +147,6 @@ class DipoleFromFieldmap:
 
     
     def track(self, particle, ivp_opt={}):
-       
         if self.h==0:
             self.H_straight_in.track(particle, s_span=[-self.smax, 0], ivp_opt=ivp_opt) 
             # Correct for discontinuity in vector potential, velocity continuous!

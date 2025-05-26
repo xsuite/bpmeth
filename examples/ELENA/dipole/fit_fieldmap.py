@@ -94,7 +94,7 @@ plt.legend()
 # XSUITE TRACKING                             #
 ###############################################
 
-dipole = bpmeth.DipoleFromFieldmap(data, 1/rho, l_magn, shape="enge", hgap=apt/2, apt=apt, radius=0.05, order=3, scalefactor=1.04763)
+dipole = bpmeth.DipoleFromFieldmap(data, 1/rho, l_magn, shape="enge", hgap=apt/2, apt=apt, radius=0.05, order=1, plot=True, scalefactor=1.0)
 
 import xtrack as xt
 p = xt.Particles(x=np.linspace(-1e-3, 1e-3, 5), y=np.linspace(-1e-3, 1e-3, 5), p0c=0.1, mass0=0.938272, q0=1)
