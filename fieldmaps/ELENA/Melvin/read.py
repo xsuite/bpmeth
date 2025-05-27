@@ -184,14 +184,19 @@ class Magnet:
 
         smin = np.min(self.src['sloc'][mask])
         smax = np.max(self.src['sloc'][mask])
-        sarr = np.linspace(smin, smax, 100)
+        sarr = np.linspace(smin, 20*smax, 500)
 
-        params, cov = sc.optimize.curve_fit(Enge, self.src['sloc'][mask], self.src['Bynorm'][mask], p0=np.ones(degree))
+        svals = np.array(self.src['sloc'][mask])
+        fieldvals = np.array(self.src['Bynorm'][mask])
+        svals = np.append(svals, [1.5*smax, 2*smax, 2.5*smax, 3*smax, 3.5*smax, 4*smax, 5*smax, 6*smax, 10*smax, 20*smax])
+        fieldvals = np.append(fieldvals, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        params, cov = sc.optimize.curve_fit(Enge, svals, fieldvals, p0=np.ones(degree))
         ax.plot(sarr, Enge(sarr, *params), label=f'Enge function fit of degree {degree}', color="blue")
 
-        ax.scatter(self.src['sloc'][mask], self.src['Bynorm'][mask], color='gray', label='By/B0')
+        ax.scatter(svals, fieldvals, color='gray', label='By/B0')
         ax.set_xlabel('s')
         ax.set_ylabel('By/B0')
+        ax.set_xlim(smin, smax)
         plt.legend()
         
         if figname is not None:
@@ -215,7 +220,11 @@ class Magnet:
         smax = np.max(self.src['sloc'][mask])
         sarr = np.linspace(smin, smax, 100)
 
-        params, cov = sc.optimize.curve_fit(Tanh, self.src['sloc'][mask], self.src['Bynorm'][mask], p0=[1])
+        svals = np.array(self.src['sloc'][mask])
+        fieldvals = np.array(self.src['Bynorm'][mask])
+        svals = np.append(svals, [2*smax, 3*smax])
+        fieldvals = np.append(fieldvals, [0, 0])
+        params, cov = sc.optimize.curve_fit(Tanh, svals, fieldvals, p0=[1])
         ax.plot(sarr, Tanh(sarr, *params), label=f'Tanh fit', color="red")
 
         #ax.scatter(self.src['sloc'][mask], self.src['Bynorm'][mask], color='gray', label='By/B0')

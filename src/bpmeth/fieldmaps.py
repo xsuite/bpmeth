@@ -13,6 +13,8 @@ def spEnge(s, *params):
     return params[0] / (1+sp.exp(sp.Poly(params[1:], s).as_expr()))
 
     
+
+    
 def get_derivative(deriv_order, nparams, func, lambdify=True):
     # Calculate the derivative
     x = sp.symbols('x')

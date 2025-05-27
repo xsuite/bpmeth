@@ -15,7 +15,7 @@ def phinplus2(phi, x, s, hs):
 
 
 class FieldExpansion:
-    def __init__(self, a=(), b=(), bs="0", hs="0", nphi=2):
+    def __init__(self, a=(), b=(), bs="0", hs="0", nphi=5):
         self.x, self.y, self.s = sp.symbols("x y s", real=True)
         self.a = tuple(eval(aa, sp.__dict__, {"s": self.s}) if isinstance(aa, str) else aa.subs(sp.Symbol("s"), self.s) for aa in a) 
         self.b = tuple(eval(bb, sp.__dict__, {"s": self.s}) if isinstance(bb, str) else bb.subs(sp.Symbol("s"), self.s) for bb in b) 

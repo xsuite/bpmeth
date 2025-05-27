@@ -1,14 +1,16 @@
-from .fieldmaps import Fieldmap, get_derivative, spTanh, spEnge
+from .fieldmaps import Fieldmap, get_derivative, spTanh, spEnge, Enge
 from .generate_expansion import FieldExpansion
 from .numerical_solver import Hamiltonian
 import numpy as np
 import sympy as sp
 import warnings
 import matplotlib.pyplot as plt
+import scipy as sc
+
+    
+
 
 # A dipole element for XSuite with explicit solving created from a fieldmap
-
-
 class DipoleFromFieldmap:
     def __init__(self, data, h, l_magn, order=3, nparams=6, hgap=0.05, apt=0.05, radius=0.05, shape="enge", plot=False, symmetric=True, scalefactor=1):
         """
@@ -210,12 +212,243 @@ class DipoleFromFieldmap:
             plt.show()
         
 
+class FringeFromFint:
+    def __init__(self, b0, fint, center=-0.5, gap=0.05):
+        """
+        :param b0: Central field of the dipole magnet.
+        :param fint: Desired fringe field integral
+        :param sedge: The edge of the magnet, such that the integrated field will have the correct value
+        :param gap: The gap of the magnet. Used to estimate a reasonable range of the fringe field and calculate the fringe field Integral.
+        """
 
-
+        self.b0 = b0
+        self.gap = gap
+        self.fint = fint
         
+        self.center = center
+        
+        self.smin = -5*self.gap
+        self.smax = 5*self.gap
+
+        self.ELENA_enge_params = [self.b0, -2.19581377e+02, 8.88031231e+02, -1.46018510e+02, 2.61985464e+01, 5.35675107e-01]  # Exit fringe
+        assert self.smax < 3.5, "ELENA fringe field parameters are not suited for this choice"
+        # Remains at zero until around s=3.5, then it increases again. I cannot guarantee correct behaviour in this case!
+
+        self.scalefactor = self.fit_fint()
+        self.sedge = self.calc_edge()
+        
+    def fit_fint(self):
+        ss = np.linspace(self.smin, self.smax, 200)
+        By = Enge(ss, *self.ELENA_enge_params)
+        ELENA_fint = np.trapz(By*(self.b0-By) / (self.b0**2 * self.gap), ss)
+        scalefactor = self.fint / ELENA_fint
+
+        By = Enge(ss/scalefactor, *self.ELENA_enge_params)
+        new_fint = np.trapz(By*(self.b0-By) / (self.b0**2 * self.gap), ss)
+        assert self.smax/scalefactor < 3.5, "ELENA fringe field parameters are not suited for this choice"
+        return scalefactor
+
+    def calc_edge(self):
+        ss = np.linspace(self.center, self.smax, 500)
+        By = Enge(ss/self.scalefactor, *self.ELENA_enge_params)
+        By_int = np.trapz(By, ss)
+        sedge = (-self.b0*self.center - By_int) / self.b0
+        return sedge
+
+    def plot_fringe(self, ax=None):
+        ss = np.linspace(self.smin, self.smax, 200)
+        By = Enge(ss/self.scalefactor, *self.ELENA_enge_params)
+        
+        if ax is None:
+            fig, ax = plt.subplots()
+        ax.plot(ss, By, label="Fringe field")
+        ax.plot(ss, np.heaviside(-ss, self.sedge), label="Hard edge")
+        ax.set_xlabel("x")
+        ax.set_ylabel("By")
+    
+    def exitfringevalue(self, s, lambdify=False):
+        """
+        Returns the fringe field value at s, shifted such that the hard edge is at zero.
+        :param x: Position in the fringe field region
+        """
+        
+        return get_derivative(0, 6, spEnge, lambdify=lambdify)((s-self.sedge)/self.scalefactor, *self.ELENA_enge_params)
+        
+    def entrancefringevalue(self, s, lambdify=False):
+        """
+        Returns the fringe field value at s, shifted such that the hard edge is at zero.
+        :param x: Position in the fringe field region
+        """
+        
+        return self.exitfringevalue(-s, lambdify=lambdify)
 
 
+class DipoleFromFint:
+    def __init__(self, b0, h, l_magn, fint, gap=0.05, nphi=5):
+        """
+        :param b0: Central field of the dipole magnet.
+        :param h: Curvature of the frame.
+            If h==0, the magnet is treated as a straight magnet with magnetic length l_magn
+            If h!=0, Frenet-Serrat coordinates consisting of a straight part before the magnetic length, 
+            then a bent part with bending radius 1/h, then a straight part after the magnetic length.
+        :param l_magn: Total magnetic length. For curved magnets, the bending angle is given by l_magn*h.
+        :param fint: Desired fringe field integral.
+        :param gap: The gap of the magnet. Used to estimate a reasonable range of the fringe field and calculate the fringe field Integral.
+        """
+        
+        self.b0 = b0
+        self.h = h
+        self.l_magn = l_magn
+        self.fint = fint
+        self.gap = gap
+        self.nphi = nphi
+
+        self.sedge = self.l_magn/2
+        self.smin = -self.sedge - 5*self.gap
+        self.smax = self.sedge + 5*self.gap
+
+        self.fringe = FringeFromFint(b0, fint, gap=gap, center=-self.sedge)
+
+        self.create_Hamiltonian()
+            
+    def create_fieldexpansion(self):
+        print("Creating field expansion...")
+
+        # Make a field expansion
+        b_in = (self.fringe.entrancefringevalue(sp.symbols("s")+self.sedge), )
+        b_out = (self.fringe.exitfringevalue(sp.symbols("s")-self.sedge), )
+        
+        self.straight_in = FieldExpansion(b=b_in, hs="0", nphi=self.nphi)
+        self.straight_out = FieldExpansion(b=b_out, hs="0", nphi=self.nphi)
+        self.A_straight_in = self.straight_in.get_A(lambdify=True)
+        self.A_straight_out = self.straight_out.get_A(lambdify=True)
 
 
+        if not self.h==0:
+            self.bent_in = FieldExpansion(b=b_in, hs=f"{self.h}")
+            self.bent_out = FieldExpansion(b=b_out, hs=f"{self.h}")
+            self.A_bent_in = self.bent_in.get_A(lambdify=True)
+            self.A_bent_out = self.bent_out.get_A(lambdify=True)
 
+    def create_Hamiltonian(self, plot=False, symmetric=True):
+        print("Creating Hamiltonian...")
+        self.create_fieldexpansion()
+        
+        # Make a Hamiltonian
+        if self.h==0: 
+            self.H_straight_in = Hamiltonian(-self.smin, 0, self.straight_in)
+            self.H_straight_out = Hamiltonian(self.smax, 0, self.straight_out)
+
+        else:
+            self.H_straight_in = Hamiltonian(self.smax-self.sedge, 0, self.straight_in)
+            self.H_bent_in = Hamiltonian(self.sedge, self.h, self.bent_in)
+            self.H_bent_out = Hamiltonian(self.sedge, self.h, self.bent_out)
+            self.H_straight_out = Hamiltonian(self.smax-self.sedge, 0, self.straight_out)
+        
+    def plot_components(self, ax=None):
+        if ax is None:
+            fig, ax = plt.subplots()
+        if self.h==0:
+            self.straight_in.plot_components(smin=self.smin, smax=0, plot_bs=False, ax=ax)
+            self.straight_out.plot_components(smin=0, smax=self.smax, plot_bs=False, ax=ax)
+            integral = 0
+            integral += np.trapz([self.straight_in.b[0].subs({self.straight_in.s:sval}) for sval in np.linspace(self.smin, 0, 300)], np.linspace(self.smin, 0, 300))
+            integral += np.trapz([self.straight_out.b[0].subs({self.straight_out.s:sval}) for sval in np.linspace(0, self.smax, 300)], np.linspace(0, self.smax, 300))
+            assert np.isclose(integral, self.b0*self.l_magn, rtol=1e-4), f"Integral of the field does not match the expected value! It is {integral} instead of {self.b0*self.l_magn}!"
+        else:
+            self.straight_in.plot_components(smin=self.smin, smax=-self.sedge, plot_bs=False, ax=ax)
+            self.bent_in.plot_components(smin=-self.sedge, smax=0, plot_bs=False, ax=ax)
+            self.bent_out.plot_components(smin=0, smax=self.sedge, plot_bs=False, ax=ax)
+            self.straight_out.plot_components(smin=self.sedge, smax=self.smax, plot_bs=False, ax=ax)
+            integral = 0
+            integral += np.trapz([self.straight_in.b[0].subs({self.straight_in.s:sval}) for sval in np.linspace(self.smin, -self.sedge, 300)], np.linspace(self.smin, -self.sedge, 300))
+            integral += np.trapz([self.bent_in.b[0].subs({self.bent_in.s:sval}) for sval in np.linspace(-self.sedge, 0, 300)], np.linspace(-self.sedge, 0, 300))
+            integral += np.trapz([self.bent_out.b[0].subs({self.bent_out.s:sval}) for sval in np.linspace(0, self.sedge, 300)], np.linspace(0, self.sedge, 300))
+            integral += np.trapz([self.straight_out.b[0].subs({self.straight_out.s:sval}) for sval in np.linspace(self.sedge, self.smax, 300)], np.linspace(self.sedge, self.smax, 300))
+            assert np.isclose(integral, self.b0*self.l_magn, rtol=1e-4), f"Integral of the field does not match the expected value! It is {integral} instead of {self.b0*self.l_magn}!"
+    
+    def track(self, particle, ivp_opt={}):
+        if self.h==0:
+            sol_in = self.H_straight_in.track(particle, s_span=[self.smin, 0], ivp_opt=ivp_opt) 
+            
+            Ax_in = self.A_straight_in[0](particle.x, particle.y, particle.s)
+            Ay_in = self.A_straight_in[1](particle.x, particle.y, particle.s)
+            Ax_out = self.A_straight_out[0](particle.x, particle.y, particle.s)
+            Ay_out = self.A_straight_out[1](particle.x, particle.y, particle.s)
+            Ax_in = np.where(np.isnan(Ax_in), 0, Ax_in)
+            Ay_in = np.where(np.isnan(Ay_in), 0, Ay_in)
+            Ax_out = np.where(np.isnan(Ax_out), 0, Ax_out)
+            Ay_out = np.where(np.isnan(Ay_out), 0, Ay_out)
+            particle.px = particle.px - Ax_in + Ax_out
+            particle.py = particle.py - Ay_in + Ay_out
+
+            sol_out = self.H_straight_out.track(particle, s_span=[0, self.smax], ivp_opt=ivp_opt)
+            
+            fig, ax = plt.subplots(2, sharex=True)
+            for i in range(len(particle.x)):
+                tlist = np.concatenate([sol_in[i].t, sol_out[i].t])
+                xlist = np.concatenate([sol_in[i].y[0], sol_out[i].y[0]])
+                ylist = np.concatenate([sol_in[i].y[1], sol_out[i].y[1]])
+                ax[0].scatter(tlist, xlist)
+                ax[1].scatter(tlist, ylist)
+            ax[1].set_xlabel("s")
+            ax[0].set_ylabel("x")
+            ax[1].set_ylabel("y")
+            plt.show()
+            
+            
+        else:
+            sol_sin = self.H_straight_in.track(particle, s_span=[self.smin, -self.sedge], ivp_opt=ivp_opt, return_sol=True) 
+
+            Ax_in = self.A_straight_in[0](particle.x, particle.y, particle.s)
+            Ay_in = self.A_straight_in[1](particle.x, particle.y, particle.s)
+            Ax_out = self.A_bent_in[0](particle.x, particle.y, particle.s)
+            Ay_out = self.A_bent_in[1](particle.x, particle.y, particle.s)
+            Ax_in = np.where(np.isnan(Ax_in), 0, Ax_in)
+            Ay_in = np.where(np.isnan(Ay_in), 0, Ay_in)
+            Ax_out = np.where(np.isnan(Ax_out), 0, Ax_out)
+            Ay_out = np.where(np.isnan(Ay_out), 0, Ay_out)
+            particle.px = particle.px - Ax_in + Ax_out
+            particle.py = particle.py - Ay_in + Ay_out
+
+            sol_bin = self.H_bent_in.track(particle, s_span=[-self.sedge, 0], ivp_opt=ivp_opt, return_sol=True)
+
+            Ax_in = self.A_bent_in[0](particle.x, particle.y, particle.s)
+            Ay_in = self.A_bent_in[1](particle.x, particle.y, particle.s)
+            Ax_out = self.A_bent_out[0](particle.x, particle.y, particle.s)
+            Ay_out = self.A_bent_out[1](particle.x, particle.y, particle.s)
+            Ax_in = np.where(np.isnan(Ax_in), 0, Ax_in)
+            Ay_in = np.where(np.isnan(Ay_in), 0, Ay_in)
+            Ax_out = np.where(np.isnan(Ax_out), 0, Ax_out)
+            Ay_out = np.where(np.isnan(Ay_out), 0, Ay_out)
+            particle.px = particle.px - Ax_in + Ax_out
+            particle.py = particle.py - Ay_in + Ay_out
+
+            sol_bout = self.H_bent_out.track(particle, s_span=[0, self.sedge], ivp_opt=ivp_opt, return_sol=True)
+
+            Ax_in = self.A_bent_out[0](particle.x, particle.y, particle.s)
+            Ay_in = self.A_bent_out[1](particle.x, particle.y, particle.s)
+            Ax_out = self.A_straight_out[0](particle.x, particle.y, particle.s)
+            Ay_out = self.A_straight_out[1](particle.x, particle.y, particle.s)
+            Ax_in = np.where(np.isnan(Ax_in), 0, Ax_in)
+            Ay_in = np.where(np.isnan(Ay_in), 0, Ay_in)
+            Ax_out = np.where(np.isnan(Ax_out), 0, Ax_out)
+            Ay_out = np.where(np.isnan(Ay_out), 0, Ay_out)
+            particle.px = particle.px - Ax_in + Ax_out 
+            particle.py = particle.py - Ay_in + Ay_out
+            
+            sol_sout = self.H_straight_out.track(particle, s_span=[self.sedge, self.smax], ivp_opt=ivp_opt, return_sol=True)
+
+            fig, ax = plt.subplots(2, sharex=True)
+            for i in range(len(particle.x)):
+                tlist = np.concatenate([sol_sin[i].t, sol_bin[i].t, sol_bout[i].t, sol_sout[i].t])
+                xlist = np.concatenate([sol_sin[i].y[0], sol_bin[i].y[0], sol_bout[i].y[0], sol_sout[i].y[0]])
+                ylist = np.concatenate([sol_sin[i].y[1], sol_bin[i].y[1], sol_bout[i].y[1], sol_sout[i].y[1]])
+                ax[0].scatter(tlist, xlist)
+                ax[1].scatter(tlist, ylist)
+            ax[1].set_xlabel("s")
+            ax[0].set_ylabel("x")
+            ax[1].set_ylabel("y")
+            plt.show()
+        
 
