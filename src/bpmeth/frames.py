@@ -81,7 +81,7 @@ class Frame:
     def zdir(self):
         return self.matrix[0:3, 2]
 
-    def plot_zx(self, canvas=None, arrowsize=0.1):
+    def plot_zx(self, canvas=None, arrowsize=0.05):
         if canvas is None:
             canvas = CanvasZX()
         x = self.matrix[0, 3]
@@ -91,7 +91,7 @@ class Frame:
         canvas.arrow(self.origin, self.zdir*arrowsize, color="blue")
         return self
     
-    def plot_zxy(self, canvas=None, arrowsize=0.1):
+    def plot_zxy(self, canvas=None, arrowsize=0.05):
         if canvas is None:
             canvas = CanvasZXY()
         x = self.matrix[0, 3]

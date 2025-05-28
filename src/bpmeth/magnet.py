@@ -295,6 +295,8 @@ class DipoleFromFint:
         :param l_magn: Total magnetic length. For curved magnets, the bending angle is given by l_magn*h.
         :param fint: Desired fringe field integral.
         :param gap: The gap of the magnet. Used to estimate a reasonable range of the fringe field and calculate the fringe field Integral.
+        :param nphi: Number of phi terms in the expansion, at least phi0 and phi1. If set to zero, use DipoleVectorPotential object 
+            which doesn't include any field derivatives.
         """
         
         self.b0 = b0
@@ -320,20 +322,24 @@ class DipoleFromFint:
         b_in = (self.fringe.entrancefringevalue(sp.symbols("s")+self.sedge), )
         b_out = (self.fringe.exitfringevalue(sp.symbols("s")-self.sedge), )
         
-        self.straight_in = FieldExpansion(b=b_in, hs="0", nphi=self.nphi)
-        self.straight_out = FieldExpansion(b=b_out, hs="0", nphi=self.nphi)
-        self.straight_in = DipoleVectorPotential(curv=0, b1=b_in[0])
-        self.straight_out = DipoleVectorPotential(curv=0, b1=b_out[0])
+        if self.nphi>0:
+            self.straight_in = FieldExpansion(b=b_in, hs="0", nphi=self.nphi)
+            self.straight_out = FieldExpansion(b=b_out, hs="0", nphi=self.nphi)
+        else:
+            self.straight_in = DipoleVectorPotential(curv=0, b1=b_in[0])
+            self.straight_out = DipoleVectorPotential(curv=0, b1=b_out[0])
 
         self.A_straight_in = self.straight_in.get_A(lambdify=True)
         self.A_straight_out = self.straight_out.get_A(lambdify=True)
 
 
         if not self.h==0:
-            self.bent_in = FieldExpansion(b=b_in, hs=f"{self.h}")
-            self.bent_out = FieldExpansion(b=b_out, hs=f"{self.h}")
-            self.bent_in = DipoleVectorPotential(curv=self.h, b1=b_in[0])
-            self.bent_out = DipoleVectorPotential(curv=self.h, b1=b_out[0])
+            if self.nphi>0:
+                self.bent_in = FieldExpansion(b=b_in, hs=f"{self.h}")
+                self.bent_out = FieldExpansion(b=b_out, hs=f"{self.h}")
+            else:
+                self.bent_in = DipoleVectorPotential(curv=self.h, b1=b_in[0])
+                self.bent_out = DipoleVectorPotential(curv=self.h, b1=b_out[0])
 
             self.A_bent_in = self.bent_in.get_A(lambdify=True)
             self.A_bent_out = self.bent_out.get_A(lambdify=True)
