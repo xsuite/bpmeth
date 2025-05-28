@@ -6,4 +6,4 @@ from .track4d import *
 from .fringefieldmaps import *
 from .fieldmaps import *
 from .magnet import *
-
+from . import poly_fit
