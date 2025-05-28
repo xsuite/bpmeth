@@ -322,8 +322,8 @@ class DipoleFromFint:
         
         self.straight_in = FieldExpansion(b=b_in, hs="0", nphi=self.nphi)
         self.straight_out = FieldExpansion(b=b_out, hs="0", nphi=self.nphi)
-        #self.straight_in = DipoleVectorPotential(curv=0, b1=b_in[0])
-        #self.straight_out = DipoleVectorPotential(curv=0, b1=b_out[0])
+        self.straight_in = DipoleVectorPotential(curv=0, b1=b_in[0])
+        self.straight_out = DipoleVectorPotential(curv=0, b1=b_out[0])
 
         self.A_straight_in = self.straight_in.get_A(lambdify=True)
         self.A_straight_out = self.straight_out.get_A(lambdify=True)
@@ -332,8 +332,8 @@ class DipoleFromFint:
         if not self.h==0:
             self.bent_in = FieldExpansion(b=b_in, hs=f"{self.h}")
             self.bent_out = FieldExpansion(b=b_out, hs=f"{self.h}")
-            #self.bent_in = DipoleVectorPotential(curv=self.h, b1=b_in[0])
-            #self.bent_out = DipoleVectorPotential(curv=self.h, b1=b_out[0])
+            self.bent_in = DipoleVectorPotential(curv=self.h, b1=b_in[0])
+            self.bent_out = DipoleVectorPotential(curv=self.h, b1=b_out[0])
 
             self.A_bent_in = self.bent_in.get_A(lambdify=True)
             self.A_bent_out = self.bent_out.get_A(lambdify=True)
