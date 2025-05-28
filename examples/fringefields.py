@@ -23,7 +23,7 @@ def K0ggtanh(b1, a, L):
 
 # Properties
 h = 0
-lenght = 5
+length = 5
 b1 = 0.1
 aa = 1
 b1shape = f"(tanh(s/{aa})+1)/2"
@@ -39,13 +39,13 @@ K0gg = K0ggtanh(b1, aa, lenght/2)
 qp0 = [0,1,0,0,0,0]  # x, y, tau, px, py, ptau
 coord = np.array([[qp0[0]], [qp0[3]], [qp0[1]], [qp0[4]]])  # format that allows many particles
 
-fringe_thin = bpmeth.ThinNumericalFringe(b1, b1shape, length=lenght, nphi=5)
+fringe_thin = bpmeth.ThinNumericalFringe(b1, b1shape, length=length, nphi=5)
 trajectories_thin = fringe_thin.track(coord.copy())
 trajectory_thin = trajectories_thin.get_trajectory(0)
 
-fringe_thick = bpmeth.ThickNumericalFringe(b1, b1shape, lenght=lenght, nphi=5)
-trajectories_thick = fringe_thick.track(coord.copy())
-trajectory_thick = trajectories_thick.get_trajectory(0)
+# fringe_thick = bpmeth.ThickNumericalFringe(b1, b1shape, length=length, nphi=5)
+# trajectories_thick = fringe_thick.track(coord.copy())
+# trajectory_thick = trajectories_thick.get_trajectory(0)
 
 fringe_forest = bpmeth.ForestFringe(b1, Kg, K0gg, closedorbit=False)
 trajectories_forest = fringe_forest.track(coord.copy())
@@ -57,31 +57,31 @@ trajectory_forest_co = trajectories_forest_co.get_trajectory(0)
 fig3d = plt.figure()
 ax3d = fig3d.add_subplot(111, projection='3d')
 trajectory_thin.plot_3d(ax=ax3d, label='thin')
-trajectory_thick.plot_3d(ax=ax3d, label='thick')
+# trajectory_thick.plot_3d(ax=ax3d, label='thick')
 trajectory_forest.plot_3d(ax=ax3d, label='forest')
 trajectory_forest_co.plot_3d(ax=ax3d, label='forest with closed orbit effect')
 
 figx, axx = plt.subplots()
 trajectory_thin.plot_x(ax=axx, label='thin')
-trajectory_thick.plot_x(ax=axx, label='thick')
+# trajectory_thick.plot_x(ax=axx, label='thick')
 trajectory_forest.plot_x(ax=axx, label='forest')
 trajectory_forest_co.plot_x(ax=axx, label='forest with closed orbit effect')
 
 figy, axy = plt.subplots()
 trajectory_thin.plot_y(ax=axy, label='thin')
-trajectory_thick.plot_y(ax=axy, label='thick')
+# trajectory_thick.plot_y(ax=axy, label='thick')
 trajectory_forest.plot_y(ax=axy, label='forest')
 trajectory_forest_co.plot_y(ax=axy, label='forest with closed orbit effect')
 
 figpx, axpx = plt.subplots()
 trajectory_thin.plot_px(ax=axpx, label='thin')
-trajectory_thick.plot_px(ax=axpx, label='thick')
+# trajectory_thick.plot_px(ax=axpx, label='thick')
 trajectory_forest.plot_px(ax=axpx, label='forest')
 trajectory_forest_co.plot_px(ax=axpx, label='forest with closed orbit effect')
 
 figpy, axpy = plt.subplots()
 trajectory_thin.plot_py(ax=axpy, label='thin')
-trajectory_thick.plot_py(ax=axpy, label='thick')
+# trajectory_thick.plot_py(ax=axpy, label='thick')
 trajectory_forest.plot_py(ax=axpy, label='forest')
 trajectory_forest_co.plot_py(ax=axpy, label='forest with closed orbit effect')
 
@@ -95,32 +95,35 @@ trajectory_forest_co.plot_py(ax=axpy, label='forest with closed orbit effect')
 npart = 10
 part = np.zeros((4, npart))
 part[2] = np.linspace(-1, 1, npart)
-part[3] = 0.2
+part[3] = 0
 
-fringe_thin = bpmeth.ThinNumericalFringe(b1, b1shape, lenght=lenght, nphi=5)
+fringe_thin = bpmeth.ThinNumericalFringe(b1, b1shape, length=length, nphi=5)
 trajectories_thin = fringe_thin.track(part.copy())
 
-fringe_thick = bpmeth.ThickNumericalFringe(b1, b1shape, lenght=lenght, nphi=5)
-trajectories_thick = fringe_thick.track(part.copy())
+# fringe_thick = bpmeth.ThickNumericalFringe(b1, b1shape, length=length, nphi=5)
+# trajectories_thick = fringe_thick.track(part.copy())
 
-fringe_forest = bpmeth.ForestFringe(b1, Kg, K0gg)
-trajectories_forest = fringe_forest.track(part.copy(), closedorbit=False)
-trajectories_forest_co = fringe_forest.track(part.copy(), closedorbit=True)
+fringe_forest = bpmeth.ForestFringe(b1, Kg, K0gg, closedorbit=False)
+trajectories_forest = fringe_forest.track(part.copy())
+fringe_forest_co = bpmeth.ForestFringe(b1, Kg, K0gg, closedorbit=True)
+trajectories_forest_co = fringe_forest_co.track(part.copy())
+fringe_forest_co_sad = bpmeth.ForestFringe(b1, Kg, K0gg, closedorbit=True, sadistic=True)
+trajectories_forest_co_sad = fringe_forest_co_sad.track(part.copy())
 
 ax = trajectories_thin.plot_final(label="thin map")
-trajectories_thick.plot_final(ax=ax, label="thick map")
+# trajectories_thick.plot_final(ax=ax, label="thick map")
 trajectories_forest.plot_final(ax=ax, label="forest map")
 trajectories_forest_co.plot_final(ax=ax, label="forest map with closed orbit effect")
-
+trajectories_forest_co_sad.plot_final(ax=ax, label="forest map with closed orbit effect and sadistic term")
 
 index = 4
 
 ax1 = trajectories_thin.get_trajectory(index).plot_x(label='thin')
-trajectories_thick.get_trajectory(index).plot_x(ax=ax1, label='thick')
+# trajectories_thick.get_trajectory(index).plot_x(ax=ax1, label='thick')
 trajectories_forest.get_trajectory(index).plot_x(ax=ax1, label='forest')
 
 ax2 = trajectories_thin.get_trajectory(index).plot_y(label='thin')
-trajectories_thick.get_trajectory(index).plot_y(ax=ax2, label='thick')
+# trajectories_thick.get_trajectory(index).plot_y(ax=ax2, label='thick')
 trajectories_forest.get_trajectory(index).plot_y(ax=ax2, label='forest')
 
 # => The "focussing term" in forest is actually physical, with a third order correction (the sadistic term)

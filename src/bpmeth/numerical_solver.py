@@ -21,10 +21,13 @@ class Hamiltonian:
         px, py, ptau = coords.px, coords.py, coords.ptau
         beta0 = coords.beta0
         h = self.curv
-        A = self.vectp.get_Aval(coords)
+        A = self.vectp.get_A()
+        A = [Ai.subs({self.vectp.x:x, self.vectp.y:y, self.vectp.s:s}) for Ai in A]
+
         sqrt = coords._m.sqrt
         tmp1 = sqrt(1+2*ptau/beta0+ptau**2-(px-A[0])**2-(py-A[1])**2)
         H = ptau/beta0 - (1+h*x)*(tmp1 + A[2])
+        
         return H
     
 
@@ -41,34 +44,39 @@ class Hamiltonian:
         fpy = - H.diff(y)
         fptau = - H.diff(tau)
         qpdot = [fx, fy, ftau, fpx, fpy, fptau]
+
         if lambdify:
             qp = (x, y, tau, px, py, ptau)
             s = coords.s
             return sp.lambdify((s,qp), qpdot, modules='numpy')
-        else:
-            return qpdot
+        return qpdot
 
 
-    def solve(self, qp0, s_span=None, ivp_opt=None):
+    def solve(self, qp0, s_span=None, ivp_opt={}):
+        ivp_opt = ivp_opt.copy()
         if s_span is None:
             s_span = [0, self.length]
-        if ivp_opt is None:
-            ivp_opt = {'t_eval': np.linspace(s_span[0], s_span[1], 500), "rtol":1e-4, "atol":1e-7}
-        elif 't_eval' not in ivp_opt:
+        if 't_eval' not in ivp_opt:
             ivp_opt['t_eval'] = np.linspace(s_span[0], s_span[1], 500)
+        if "rtol" not in ivp_opt:
+            ivp_opt["rtol"] = 1e-4
+        if "atol" not in ivp_opt:
+            ivp_opt["atol"] = 1e-7
             
         f = self.vectorfield
         sol = solve_ivp(f, s_span, qp0, **ivp_opt)
         return sol
     
 
-    def track(self, particle, return_sol=False, ivp_opt=None):
+    def track(self, particle, s_span=None, return_sol=False, ivp_opt={}):
         if isinstance(particle.x, np.ndarray) or isinstance(particle.x, list):
             results = []
             out = []
             for i in range(len(particle.x)):
                 qp0 = [particle.x[i], particle.y[i], particle.beta0[i] * particle.zeta[i], particle.px[i], particle.py[i], particle.ptau[i]]
-                sol = self.solve(qp0, ivp_opt=ivp_opt)
+                if s_span is None:
+                    s_span = [particle.s[i], particle.s[i] + self.length]
+                sol = self.solve(qp0, s_span=s_span, ivp_opt=ivp_opt)
                 s = sol.t
                 x, y, tau, px, py, ptau = sol.y
                 results.append({
@@ -90,7 +98,9 @@ class Hamiltonian:
             particle.s += self.length
         else:
             qp0 = [particle.x, particle.y, particle.beta0 * particle.zeta, particle.px, particle.py, particle.ptau]
-            sol = self.solve(qp0)
+            if s_span is None:
+                s_span = [particle.s, particle.s + self.length]
+            sol = self.solve(qp0, s_span=s_span, ivp_opt=ivp_opt)
             s = sol.t
             x, y, tau, px, py, ptau = sol.y
             particle.x = x[-1]
@@ -123,11 +133,16 @@ class Hamiltonian:
         return f'Hamiltonian({self.length}, {self.curv}, {self.vectp})'
 
 
+###########################################
+# A few common cases, to make life easier #
+###########################################
+
+
 class DriftVectorPotential(FieldExpansion):  
     def __init__(self):
         super().__init__(nphi=0)
         
-    def get_Aval(self, coords):
+    def get_A(self, coords):
         return [0, 0, 0]
 
 
@@ -142,13 +157,20 @@ class DipoleVectorPotential(FieldExpansion):
         
         self.curv = curv
         self.b1 = b1
-        super().__init__(b=(f"{b1}",), hs=f"{curv}", nphi=0)
+        super().__init__(b=(b1,), hs=f"{curv}", nphi=0)
 
-    def get_Aval(self, coords):
-        x, y, s = coords.x, coords.y, coords.s
+    def get_A(self, lambdify=False):
         h = self.curv
-        As = -(x+h/2*x**2)/(1+h*x) * self.b1
-        return [0, 0, As]
+        x, y, s = self.x, self.y, self.s
+        print(self.b[0])
+        As = -(x+h/2*x**2)/(1+h*x) * self.b[0]
+        print(As)
+        if lambdify:
+            return [
+                np.vectorize(sp.lambdify([x, y, s], 0, "numpy")),
+                np.vectorize(sp.lambdify([x, y, s], 0, "numpy")),
+                np.vectorize(sp.lambdify([x, y, s], As, "numpy"))]
+        return sp.Integer(0), sp.Integer(0), As
     
 
 class SolenoidVectorPotential(FieldExpansion):
@@ -163,7 +185,7 @@ class SolenoidVectorPotential(FieldExpansion):
         self.bs = bs
         super().__init__(bs=f"{bs}", nphi=0)
 
-    def get_Aval(self, coords):
+    def get_A(self, coords):
         x, y, s = coords.x, coords.y, coords.s
         bs = self.bs
         return [-bs*y/2, bs*x/2, 0]
@@ -179,15 +201,6 @@ class FringeVectorPotential(FieldExpansion):
         """
         
         super().__init__(b=(b1,), nphi=nphi)
-    
-    def get_Aval(self, coords):
-        x, y, s = coords.x, coords.y, coords.s
-        Ax, Ay, As = self.get_A()
-        return [
-            Ax.subs({self.x: x, self.y: y, self.s: s}).evalf(),
-            Ay.subs({self.x: x, self.y: y, self.s: s}).evalf(),
-            As.subs({self.x: x, self.y: y, self.s: s}).evalf()
-        ]
         
     
 class GeneralVectorPotential(FieldExpansion):
@@ -204,15 +217,6 @@ class GeneralVectorPotential(FieldExpansion):
         
         super().__init__(a=a, b=b, bs=bs, hs=hs, nphi=nphi)
           
-    def get_Aval(self, coords):
-        x, y, s = coords.x, coords.y, coords.s
-        Ax, Ay, As = self.get_A()
-        return [
-            Ax.subs({self.x: x, self.y: y, self.s: s}).evalf(),
-            Ay.subs({self.x: x, self.y: y, self.s: s}).evalf(),
-            As.subs({self.x: x, self.y: y, self.s: s}).evalf()
-        ]
-
 
 
 class SympyParticle:
@@ -227,7 +231,7 @@ class SympyParticle:
 class NumpyParticle:
     def __init__(self, qp0, s=0, beta0=1):
         self.beta0 = beta0
-        self.x, self.y, self.tau, self.px, self.py, self.tau = qp0
+        self.x, self.y, self.tau, self.px, self.py, self.ptau = qp0
         self.zeta = self.tau * self.beta0
         self.s = s
         self._m = np

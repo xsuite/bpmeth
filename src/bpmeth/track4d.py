@@ -466,8 +466,7 @@ class NormalForms4d:
                         for t in range(len(h[p, q, r])):
                             if p!=q or r!=t:  # Drop the detuning terms
                                 f[p, q, r, t] = np.nansum(h[p, q, r, t] * np.exp(1j*(p-q)*phi_x + 1j*(r-t)*phi_y) /
-                                                    (1 - np.exp(2*np.pi*1j * ((p-q)*Qx+(r-t)*Qy))), axis=0)
-            
+                                                    (1 - np.exp(2*np.pi*1j * ((p-q)*Qx+(r-t)*Qy))), axis=0)            
         return f
     
     def calc_deltaQ(self, Jx, Jy):

@@ -15,7 +15,7 @@ def phinplus2(phi, x, s, hs):
 
 
 class FieldExpansion:
-    def __init__(self, a=("0*s",), b=("0*s",), bs="0", hs="0", nphi=5):
+    def __init__(self, a=(), b=(), bs="0", hs="0", nphi=5):
         self.x, self.y, self.s = sp.symbols("x y s", real=True)
         self.a = tuple(eval(aa, sp.__dict__, {"s": self.s}) if isinstance(aa, str) else aa.subs(sp.Symbol("s"), self.s) for aa in a) 
         self.b = tuple(eval(bb, sp.__dict__, {"s": self.s}) if isinstance(bb, str) else bb.subs(sp.Symbol("s"), self.s) for bb in b) 
@@ -23,69 +23,72 @@ class FieldExpansion:
         self.hs = eval(hs, sp.__dict__, {"s": self.s}) if isinstance(hs, str) else hs.subs(sp.Symbol("s"), self.s)
         self.nphi = nphi
 
+        
+        self.afun = [sp.Function(f"a{i+1}")(self.s) for i, an in enumerate(a)]
+        self.bfun = [sp.Function(f"b{i+1}")(self.s) for i, bn in enumerate(b)]
+        self.bsfun = sp.Function("bs")(self.s) if self.bs!=0 else sp.Integer(0)
 
-    def get_phi(self, tolerance=1e-4, apperture=0.05):
+
+    def subs(self, func, coord_subs={}):
+        return func.subs({**{sym.subs(coord_subs):val for sym, val in zip(self.afun,self.a)}, **{sym.subs(coord_subs):val for sym, val in zip(self.bfun,self.b)}, self.bsfun.subs(coord_subs):self.bs}).doit()
+
+
+    def get_phi(self, tolerance=1e-4, apperture=0.05, subs=True):
         """
         a=(a1,a2,a3,...)
         b=(b1,b2,b3,...)
         """
 
         x, y, s = self.x, self.y, self.s
-        a = self.a
-        b = self.b
-        bs = self.bs
+        a = self.afun
+        b = self.bfun
+        bs = self.bsfun
         hs = self.hs
         nphi = self.nphi
         
         phi0 = sum((an * x ** (n + 1) / sp.factorial(n + 1) for n, an in enumerate(a))) + sp.integrate(bs, s)
         phi1 = sum((bn * x**n / sp.factorial(n) for n, bn in enumerate(b)))        
         phiv = [phi0, phi1]
-        for i in range(nphi):
+        for i in range(nphi-2):
             phiv.append(phinplus2(phiv[i], x, s, hs).simplify())
         phi = sum(pp * y**i / sp.factorial(i) for i, pp in enumerate(phiv)).simplify()
-    
 
-        """
-        Truncating the expansion in phi will violate Maxwell equations. Verify if the 
-        derivation is not too large by checking if the laplacian of the potential remains 
-        within the allowed tolerances.
-        """
+        if subs:
+            """
+            Truncating the expansion in phi will violate Maxwell equations. Verify if the 
+            deviation is not too large by checking if the laplacian of the potential remains 
+            within the allowed tolerances.
+            """
+            
+            phi =  self.subs(phi)
 
-        lapl = (
-            1/(1 + hs*x) * (1/(1 + hs*x) * phi.diff(s)).diff(s) +
-            1/(1 + hs*x) * ((1 + hs*x) * phi.diff(x)).diff(x) +
-            phi.diff(y, 2)
-        )
-        laplval = lapl.subs({x: apperture, y: apperture, s: apperture}).evalf()
-        if isinstance(laplval, float) or isinstance(laplval, sp.core.numbers.Float):
-            assert laplval < tolerance, \
-                f"More terms are needed in the expansion, the laplacian is {laplval}"
-        else:
-            warnings.warn("The laplacian could not be evaluated, are you doing symbolic calculations?")
-        
+            lapl = (
+                1/(1 + hs*x) * (1/(1 + hs*x) * phi.diff(s)).diff(s) +
+                1/(1 + hs*x) * ((1 + hs*x) * phi.diff(x)).diff(x) +
+                phi.diff(y, 2)
+            )
+            laplval = lapl.subs({x: apperture, y: apperture, s: apperture}).evalf()
+            if isinstance(laplval, float) or isinstance(laplval, sp.core.numbers.Float):
+                if laplval < tolerance:
+                    warnings.warn(f"More terms are needed in the expansion for aperture {apperture}m, the laplacian is {laplval}")
+            else:
+                warnings.warn("The laplacian could not be evaluated, are you doing symbolic calculations?")
+
         return phi
         
-
     
-    def get_A(self):
-        x, y, s = self.x, self.y, self.s
-        hs = self.hs
-        Bx, By, Bs = self.get_Bfield(lambdify=False)
-
-        Ax = - sp.integrate(Bs, (y, 0, y))
-        Ay = sp.S(0)
-        As = sp.integrate(Bx, (y, 0, y)) - 1/(1+hs*x) * sp.integrate((1+hs*x)*By.subs({y:0}), (x, 0, x))
-
-        return Ax, Ay, As
-
-    
-    def get_Bfield(self, lambdify=True):
+    def get_Bfield(self, lambdify=True, subs=True):
         x = self.x
         y = self.y
         s = self.s
-        phi = self.get_phi()
+        phi = self.get_phi(subs=False)
         hs = self.hs
         Bx, By, Bs = phi.diff(x), phi.diff(y), 1/(1+hs*x)*phi.diff(s)
+
+        if subs or lambdify:
+            Bx = self.subs(Bx)
+            By = self.subs(By)
+            Bs = self.subs(Bs)
 
         if lambdify:
             return (
@@ -94,14 +97,48 @@ class FieldExpansion:
                 np.vectorize(sp.lambdify([x, y, s], Bs, "numpy")),
             )
 
-        else:
-            return Bx, By, Bs
+        return Bx, By, Bs
+
+
+    def get_A(self, lambdify=False, subs=True):
+        x, y, s = self.x, self.y, self.s
+        hs = self.hs
+        Bx, By, Bs = self.get_Bfield(lambdify=False, subs=False)
+
+        Ax = - sp.integrate(Bs, (y, 0, y))
+        Ay = sp.S(0)
+        As = sp.integrate(Bx, (y, 0, y)) - 1/(1+hs*x) * sp.integrate((1+hs*x)*By.subs({y:0}), (x, 0, x))
+
+        if subs:
+            Ax = self.subs(Ax)
+            Ay = self.subs(Ay)
+            As = self.subs(As)
+
+        if lambdify:
+            return (
+                np.vectorize(sp.lambdify([x, y, s], Ax, "numpy")),
+                np.vectorize(sp.lambdify([x, y, s], Ay, "numpy")),
+                np.vectorize(sp.lambdify([x, y, s], As, "numpy")),
+            )
+        
+        return Ax, Ay, As
+
+
+    #########################################
+    # TO BE OPTIMISED FROM HERE             #
+    #########################################
 
     
     def transform(self, theta_E=0, rho=np.inf, maxpow=None):
         """
         So far only implemented for the entrance of the element. Some signs will differ for the exit!
+        
+        param theta_E (float): Rotation angle in radians.
+        param rho (float): Bending radius of the frame. If rho=np.inf, the frame is straight.
+        param maxpow (int): Maximum power of the series expansion to keep.
+        return (FieldExpansion): New field expansion in the rotated frame.
         """
+        
         assert self.hs==0, "Transform only implemented starting from straight frame!"        
         
         x, y, s = self.x, self.y, self.s
@@ -116,41 +153,111 @@ class FieldExpansion:
         phi0 = sum((an * x ** (n + 1) / sp.factorial(n + 1) for n, an in enumerate(at))) + sp.integrate(bst, s)
         phi1 = sum((bn * x**n / sp.factorial(n) for n, bn in enumerate(bt))) 
 
+        ss, xx = sp.symbols("ss xx")  # Needed for simultaneous substitution
+        
         if rho==np.inf:  # Straight frame
-            xt = s*sp.sin(theta_E) + x*sp.cos(theta_E)
-            st = s*sp.cos(theta_E) - x*sp.sin(theta_E)
+            xt = ss*sp.sin(theta_E) + xx*sp.cos(theta_E)
+            st = ss*sp.cos(theta_E) - xx*sp.sin(theta_E)
             print(f"Rotating over angle {theta_E} to new straight frame...")
 
         else:  # Curved frame
-            xt = (rho+x)*(sp.cos(theta_E-s/rho)) - rho*sp.cos(theta_E)
-            st = rho*sp.sin(theta_E) - (rho+x)*(sp.sin(theta_E-s/rho))
+            xt = (rho+xx)*(sp.cos(theta_E-ss/rho)) - rho*sp.cos(theta_E)
+            st = rho*sp.sin(theta_E) - (rho+xx)*(sp.sin(theta_E-ss/rho))
             print(f"Rotating over angle {theta_E} to new curved frame with bending radius {rho}...")
 
-        phi0 = phi0.subs([(x,xt), (s,st)])
-        phi1 = phi1.subs([(x,xt), (s,st)])
-            
+        phi0 = phi0.subs({x:xt, s:st}).subs({xx:x, ss:s})
+        phi1 = phi1.subs({x:xt, s:st}).subs({xx:x, ss:s})
+
         phi0 = phi0.series(x, 0, maxpow).removeO().as_poly(x)
         phi1 = phi1.series(x, 0, maxpow).removeO().as_poly(x)
         
         # Extract the multipole coefficients.
         a = []
         degree0 = 0 if phi0==0 else phi0.degree(x)
-        for i in range(1, degree0+1):
-            a.append(phi0.coeff_monomial(x**i))
+        for i in range(degree0+1):
+            a.append(phi0.coeff_monomial(x**(i+1)) * sp.factorial(i+1))
             
         bs = phi0.coeff_monomial(x**0).diff(s)
 
         b = []
         degree1 = 0 if phi1==0 else phi1.degree(x)
         for i in range(degree1+1):
-            b.append(phi1.coeff_monomial(x**i))
+            b.append(phi1.coeff_monomial(x**i) * sp.factorial(i))
             
         return FieldExpansion(a=a, b=b, bs=bs, nphi=nphi)
             
+            
+    def cut_at_angle(self, theta_E, maxpow=None):
+        """
+        Cut a general magnet at an angle theta_E. theta_E = 0 means no edge angle.
+        
+        :param theta_E (float): Edge angle in radians.
+        """
+        
+        x, y, s = self.x, self.y, self.s
+        at = self.a
+        bt = self.b
+        bst = self.bs
+        nphi = self.nphi
+        if maxpow is None:
+            maxpow = nphi
+            
+        phi0 = sum((an * x ** (n + 1) / sp.factorial(n + 1) for n, an in enumerate(at))) + sp.integrate(bst, s)
+        phi1 = sum((bn * x**n / sp.factorial(n) for n, bn in enumerate(bt))) 
 
-    def plotfield_yz(self, X=0, ax=None, bmin=None, bmax=None, includebx=False):
-        ymin, ymax, ystep = -2, 2, 0.05
-        zmin, zmax, zstep = -3, 3, 0.05
+        st = s - x*sp.sin(theta_E)
+        print(f"Cutting magnet at angle {theta_E}...")
+        
+        phi0 = phi0.subs([(s,st)])
+        phi1 = phi1.subs([(s,st)])
+
+        phi0 = phi0.series(x, 0, maxpow).removeO().as_poly(x)
+        phi1 = phi1.series(x, 0, maxpow).removeO().as_poly(x)        
+        
+        # Extract the multipole coefficients.
+        a = []
+        degree0 = 0 if phi0==0 else phi0.degree(x)
+        for i in range(degree0+1):
+            a.append(phi0.coeff_monomial(x**(i+1)) * sp.factorial(i+1))
+            
+        bs = phi0.coeff_monomial(x**0).diff(s)
+
+        b = []
+        degree1 = 0 if phi1==0 else phi1.degree(x)
+        for i in range(degree1+1):
+            b.append(phi1.coeff_monomial(x**i) * sp.factorial(i))
+            
+        return FieldExpansion(a=a, b=b, bs=bs, nphi=nphi)
+    
+    def plot_components(self, ax=None, smin=-2, smax=2, ns=100, plot_b=True, plot_a=True, plot_bs=True):
+        ss = np.linspace(smin, smax, ns)
+        if ax is None:
+            fig, ax = plt.subplots()
+        
+        if plot_a:
+            for i, aa in enumerate(self.a):
+                ax.plot(ss, [sp.sympify(aa).subs(self.s, sval).evalf() for sval in ss], label=f"a_{i+1}")
+        if plot_b:
+            for i, bb in enumerate(self.b):
+                ax.plot(ss, [sp.sympify(bb).subs(self.s, sval).evalf() for sval in ss], label=f"b_{i+1}")
+        if plot_bs:
+            ax.plot(ss, [sp.sympify(self.bs).subs(self.s, sval).evalf() for sval in ss], label=f"bs")
+        ax.legend()
+    
+    def plotfield_z(self, X=0, Y=0, ax=None, zmin=-2, zmax=2, zstep=0.01):
+        if ax is None:
+            fig, ax = plt.subplots()
+            
+        Bxfun, Byfun, Bsfun = self.get_Bfield()
+        Z = np.arange(zmin, zmax, zstep)
+        
+        ax.plot(Bxfun(X, Y, Z), label="Bx")
+        ax.plot(Byfun(X, Y, Z), label="By")
+        ax.plot(Bsfun(X, Y, Z), label="Bs")
+        plt.legend()
+        
+
+    def plotfield_yz(self, X=0, ax=None, bmin=None, bmax=None, includebx=False, ymin=-2, ymax=2, ystep=0.05, zmin=-3, zmax=3, zstep=0.05):
         Y = np.arange(ymin, ymax, ystep)
         Z = np.arange(zmin, zmax, zstep)
         Z, Y = np.meshgrid(Z, Y)
@@ -185,9 +292,7 @@ class FieldExpansion:
 
         plt.show()
         
-    def plotfield_xz(self, Y=0, ax=None, bmin=None, bmax=None, includeby=False):
-        xmin, xmax, xstep = -2, 2, 0.05
-        zmin, zmax, zstep = -3, 3, 0.05
+    def plotfield_xz(self, Y=0, ax=None, bmin=None, bmax=None, includeby=False, xmin=-2, xmax=2, xstep=0.05, zmin=-3, zmax=3, zstep=0.05):
         X = np.arange(xmin, xmax, xstep)
         Z = np.arange(zmin, zmax, zstep)
         Z, X = np.meshgrid(Z, X)
@@ -196,6 +301,7 @@ class FieldExpansion:
 
         Bx = Bxfun(X, Y, Z)
         Bs = Bsfun(X, Y, Z)
+
 
         bmagn = np.sqrt(Bx**2 + Bs**2)
         if includeby:
@@ -222,10 +328,33 @@ class FieldExpansion:
 
         plt.show()
         
+    def plot_By(self, Y=0, ax=None, bmin=None, bmax=None, includeby=False, xmin=-2, xmax=2, xstep=0.05, zmin=-3, zmax=3, zstep=0.05):
+        X = np.arange(xmin, xmax, xstep)
+        Z = np.arange(zmin, zmax, zstep)
+        Z, X = np.meshgrid(Z, X)
+
+        Bxfun, Byfun, Bsfun = self.get_Bfield()
+        By = Byfun(X, Y, Z)
+            
+        if bmin is None:
+            bmin = By.min()
+        if bmax is None:
+            bmax = By.max()
+
+        if ax is None:
+            fig, ax = plt.subplots()
+        plt.imshow(By, extent=(zmin, zmax, xmin, xmax), origin='lower', vmin=bmin, vmax=bmax)
+        plt.colorbar()
         
+        plt.xlabel("s")
+        plt.ylabel("x")
+
+        plt.show()
+                
+                
     def calc_RDTs(self, n, betx=1, bety=1, alphx=0, alphy=0):
         """
-        Calculate the RDTs of the given element symbolically as a function of s
+        Calculate the RDTs (the h_pqrt values) of the given element symbolically as a function of s
         
         :param n (int): Highest order of the RDTs to calculate.
         :param betx (float or sp.symbol): Beta function in x.
@@ -247,7 +376,7 @@ class FieldExpansion:
         pysubs = - 1/(2*sp.sqrt(bety))*((alphy + 1j)*hyp + (alphy - 1j)*hym)
         
         # H = -(1+hx) As
-        H_As = ((1+hs*x) * As).series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)])
+        H_As = -((1+hs*x) * As).series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)])
         H_As_poly = H_As.as_poly(hxp, hxm, hyp, hym)
         
         # H = -(1+hx) px Ax
