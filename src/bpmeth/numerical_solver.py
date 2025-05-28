@@ -157,13 +157,20 @@ class DipoleVectorPotential(FieldExpansion):
         
         self.curv = curv
         self.b1 = b1
-        super().__init__(b=(f"{b1}",), hs=f"{curv}", nphi=0)
+        super().__init__(b=(b1,), hs=f"{curv}", nphi=0)
 
-    def get_A(self, coords):
-        x, y, s = coords.x, coords.y, coords.s
+    def get_A(self, lambdify=False):
         h = self.curv
-        As = -(x+h/2*x**2)/(1+h*x) * self.b1
-        return [0, 0, As]
+        x, y, s = self.x, self.y, self.s
+        print(self.b[0])
+        As = -(x+h/2*x**2)/(1+h*x) * self.b[0]
+        print(As)
+        if lambdify:
+            return [
+                np.vectorize(sp.lambdify([x, y, s], 0, "numpy")),
+                np.vectorize(sp.lambdify([x, y, s], 0, "numpy")),
+                np.vectorize(sp.lambdify([x, y, s], As, "numpy"))]
+        return sp.Integer(0), sp.Integer(0), As
     
 
 class SolenoidVectorPotential(FieldExpansion):

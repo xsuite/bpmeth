@@ -81,7 +81,7 @@ class Frame:
     def zdir(self):
         return self.matrix[0:3, 2]
 
-    def plot_zx(self, canvas=None, arrowsize=1):
+    def plot_zx(self, canvas=None, arrowsize=0.1):
         if canvas is None:
             canvas = CanvasZX()
         x = self.matrix[0, 3]
@@ -91,7 +91,7 @@ class Frame:
         canvas.arrow(self.origin, self.zdir*arrowsize, color="blue")
         return self
     
-    def plot_zxy(self, canvas=None, arrowsize=1):
+    def plot_zxy(self, canvas=None, arrowsize=0.1):
         if canvas is None:
             canvas = CanvasZXY()
         x = self.matrix[0, 3]
@@ -144,6 +144,28 @@ class Frame:
     def copy(self):
         return Frame(self.matrix.copy())
 
+    def trajectory(self, s,x,y):
+        qq=np.zeros((3,len(s)))
+        for ii, ss in enumerate(s):
+            qq[:,ii]=(self.matrix@np.array([x[ii],y[ii],s[ii],1]))[:3]
+        return qq
+
+    def ref_trajectory(self, steps=21, smin=0, smax=1):
+        s = np.linspace(smin, smax, steps)
+        x = np.zeros(steps)
+        y = np.zeros(steps)
+        return self.trajectory(s,x,y)
+
+    def plot_trajectory_zx(self, s,x,y, canvas=None, figname=None, color="black"):
+        if canvas is None:
+            canvas = CanvasZX()
+        self.plot_zx(canvas)
+        canvas.plot(self.trajectory(s,x,y), color=color)
+
+        if figname:
+            canvas.fig.savefig(figname, dpi=500)
+
+        return self
 
 class BendFrame:
     def __init__(self, start, length=0, angle=0):

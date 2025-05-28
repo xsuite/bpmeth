@@ -1,6 +1,7 @@
 from .fieldmaps import Fieldmap, get_derivative, spTanh, spEnge, Enge
 from .generate_expansion import FieldExpansion
-from .numerical_solver import Hamiltonian
+from .numerical_solver import Hamiltonian, DipoleVectorPotential
+from .frames import CanvasZX, Frame, BendFrame
 import numpy as np
 import sympy as sp
 import warnings
@@ -117,7 +118,7 @@ class DipoleFromFieldmap:
             b_out.append(get_derivative(i, nparams=self.nparams, func=self.shapefun, lambdify=False)(s, *params_out_list[i]))
         
         self.straight_in = FieldExpansion(b=b_in, hs="0")
-        self.straight_out = FieldExpansion(b=b_out, hs="0")
+        self.straight_out = FieldExpansion(b=b_out, hs="0")\
         
         self.A_straight_in = self.straight_in.get_A(lambdify=True)
         self.A_straight_out = self.straight_out.get_A(lambdify=True)
@@ -136,8 +137,8 @@ class DipoleFromFieldmap:
         
         # Make a Hamiltonian
         if self.h==0: 
-            self.H_straight_in = Hamiltonian(-self.smin, 0, straight_in)
-            self.H_straight_out = Hamiltonian(self.smax, 0, straight_out)
+            self.H_straight_in = Hamiltonian(-self.smin, 0, self.straight_in)
+            self.H_straight_out = Hamiltonian(self.smax, 0, self.straight_out)
 
         else:
             self.H_straight_in = Hamiltonian(self.smax-self.sedge, 0, self.straight_in)
@@ -299,6 +300,7 @@ class DipoleFromFint:
         self.b0 = b0
         self.h = h
         self.l_magn = l_magn
+        self.angle = self.h*self.l_magn
         self.fint = fint
         self.gap = gap
         self.nphi = nphi
@@ -320,6 +322,9 @@ class DipoleFromFint:
         
         self.straight_in = FieldExpansion(b=b_in, hs="0", nphi=self.nphi)
         self.straight_out = FieldExpansion(b=b_out, hs="0", nphi=self.nphi)
+        #self.straight_in = DipoleVectorPotential(curv=0, b1=b_in[0])
+        #self.straight_out = DipoleVectorPotential(curv=0, b1=b_out[0])
+
         self.A_straight_in = self.straight_in.get_A(lambdify=True)
         self.A_straight_out = self.straight_out.get_A(lambdify=True)
 
@@ -327,6 +332,9 @@ class DipoleFromFint:
         if not self.h==0:
             self.bent_in = FieldExpansion(b=b_in, hs=f"{self.h}")
             self.bent_out = FieldExpansion(b=b_out, hs=f"{self.h}")
+            #self.bent_in = DipoleVectorPotential(curv=self.h, b1=b_in[0])
+            #self.bent_out = DipoleVectorPotential(curv=self.h, b1=b_out[0])
+
             self.A_bent_in = self.bent_in.get_A(lambdify=True)
             self.A_bent_out = self.bent_out.get_A(lambdify=True)
 
@@ -367,7 +375,7 @@ class DipoleFromFint:
             integral += np.trapz([self.straight_out.b[0].subs({self.straight_out.s:sval}) for sval in np.linspace(self.sedge, self.smax, 300)], np.linspace(self.sedge, self.smax, 300))
             assert np.isclose(integral, self.b0*self.l_magn, rtol=1e-4), f"Integral of the field does not match the expected value! It is {integral} instead of {self.b0*self.l_magn}!"
     
-    def track(self, particle, ivp_opt={}):
+    def track(self, particle, ivp_opt={}, amplify_plot=1):
         if self.h==0:
             sol_in = self.H_straight_in.track(particle, s_span=[self.smin, 0], ivp_opt=ivp_opt) 
             
@@ -441,14 +449,27 @@ class DipoleFromFint:
 
             fig, ax = plt.subplots(2, sharex=True)
             for i in range(len(particle.x)):
-                tlist = np.concatenate([sol_sin[i].t, sol_bin[i].t, sol_bout[i].t, sol_sout[i].t])
+                slist = np.concatenate([sol_sin[i].t, sol_bin[i].t, sol_bout[i].t, sol_sout[i].t])
                 xlist = np.concatenate([sol_sin[i].y[0], sol_bin[i].y[0], sol_bout[i].y[0], sol_sout[i].y[0]])
                 ylist = np.concatenate([sol_sin[i].y[1], sol_bin[i].y[1], sol_bout[i].y[1], sol_sout[i].y[1]])
-                ax[0].scatter(tlist, xlist)
-                ax[1].scatter(tlist, ylist)
+                ax[0].scatter(slist, xlist)
+                ax[1].scatter(slist, ylist)
             ax[1].set_xlabel("s")
             ax[0].set_ylabel("x")
             ax[1].set_ylabel("y")
             plt.show()
+
+            canvas = CanvasZX()
+            fr = Frame()
+            fr2 = fr.copy().arc_by(self.sedge, -self.angle/2)
+            fr3 = fr2.copy().move_by([(self.smin+self.sedge)*np.sin(self.angle/2), 0, (self.smin + self.sedge)*np.cos(self.angle/2)]).plot_zx(canvas=canvas)
+            fb = BendFrame(fr2, self.l_magn, self.angle).plot_zx(canvas=canvas)
+            fr4 = fb.end
+            fr5 = fr4.copy().move_by([-(self.smax-self.sedge)*np.sin(self.angle/2), 0, (self.smax - self.sedge)*np.cos(self.angle/2)]).plot_zx(canvas=canvas)
+            for i in range(len(particle.x)):
+                fr3.plot_trajectory_zx(sol_sin[i].t-self.smin, sol_sin[i].y[0]*amplify_plot, sol_sin[i].y[1], canvas=canvas)
+                fb.plot_trajectory_zx(sol_bin[i].t+self.sedge, sol_bin[i].y[0]*amplify_plot, sol_bin[i].y[1], canvas=canvas)
+                fb.plot_trajectory_zx(sol_bout[i].t+self.sedge, sol_bout[i].y[0]*amplify_plot, sol_bout[i].y[1], canvas=canvas)
+                fr4.plot_trajectory_zx(sol_sout[i].t-self.sedge, sol_sout[i].y[0]*amplify_plot, sol_sout[i].y[1], canvas=canvas)
         
 
