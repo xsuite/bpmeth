@@ -7,10 +7,10 @@ from bpmeth import poly_fit
 
 
 # peak gradient
-k1 = 0.001 # m^-1
+k1 = 0.01  # m^-1
 
 # Defining a smooth function from 0 to 1 of length 1 m
-y = np.array([0, k1/2, k1])
+y = np.array([0, k1 / 2, k1])
 s = np.array([0, 0.5, 1])
 poly_entry = poly_fit.poly_fit(
     N=4,
@@ -49,7 +49,7 @@ H_magnet_body = bpmeth.Hamiltonian(length=length, curv=float(h), vectp=A_magnet_
 # Exit
 
 # defining a smooth function from 0 to 1 of length 1 m
-y = np.array([k1, k1/2, 0])
+y = np.array([k1, k1 / 2, 0])
 s = np.array([0, 0.5, 1])
 poly = poly_fit.poly_fit(
     N=4,
@@ -80,9 +80,9 @@ H_magnet_exit = bpmeth.Hamiltonian(length=length, curv=float(h), vectp=A_magnet_
 line = xt.Line([H_magnet_entry])
 line.particle_ref = xt.Particles(energy0=10e9, mass0=xt.PROTON_MASS_EV)
 
-p0= line.build_particles(x=[0])
+p0 = line.build_particles(x=[0])
 line.track(p0, turn_by_turn_monitor="ONE_TURN_EBE")
-data=line.record_last_track
+data = line.record_last_track
 
 t = line.twiss4d(betx=1, bety=1, include_collective=True)
 print(t.betx)
@@ -91,19 +91,18 @@ print(t.betx)
 line = xt.Line([H_magnet_entry, H_magnet_body, H_magnet_exit])
 line.particle_ref = xt.Particles(energy0=10e9, mass0=xt.PROTON_MASS_EV)
 
-p0= line.build_particles(x=[0])
+p0 = line.build_particles(x=[0])
 line.track(p0, turn_by_turn_monitor="ONE_TURN_EBE")
-data=line.record_last_track
+data = line.record_last_track
 print(f"s={data.s}")
 
-t = line.twiss4d(betx=1, bety=1, include_collective=True)
-p = t._initial_particles
+t = line.twiss4d(betx=30, bety=30, include_collective=True)
 
-line.track(p, turn_by_turn_monitor="ONE_TURN_EBE")
-mon = line.record_last_track
+print(t.s)
+print(t.betx)
+print(t.bety)
 
+# p = t._initial_particles
 
-
-
-
-
+# line.track(p, turn_by_turn_monitor="ONE_TURN_EBE")
+# mon = line.record_last_track
