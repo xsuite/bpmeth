@@ -77,7 +77,6 @@ H_magnet_exit = bpmeth.Hamiltonian(length=length, curv=float(h), vectp=A_magnet_
 
 
 # track and twiss through one element
-
 line = xt.Line([H_magnet_entry])
 line.particle_ref = xt.Particles(energy0=10e9, mass0=xt.PROTON_MASS_EV)
 
@@ -88,17 +87,23 @@ data=line.record_last_track
 t = line.twiss4d(betx=1, bety=1, include_collective=True)
 print(t.betx)
 
-# Track through the full element (twiss fails!!!! TO BE CHECKED)
+# Track through the full element
 line = xt.Line([H_magnet_entry, H_magnet_body, H_magnet_exit])
 line.particle_ref = xt.Particles(energy0=10e9, mass0=xt.PROTON_MASS_EV)
 
 p0= line.build_particles(x=[0])
 line.track(p0, turn_by_turn_monitor="ONE_TURN_EBE")
 data=line.record_last_track
-print(f"this is weird s={data.s}")
+print(f"s={data.s}")
 
-# this fails
-#t = line.twiss4d(betx=1, bety=1, include_collective=True)
-#print(t.betx)
+t = line.twiss4d(betx=1, bety=1, include_collective=True)
+p = t._initial_particles
+
+line.track(p, turn_by_turn_monitor="ONE_TURN_EBE")
+mon = line.record_last_track
+
+
+
+
 
 

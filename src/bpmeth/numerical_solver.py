@@ -7,6 +7,9 @@ from .frames import Frame, BendFrame
 
 
 class Hamiltonian:
+
+    isthick = True
+
     def __init__(self, length, curv, vectp):
         self.length = length
         self.curv = curv
@@ -14,7 +17,6 @@ class Hamiltonian:
         self.angle = curv * length
 
         self.vectorfield = self.get_vectorfield()
-    
 
     def get_H(self, coords):
         x, y, s = coords.x, coords.y, coords.s
