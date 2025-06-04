@@ -54,10 +54,15 @@ class Hamiltonian:
             return sp.lambdify((s, qp), qpdot, modules="numpy")
         return qpdot
 
-    def solve(self, qp0, s_span=None, ivp_opt={}):
+    def solve(self, qp0, s_span=None, ivp_opt={}, backtrack=False):
         ivp_opt = ivp_opt.copy()
-        if s_span is None:
-            s_span = [0, self.length]
+        if s_span is None and not backtrack:
+             s_span = [0, self.length]
+        if backtrack:
+            if s_span is None:
+                s_span = [self.length, 0]
+            assert s_span[0] > s_span[1], "s_span not compatible with backtracking"
+
         if "t_eval" not in ivp_opt:
             ivp_opt["t_eval"] = np.linspace(s_span[0], s_span[1], 500)
         if "rtol" not in ivp_opt:
@@ -69,9 +74,14 @@ class Hamiltonian:
         sol = solve_ivp(f, s_span, qp0, **ivp_opt)
         return sol
 
-    def track(self, particle, s_span=None, return_sol=False, ivp_opt={}):
-        if s_span is None:
+    def track(self, particle, s_span=None, return_sol=False, ivp_opt={}, backtrack=False):
+        if s_span is None and not backtrack:
              s_span = [0, self.length]
+        if backtrack:
+            if s_span is None:
+                s_span = [self.length, 0]
+            assert s_span[0] > s_span[1], "s_span not compatible with backtracking"
+
         if isinstance(particle.x, np.ndarray) or isinstance(particle.x, list):
             results = []
             out = []
@@ -105,7 +115,10 @@ class Hamiltonian:
             particle.px = [res["px"] for res in results]
             particle.py = [res["py"] for res in results]
             particle.ptau = [res["ptau"] for res in results]
-            particle.s += self.length
+            if backtrack:
+                particle.s -= self.length
+            else:
+                particle.s += self.length
         else:
             qp0 = [
                 particle.x,
@@ -124,7 +137,10 @@ class Hamiltonian:
             particle.px = px[-1]
             particle.py = py[-1]
             particle.ptau = ptau[-1]
-            particle.s += self.length
+            if backtrack:
+                particle.s -= self.length
+            else:
+                particle.s += self.length
             if return_sol:
                 out = sol
 

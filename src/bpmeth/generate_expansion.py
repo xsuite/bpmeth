@@ -205,7 +205,7 @@ class FieldExpansion:
         phi0 = sum((an * x ** (n + 1) / sp.factorial(n + 1) for n, an in enumerate(at))) + sp.integrate(bst, s)
         phi1 = sum((bn * x**n / sp.factorial(n) for n, bn in enumerate(bt))) 
 
-        st = s - x*sp.sin(theta_E)
+        st = s - x*sp.tan(theta_E)
         print(f"Cutting magnet at angle {theta_E}...")
         
         phi0 = phi0.subs([(s,st)])
