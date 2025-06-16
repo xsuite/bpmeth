@@ -127,7 +127,7 @@ class FieldMap:
         plt.legend()
         plt.show()
 
-    def plot_bn_z(self, n, r, zmin=None, zmax=None):
+    def plot_bn_z(self, n, r, zmin=None, zmax=None, ax=None):
         """Plot the multipole coefficients along a circle of radius r at height z."""
         if zmin is None:
             zmin = self.z_grid[0]
@@ -136,12 +136,15 @@ class FieldMap:
         z = np.linspace(zmin, zmax, 51)
         assert n > 0, "n must be a positive integer"
         bn = [self.get_multipole(r, z_i)[n - 1].real for z_i in z]
+        if ax is None:
+            fig, ax = plt.subplots()
         plt.plot(z, bn,label=f"$B_{n}(z)$ at $r={r}$")
         plt.xlabel("z")
         plt.ylabel(f"Multipole Coefficient")
         plt.grid(True)
         plt.legend()
-        plt.show()
+        #plt.show()
+        return z, bn
 
     def plot_multipole(self, r, z, n=151):
         """Plot the multipole coefficients along a circle of radius r at height z."""
