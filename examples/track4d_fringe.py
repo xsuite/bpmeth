@@ -27,14 +27,14 @@ def K0ggtanh(b1, a, L):
 ######################
 
 npart = 10
-part = np.zeros((4, npart))
-part[0] = np.linspace(0, 0.5, npart)
-part[2] = np.linspace(0, 0.5, npart)
+xvals = np.linspace(0, 0.2, npart)
+yvals = np.linspace(0, 0.2, npart)
+part = bpmeth.MultiParticle(npart, x=xvals, y=yvals)
 Qx = 10.112
 Qxdec = Qx%1
 Qy = 10.252
 Qydec = Qy%1
-nturns = 1000
+nturns = 900
 
 b1 = 0.1
 aa = 1
