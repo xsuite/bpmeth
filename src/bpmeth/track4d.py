@@ -5,6 +5,10 @@ import sympy as sp
 import warnings
 from .numerical_solver import Hamiltonian, GeneralVectorPotential
 
+def get_rainbow_colors(n):
+    cmap = plt.cm.get_cmap('hsv', n)
+    return [cmap(i) for i in range(n)]
+
 
 class Phase4d:
     def __init__(self, phase_x, phase_y):
@@ -106,37 +110,37 @@ class Trajectory:
         plt.legend()
         return ax
     
-    def plot_x(self, ax=None, label=None):
+    def plot_x(self, ax=None, label=None, marker='.', ls='-', color="red", markeredgecolor=None):
         if ax is None:
             fig, ax = plt.subplots()
-        ax.plot(self.s, self.x, label=label, ls='', marker='.')
+        ax.plot(self.s, self.x, label=label, ls=ls, marker=marker, color=color, markeredgecolor=markeredgecolor)
         ax.set_xlabel('s')
         ax.set_ylabel('x')
         plt.legend()
         return ax
     
-    def plot_y(self, ax=None, label=None):
+    def plot_y(self, ax=None, label=None, marker='.', ls='-', color="red", markeredgecolor=None):
         if ax is None:
             fig, ax = plt.subplots()
-        ax.plot(self.s, self.y, label=label, ls='', marker='.')
+        ax.plot(self.s, self.y, label=label, ls=ls, marker=marker, color=color, markeredgecolor=markeredgecolor)
         ax.set_xlabel('s')
         ax.set_ylabel('y')
         plt.legend()
         return ax
     
-    def plot_px(self, ax=None, label=None):
+    def plot_px(self, ax=None, label=None, marker='.', ls='-', color="red", markeredgecolor=None):
         if ax is None:
             fig, ax = plt.subplots()
-        ax.plot(self.s, self.px, label=label, ls='', marker='.')
+        ax.plot(self.s, self.px, label=label, ls=ls, marker=marker, color=color, markeredgecolor=markeredgecolor)
         ax.set_xlabel('s')
         ax.set_ylabel('px')
         plt.legend()
         return ax
     
-    def plot_py(self, ax=None, label=None):
+    def plot_py(self, ax=None, label=None, marker='.', ls='-', color="red", markeredgecolor=None):
         if ax is None:
             fig, ax = plt.subplots()
-        ax.plot(self.s, self.py, label=label, ls='', marker='.')
+        ax.plot(self.s, self.py, label=label, ls=ls, marker=marker, color=color, markeredgecolor=markeredgecolor)
         ax.set_xlabel('s')
         ax.set_ylabel('py')
         plt.legend()
@@ -163,6 +167,22 @@ class MultiTrajectory:
             ax = fig.add_subplot(projection='3d')
         for trajectory in self.trajectories:
             trajectory.plot_3d(ax)
+
+    def plot_x(self, ax=None, marker='.', markeredgecolor=None):
+        colors=get_rainbow_colors(len(self.trajectories))
+
+        if ax is None:
+            fig, ax = plt.subplots()
+        for i, trajectory in enumerate(self.trajectories):
+            trajectory.plot_x(ax=ax, marker=marker, color=colors[i], markeredgecolor=markeredgecolor)
+    
+    def plot_px(self, ax=None, marker='.', markeredgecolor=None):
+        colors=get_rainbow_colors(len(self.trajectories))
+
+        if ax is None:
+            fig, ax = plt.subplots()
+        for i, trajectory in enumerate(self.trajectories):
+            trajectory.plot_px(ax=ax, marker=marker, color=colors[i], markeredgecolor=markeredgecolor)
             
     def plot_final(self, ax=None, label=None):
         """

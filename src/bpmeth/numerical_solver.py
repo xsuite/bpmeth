@@ -180,8 +180,8 @@ class DriftVectorPotential(FieldExpansion):
     def __init__(self):
         super().__init__(nphi=0)
 
-    def get_A(self, coords):
-        return [0, 0, 0]
+    def get_A(self):
+        return [sp.S.Zero, sp.S.Zero, sp.S.Zero]
 
 
 class DipoleVectorPotential(FieldExpansion):

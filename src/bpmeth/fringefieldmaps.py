@@ -58,9 +58,6 @@ class ThinNumericalFringe:
             sol_drift = self.H_drift.solve(qp0, s_span=[0, -self.length/2], ivp_opt=self.ivp_opt)
             sol_fringe = self.H_fringe.solve(sol_drift.y[:, -1], s_span=[-self.length/2, self.length/2], ivp_opt=self.ivp_opt)
             sol_dipole = self.H_dipole.solve(sol_fringe.y[:, -1], s_span=[self.length/2, 0], ivp_opt=self.ivp_opt)
-            
-            # Update particle position
-            part.x[i], part.px[i], part.tau[i], part.px[i], part.py[i], part.ptau[i] = sol_dipole.y[:, -1]
 
             # Save all trajectory points
             all_s = np.append(sol_drift.t, [sol_fringe.t, sol_dipole.t])
@@ -70,6 +67,9 @@ class ThinNumericalFringe:
             all_py = np.append(sol_drift.y[4], [sol_fringe.y[4], sol_dipole.y[4]])
         
             trajectories.add_trajectory(Trajectory(all_s, all_x, all_px, all_y, all_py))
+            
+            # Update particle position
+            part.x[i], part.y[i], part.tau[i], part.px[i], part.py[i], part.ptau[i] = sol_dipole.y[:, -1]
             
         return trajectories
 
@@ -122,8 +122,21 @@ class ThickNumericalFringe:
 
         """
         
-        npart = part.npart
-        x, px, y, py, tau, ptau = part.x, part.px, part.y, part.py, part.tau, part.ptau
+
+        xi, pxi, yi, pyi, zetai, ptaui = part.x, part.px, part.y, part.py, part.zeta, part.ptau
+        beta0 = part.beta0        
+        m = part._m        
+        deltai = m.sqrt(1 + 2*ptaui / beta0 + ptaui**2) - 1
+        betai = m.sqrt(1-(1-beta0)/(1+beta0*ptaui)**2)
+        li = -betai * zetai / beta0          
+        
+        if isinstance(xi, list) or isinstance(xi, np.ndarray):
+            npart = len(xi)
+        else:
+            npart = 1
+            xi, pxi, yi, pyi, zetai, ptaui = [xi], [pxi], [yi], [pyi], [zetai], [ptaui]
+            deltai, betai, li = [deltai], [betai], [li]
+            singleparticle = True
         
         p_sp = SympyParticle()
         trajectories = MultiTrajectory(trajectories = [])
@@ -160,9 +173,6 @@ class ThickNumericalFringe:
                                                 s_span=[self.length/2, 0])
                 xsol, ysol, tausol, pxsol, pysol, ptausol = sol_drift2.y[:,-1]
 
-            # Update particle position
-            part.x[i], part.px[i], part.tau[i], part.px[i], part.py[i], part.ptau[i] = xsol, pxsol, tausol, pxsol, pysol, ptausol
-            
             # Save all trajectory points
             if makethin:
                 all_s = np.append(sol_drift1.t, [sol_fringe1.t, sol_fringe2.t, sol_drift2.t])
@@ -179,6 +189,9 @@ class ThickNumericalFringe:
             
             trajectories.add_trajectory(Trajectory(all_s, all_x, all_px, all_y, all_py))
         
+            # Update particle position
+            part.x[i], part.y[i], part.tau[i], part.px[i], part.py[i], part.ptau[i] = xsol, ysol, tausol, pxsol, pysol, ptausol
+            
         return trajectories
     
     
@@ -231,7 +244,6 @@ class ForestFringe:
         :return: A list of trajectory elements for all particles.
         """
 
-        warnings.warn("This is a 4d map, no longitudinal coordinates yet")
         self.sadistic = sadistic
         if self.sadistic:
             warnings.warn("Not sure if this map is symplectic")
@@ -287,13 +299,200 @@ class ForestFringe:
             betaf = m.sqrt(1-(1-beta0)/(1+beta0*ptauf)**2)
             zetaf = -beta0 * lf / betaf
 
+            # Save all trajectory points (thin map so only initial and final position)        
+            trajectories.add_trajectory(Trajectory([0, 0], [xi[i], xf], [pxi[i], pxi[i]], [yi[i], yf], [pyi[i], pyf]))
+            
             # Update particle position
             if singleparticle:
                 part.x, part.y, part.zeta, part.py = xf, yf, zetaf, pyf
             else:
                 part.x[i], part.y[i], part.zeta[i], part.py[i],  = xf, yf, zetaf, pyf
 
+        return trajectories
+
+
+class ForestQuadFringe:
+    def __init__(self, b2, exit=False):
+        """
+        Lee-Whiting quadrupole fringe field (Hard edge)
+        :param b2: Quadrupole design
+        :param exit: If True, exit fringe field instead of entrance.
+        """
+        
+        self.b2 = b2
+        self.sign = -1 if exit else 1
+
+    def track(self, part):
+        xi, pxi, yi, pyi, zetai, ptaui = part.x, part.px, part.y, part.py, part.zeta, part.ptau
+        beta0 = part.beta0        
+        deltai = np.sqrt(1 + 2*ptaui / beta0 + ptaui**2) - 1
+        betai = np.sqrt(1-(1-beta0)/(1+beta0*ptaui)**2)
+        li = -betai * zetai / beta0 
+        
+        trajectories = MultiTrajectory(trajectories = [])
+
+        if isinstance(xi, list) or isinstance(xi, np.ndarray):
+            npart = len(xi)
+            singleparticle = False
+        else:
+            npart = 1
+            xi, pxi, yi, pyi, zetai, ptaui = [xi], [pxi], [yi], [pyi], [zetai], [ptaui]
+            deltai, betai, li = [deltai], [betai], [li]
+            beta0 = [beta0]
+            singleparticle = True 
+            
+        for i in range(npart):
+            xf = xi[i] + self.sign * self.b2/(12*(1+deltai[i])) * (xi[i]**3 + 3*yi[i]**2*xi[i])
+            pxf = pxi[i] + self.sign * self.b2/(4*(1+deltai[i])) * (2*xi[i]*yi[i]*pyi[i] - xi[i]**2*pxi[i] - yi[i]**2*pxi[i])
+            yf = yi[i] - self.sign * self.b2/(12*(1+deltai[i])) * (yi[i]**3 + 3*xi[i]**2*yi[i])
+            pyf = pyi[i] - self.sign * self.b2/(4*(1+deltai[i])) * (2*xi[i]**yi[i]*pxi[i] - yi[i]**2*pyi[i] - xi[i]**2*pyi[i])
+            deltaf = deltai[i]
+            lf = li[i] - self.sign * self.b2/(12*(1+deltai[i])**2) * (yi[i]**3*pyi[i] - xi[i]**3*pxi[i] + 3*xi[i]**2*yi[i]*pyi[i] - 3*xi[i]*yi[i]**2*pxi[i])
+            
+            # Required x, y, zeta, px, py, ptau
+            ptauf = ptaui[i]
+            betaf = np.sqrt(1-(1-beta0[i])/(1+beta0[i]*ptauf)**2)
+            zetaf = -beta0[i] * lf / betaf
+
             # Save all trajectory points (thin map so only initial and final position)        
-            trajectories.add_trajectory(Trajectory([0, 0], [xi[i], xf], [pxi[i], pxi[i]], [yi[i], yf], [pyi[i], pyf]))
+            trajectories.add_trajectory(Trajectory([0, 0], [xi[i], xf], [pxi[i], pxf], [yi[i], yf], [pyi[i], pyf]))
+
+            # Update particle position
+            if singleparticle:
+                part.x, part.y, part.zeta, part.px, part.py, part.ptau = xf, yf, zetaf, pxf, pyf, ptauf
+            else:
+                part.x[i], part.y[i], part.zeta[i], part.px[i], part.py[i], part.ptau[i] = xf, yf, zetaf, pxf, pyf, ptauf
+                
             
         return trajectories
+    
+    
+class MADXQuadFringe:
+    def __init__(self, b2, angle=0):
+        """
+        MADX quadrupole fringe field (Hard edge)
+        :param b2: Quadrupole design
+        """
+        
+        self.b2 = b2
+        self.angle = angle
+        
+    def track(self, part):
+        xi, pxi, yi, pyi, zetai, ptaui = part.x, part.px, part.y, part.py, part.zeta, part.ptau
+        beta0 = part.beta0        
+        m = part._m        
+       
+        trajectories = MultiTrajectory(trajectories = [])
+        
+        singleparticle=False
+        npart = part.npart
+        if npart == 1 and not (isinstance(xi, list) or isinstance(xi, np.ndarray)):
+            xi, pxi, yi, pyi, zetai, ptaui = [xi], [pxi], [yi], [pyi], [zetai], [ptaui]
+            deltai, betai, li = [deltai], [betai], [li]
+            singleparticle = True
+            
+        for i in range(npart):
+            xf = xi
+            pxf = pxi + self.b2 * np.tan(self.angle) * (xi**2 - yi**2)
+            yf = yi
+            pyf = pyi - 2 * self.b2 * np.tan(self.angle) * xi * yi
+            zetaf = zetai
+            ptauf = ptaui
+                                
+            # Save all trajectory points (thin map so only initial and final position)        
+            trajectories.add_trajectory(Trajectory([0, 0], [xi[i], xf], [pxi[i], pxi[i]], [yi[i], yf], [pyi[i], pyf]))
+        
+            # Update particle position
+            if singleparticle:
+                part.px, part.py = pxf, pyf
+            else:
+                part.px[i], part.py[i]  = pxf, pyf
+            
+        return trajectories
+       
+
+class NumericalQuadFringe:   
+    def __init__(self, b2, b2amp, b3, length=1, nphi=5, ivp_opt={}):
+        """    
+        Thick numerical fringe field at the edge of the magnet. 
+        It consists of a backwards drift, a fringe field map and a backwards quad.
+        
+        :param b2: Quadrupole fringe field shape
+        :param b2amp: Amplitude of the quadrupole component
+        :param b3: Sextupole fringe field shape (originating from edge angle)
+
+        :param length: Integration range.
+        :param nphi: Number of terms included in expansion.
+        :param ivp_opt: Options for the Hamiltonian solver.
+        """
+        
+        self.b2 = b2
+        self.b2amp = b2amp
+        self.b3 = b3
+        self.length = length
+        self.nphi = nphi
+        self.ivp_opt = ivp_opt
+        
+        # First a backwards drift
+        self.drift = DriftVectorPotential()
+        self.H_drift = Hamiltonian(self.length/2, 0, self.drift)
+
+        # Then a fringe field map
+        self.fringe = GeneralVectorPotential(b=("0", self.b2, self.b3), nphi=nphi)
+        self.H_fringe = Hamiltonian(self.length, 0, self.fringe)
+
+        # Then a backwards bend
+        self.quad = GeneralVectorPotential(b=("0", self.b2amp))
+        self.H_quad = Hamiltonian(self.length/2, 0, self.quad)
+            
+    
+    def track(self, part):
+        """
+        :param part: Particles with part.x, part.px etc the coordinates for all part.npart particles.
+        :return: A list of trajectory elements for all particles.
+        """
+        
+        xi, pxi, yi, pyi, zetai, ptaui = part.x, part.px, part.y, part.py, part.zeta, part.ptau
+        beta0 = part.beta0        
+        deltai = np.sqrt(1 + 2*ptaui / beta0 + ptaui**2) - 1
+        betai = np.sqrt(1-(1-beta0)/(1+beta0*ptaui)**2)
+        li = -betai * zetai / beta0  
+        
+        if isinstance(xi, list) or isinstance(xi, np.ndarray):
+            npart = len(xi)
+            singleparticle = False
+        else:
+            npart = 1
+            xi, pxi, yi, pyi, zetai, ptaui = [xi], [pxi], [yi], [pyi], [zetai], [ptaui]
+            deltai, betai, li = [deltai], [betai], [li]
+            beta0 = [beta0]
+            singleparticle = True
+
+        trajectories = MultiTrajectory(trajectories=[])
+        for i in range(npart):
+            qp0 = [xi[i], yi[i], 0, pxi[i], pyi[i], 0]
+            sol_drift = self.H_drift.solve(qp0, s_span=[0, -self.length/2], ivp_opt=self.ivp_opt)
+            sol_fringe = self.H_fringe.solve(sol_drift.y[:, -1], s_span=[-self.length/2, self.length/2], ivp_opt=self.ivp_opt)
+            sol_quad = self.H_quad.solve(sol_fringe.y[:, -1], s_span=[self.length/2, 0], ivp_opt=self.ivp_opt)
+            
+            # Update particle position
+            xf, yf, tauf, pxf, pyf, ptauf = sol_quad.y[:, -1]                 
+            betaf = np.sqrt(1-(1-beta0[i])/(1+beta0[i]*ptauf)**2)
+            zetaf = -betaf * tauf
+                   
+            # Save all trajectory points
+            all_s = np.append(sol_drift.t, [sol_fringe.t, sol_quad.t])
+            all_x = np.append(sol_drift.y[0], [sol_fringe.y[0], sol_quad.y[0]])
+            all_y = np.append(sol_drift.y[1], [sol_fringe.y[1], sol_quad.y[1]])
+            all_px = np.append(sol_drift.y[3], [sol_fringe.y[3], sol_quad.y[3]])
+            all_py = np.append(sol_drift.y[4], [sol_fringe.y[4], sol_quad.y[4]])
+        
+            trajectories.add_trajectory(Trajectory(all_s, all_x, all_px, all_y, all_py))
+            
+            # Update particle position
+            if singleparticle:
+                part.x, part.y, part.zeta, part.px, part.py, part.ptau = xf, yf, zetaf, pxf, pyf, ptauf
+            else:
+                part.x[i], part.y[i], part.zeta[i], part.px[i], part.py[i], part.ptau[i] = xf, yf, zetaf, pxf, pyf, ptauf            
+                
+        return trajectories 
