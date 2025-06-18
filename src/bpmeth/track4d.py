@@ -183,6 +183,22 @@ class MultiTrajectory:
             fig, ax = plt.subplots()
         for i, trajectory in enumerate(self.trajectories):
             trajectory.plot_px(ax=ax, marker=marker, color=colors[i], markeredgecolor=markeredgecolor)
+
+    def plot_y(self, ax=None, marker='.', markeredgecolor=None):
+        colors=get_rainbow_colors(len(self.trajectories))
+
+        if ax is None:
+            fig, ax = plt.subplots()
+        for i, trajectory in enumerate(self.trajectories):
+            trajectory.plot_y(ax=ax, marker=marker, color=colors[i], markeredgecolor=markeredgecolor)
+    
+    def plot_py(self, ax=None, marker='.', markeredgecolor=None):
+        colors=get_rainbow_colors(len(self.trajectories))
+
+        if ax is None:
+            fig, ax = plt.subplots()
+        for i, trajectory in enumerate(self.trajectories):
+            trajectory.plot_py(ax=ax, marker=marker, color=colors[i], markeredgecolor=markeredgecolor)
             
     def plot_final(self, ax=None, label=None):
         """
