@@ -13,7 +13,7 @@ import scipy as sc
 
 # A dipole element for XSuite with explicit solving created from a fieldmap
 class DipoleFromFieldmap:
-    def __init__(self, data, h, l_magn, order=3, nparams=6, hgap=0.05, apt=0.05, radius=0.05, shape="enge", plot=False, symmetric=True, scalefactor=1):
+    def __init__(self, data, h, l_magn, design_field, order=3, nparams=6, hgap=0.05, apt=0.05, radius=0.05, shape="enge", plot=False, symmetric=True):
         """
         :param data: Fieldmap points as columns x, y, z, Bx, By, Bz. Data in Tesla
         :param h: Curvature of the frame.
@@ -31,13 +31,13 @@ class DipoleFromFieldmap:
         :param shape: Shape of the fieldmap. "enge" or "tanh". Default is "enge".
         :param plot: If True, plot the fieldmap and the fitted multipoles when creating the element.
         :param symmetric: If True, the fieldmap is assumed to be symmetric. The multipole fit is mirrored
-        :param scalefactor: If you want to rescale the dipole field to ex. match the closed orbit
         """
 
         self.data = data
 
         self.h = h 
         self.l_magn = l_magn
+        self.design_field = design_field
 
         self.nparams = nparams
         self.order=order
@@ -47,13 +47,10 @@ class DipoleFromFieldmap:
         self.xmax = apt/2
         self.smin = -(3.8*hgap + l_magn/2)
         self.smax = 3.8*hgap + l_magn/2
-        # self.smin = -0.75*l_magn
-        # self.smax = 0.75*l_magn
         self.sedge = l_magn/2
         self.shape = shape
 
         self.length = self.smax - self.smin
-        self.scalefactor = scalefactor
         
         if not h==0:
             self.rho = 1/h
@@ -65,7 +62,8 @@ class DipoleFromFieldmap:
 
             self.fieldmap = self.fieldmap.calc_FS_coords(xFS, yFS, sFS, self.rho, self.phi, radius=radius)
             
-        self.create_Hamiltonian(plot=plot, symmetric=symmetric)
+        self.fit_multipoles(plot=plot, symmetric=symmetric)
+        #self.create_Hamiltonian(plot=plot, symmetric=symmetric)
         
 
     def fit_multipoles(self, plot=False, symmetric=True):
@@ -82,23 +80,40 @@ class DipoleFromFieldmap:
         ax = None
         if plot:
             fig, ax = plt.subplots()
-
+        
+        warnings.warn("change minimal value for fit")
         params_out_list, cov_out_list = self.fieldmap.fit_multipoles(self.shapefun, components=np.arange(1,self.order+1,1), design=1, 
                                                                      nparams=self.nparams, zmin=0, zmax=self.smax, zedge=self.sedge, ax=ax)
-        ss = np.linspace(0, self.smax, 500)
+
+
+        self.out_Bfield = params_out_list[0,0]
+        print("Central field in the magnet: ", self.out_Bfield)
+
+        ss = np.linspace(-self.sedge, self.smax-self.sedge, 500)
         integrated_field = 2*np.trapz(get_derivative(0, self.nparams, func=self.shapefun, lambdify=True)(ss, *params_out_list[0]), ss)
         average_field = integrated_field / self.l_magn
         print("Average field in the magnet: ", average_field)
+
+        print("Rescaling field to match integrated field with design field")
+        scalefactor = self.design_field / average_field
+        params_out_list[:, 0] = params_out_list[:, 0] * scalefactor
+
         self.out_Bfield = params_out_list[0,0]
         print("Central field in the magnet: ", self.out_Bfield)
-        params_out_list[:, 0] = params_out_list[:, 0] / self.out_Bfield / self.rho * self.scalefactor
+
+        ss = np.linspace(-self.sedge, self.smax-self.sedge, 500)
+        integrated_field = 2*np.trapz(get_derivative(0, self.nparams, func=self.shapefun, lambdify=True)(ss, *params_out_list[0]), ss)
+        average_field = integrated_field / self.l_magn
+        print("Average field in the magnet: ", average_field)
+
         
         if not symmetric:
             params_in_list, cov_in_list = self.fieldmap.fit_multipoles(self.shapefun, components=np.arange(1,self.order+1,1), design=1, 
                                                                    nparams=self.nparams, zmin=self.smin, zmax=0, zedge=-self.sedge, ax=ax)
             # The first parameter is the amplitude.
             self.in_Bfield = params_in_list[0,0]
-            params_in_list[:, 0] = params_in_list[:, 0] / self.Bfield / self.rho * self.scalefactor
+            params_in_list[:, 0] = params_in_list[:, 0] / self.Bfield / self.rho * scalefactor
+            warnings.warn("be careful with asymmetric magnets, scalefactor might not be correct")
         else:
             params_in_list = params_out_list
         

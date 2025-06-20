@@ -94,7 +94,8 @@ plt.legend()
 # XSUITE TRACKING                             #
 ###############################################
 
-dipole = bpmeth.DipoleFromFieldmap(data, 1/rho, l_magn, shape="enge", hgap=apt/2, apt=apt, radius=0.05, order=1, plot=True, scalefactor=1.0)
+# design field: 0.42 T, there is a mu0 factor missing in the fieldmap, but immediately corrects the length as well!
+dipole = bpmeth.DipoleFromFieldmap(data, 1/rho, l_magn, design_field=0.42, shape="enge", hgap=apt/2, apt=apt, radius=0.05, order=1, plot=True)
 
 import xtrack as xt
 p = xt.Particles(x=np.linspace(-1e-3, 1e-3, 5), y=np.linspace(-1e-3, 1e-3, 5), p0c=0.1, mass0=0.938272, q0=1)

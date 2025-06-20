@@ -281,6 +281,5 @@ class Fieldmap:
 
         if ax is not None:
             plt.legend()
-            plt.show()
         
         return params_list, cov_list 

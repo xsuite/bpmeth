@@ -9,8 +9,9 @@ Analysis of a ring with a single sextupole
 """
 
 npart = 50
-part = np.zeros((4, npart))
-part[0] = np.linspace(0, 0.9, npart)
+yvals = np.linspace(0, 0.9, npart)
+part = bpmeth.MultiParticle(npart, x=0.1, y=yvals)  
+
 Qx = 0.332
 Qy = 0.221
 nturns = 2**14
@@ -29,8 +30,9 @@ o_sext.plot_xpx(xlims=xlims, ylims=ylims)
 
 for i,tune in enumerate(np.arange(0.332,0.334,0.0001)):
    npart = 100
-   part = np.zeros((4, npart))
-   part[0] = np.linspace(0, 1, npart)
+   xvals = np.linspace(0, 1, npart)
+   part = bpmeth.MultiParticle(npart, x=xvals)
+   
    line_sext = bpmeth.Line4d([bpmeth.Phase4d(tune, Qy), bpmeth.Sextupole(b3)])
    o_kick = line_sext.track(part, num_turns=nturns)
    o_kick.plot_xpx(xlims=xlims, ylims=ylims, savepath=f"tune_{i}.png")
@@ -53,11 +55,16 @@ o_norm = sext4d.calc_coords(part)
 o_norm.plot_xpx(xlims=xlims, ylims=ylims)
 
 # Solution with numerical integration
+nturns=100
+npart = 10
+yvals = np.linspace(0, 0.5, npart)
+part = bpmeth.MultiParticle(npart, x=0.1, y=yvals)  
+
 line_num = bpmeth.Line4d([bpmeth.Phase4d(Qx, Qy), bpmeth.NumericalSextupole(-100, b3/100)])
 o_num = line_num.track(part, num_turns=nturns)
 o_num.plot_xpx(xlims=xlims, ylims=ylims)
 
-index=95
+index=5
 o_kick.plot_spectrum_x(index)
 o_norm.plot_spectrum_x(index)
 o_num.plot_spectrum_x(index)
