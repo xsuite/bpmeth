@@ -1,0 +1,22 @@
+from cpymad.madx import Madx
+
+madx=Madx()
+
+madx.call('acc-models-elena/elena.seq')
+#   Apertures:
+madx.call('acc-models-elena/elena.dbx')
+#   Split elements to allow inserting BPMs:
+madx.call('acc-models-elena/tools/splitEle_installBPM.madx')
+# call strenghts for a given scenario
+madx.call('acc-models-elena/scenarios/highenergy/highenergy.str')
+# define beam
+madx.call('acc-models-elena/scenarios/highenergy/highenergy.beam')
+
+madx.use("elena")
+madx.twiss()
+
+madx.input("""ptc_create_universe;
+ptc_create_layout, time=false,model=2, method=6, nst=5, exact=true;
+ptc_twiss, closed_orbit, icase=56, no=4, slice_magnets;
+ptc_end;""")
+

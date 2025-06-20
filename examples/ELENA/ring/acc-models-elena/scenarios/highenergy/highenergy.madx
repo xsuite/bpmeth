@@ -1,0 +1,96 @@
+/*****************************************************
+ *
+ * MADX file for ELENA low energy antiproton deaccelerator
+ *
+ * Directory: /eos/project/i/injector-optics/InjOptics/ELENA/`
+ *
+ * Execute with:  >madx < elena.madx
+ * This file is for Antiprotons
+ *
+ * Jun 2018: adaptation of previous script to run present Pavel files - davide.gamba@cern.ch 
+ * Sep 2021: major interventions on style to match CERN standard optics
+ *
+ *****************************************************/
+ option, echo;
+ set,  format="-21s";
+ set,  format="13.11f";
+
+
+
+/*****************************************************************************
+ * TITLE
+ *****************************************************************************/
+ title, 'ELENA Antiprotons Injection';
+
+
+/*****************************************************************************
+ * ELENA
+ * NB! The order of the .ele .str and .seq files matter.
+ *     The reason is a >feature< of MADX
+ *
+ *****************************************************************************/
+call, file = '../../elena.seq';
+call, file = '../../elena.dbx';
+call, file = '../../tools/splitEle_installBPM.madx';
+
+/*****************************************************************************
+ * Set quadrupolar strength
+ *****************************************************************************/
+! !!! Qx=2.3,Qy=1.3, gap=76mm, E1=E2=Pi*17/180, FINT=0.424, Lbm=0.927m
+! KQ1:= 2.27646e+00;
+! KQ2:=-1.20793e+00;
+! KQ3:= 7.19841e-01;
+call, file = './highenergy.str';
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! BEAM, USE
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+call, file = './highenergy.beam';
+USE, PERIOD=ELENA;
+
+! Start in the middle of injection straight section - nicer plots!
+seqedit,sequence=ELENA;
+flatten;
+cycle,start=LNR.MMIDINJ;
+endedit;
+use, sequence=ELENA;
+
+! *******************************************************************************
+! * maketwiss macro
+! *******************************************************************************
+maketwissptc : macro={
+
+  SELECT,flag=ptc_twiss,clear;
+
+  ! TIME=FALSE gives correct chromaticity calculation by default, i.e. no need to multiply dispersion by relativistic beta
+  PTC_CREATE_UNIVERSE;
+  PTC_CREATE_LAYOUT, MODEL=2, METHOD=6, NST=5, TIME=FALSE, EXACT;         ! TIME=FALSE gives correct chromaticity calculation
+  PTC_TWISS, CLOSED_ORBIT, TABLE=PTC_TWISS, ICASE=5, NO=3, SUMMARY_TABLE; !, SUMMARY_FILE="summary", FILE="ptc_twiss.out" ;
+
+  PTC_END;
+}
+
+maketwiss : macro={
+  ! note that chromatic quantities (e.g. Dispersion) need to be multiplied by relativistic beta to obtain actual values.
+  twiss;
+}
+
+
+! *******************************************************************************
+! * do something 
+! *******************************************************************************
+exec, maketwissptc;
+plot, noversion=true, table=ptc_twiss, ptc=true, haxis=s, vaxis1=betx,bety, vaxis2=disp1, 
+     title="PTC Twiss", colour=100, file=plots;
+plot, noversion=true, table=ptc_twiss, ptc=true, haxis=s, vaxis1=x,y, 
+     title="PTC Orbit", colour=100, file=plots;
+write, table=ptc_twiss, file=highenergyPTC.tfs;
+
+
+exec, maketwiss;
+plot, noversion=true, table=twiss, haxis=s, vaxis1=betx,bety, vaxis2=dx, interpolate,
+     title="Normal Twiss", colour=100, file=plots;
+plot, noversion=true, table=twiss, ptc=true, haxis=s, vaxis1=x,y, 
+     title="Normal Twiss Orbit", colour=100, file=plots;
+write, table=twiss, file=highenergy.tfs;

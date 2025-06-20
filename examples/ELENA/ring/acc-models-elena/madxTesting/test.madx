@@ -1,0 +1,32 @@
+/*****************************************************
+ *
+ * Simple TEST for MAD-X development
+ * 
+ * IT HAS NOTHING TO DO WITH AD PRODUCTION OPTICS!
+ * DO NOT EDIT!
+ *****************************************/
+option, echo;
+set,  format="-21s";
+set,  format="13.11f";
+
+! Build up machine
+call, file = '../elena.seq';
+call, file = '../elena.dbx';
+call, file = '../tools/splitEle_installBPM.madx';
+
+! 
+/*****************************************************************************
+ * Set quadrupolar strength
+ *****************************************************************************/
+call, file = './test.str';
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! BEAM, USE
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Beam, particle=ANTIPROTON, pc=0.1,ex=5.0E-6,ey=5.0E-6, sige=1E-3, NPART=3e7;
+USE, PERIOD=ELENA;
+
+select flag = twiss, column=name, KEYWORD, s, l, alfx, betx, DX, alfy, bety, DY, X, Y, K0L, K1L, K2L, K3L;
+twiss, centre, file="test.tfs";
+
+stop;

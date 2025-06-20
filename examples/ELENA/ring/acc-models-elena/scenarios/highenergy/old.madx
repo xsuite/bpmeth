@@ -1,0 +1,140 @@
+
+/*****************************************************
+ *
+ * MADX file for ELENA low energy antiproton deaccelerator
+ *
+ * Directory: /eos/project/i/injector-optics/InjOptics/ELENA/`
+ *
+ * Execute with:  >madx < elena.madx
+ * This file is for Antiprotons
+ *
+ * Jun 2018: adaptation of previous script to run present Pavel files - davide.gamba@cern.ch 
+ * Sep 2021: major interventions on style to match CERN standard optics
+ *
+ *****************************************************/
+ option, echo;
+ set,  format="-21s";
+ set,  format="13.11f"
+
+
+
+/*****************************************************************************
+ * TITLE
+ *****************************************************************************/
+ title, 'ELENA Antiprotons Injection ';
+
+
+/*****************************************************************************
+ * ELENA
+ * NB! The order of the .ele .str and .seq files matter.
+ *     The reason is a >feature< of MADX
+ *
+ *****************************************************************************/
+call, file = '../../elena.seq';
+call, file = '../../elena.dbx';
+
+
+/*****************************************************************************
+ * Set quadrupolar strength
+ *****************************************************************************/
+! !!! Qx=2.3,Qy=1.3, gap=76mm, E1=E2=Pi*17/180, FINT=0.424, Lbm=0.927m
+! KQ1:= 2.27646e+00;
+! KQ2:=-1.20793e+00;
+! KQ3:= 7.19841e-01;
+call, file = './highenergy.str';
+
+
+/*****************************************************************************
+ * Set emittance
+ *****************************************************************************/
+ Ax=75*1.E-6;
+ Ay=75*1.E-6;
+
+ ERR=0*2*1E-4;
+
+
+
+/******************************************************************************************
+ * BEAM, USE
+ ******************************************************************************************/
+ BEAM,PARTICLE=ANTIPROTON;
+ USE, PERIOD=ELENA;
+
+
+
+!/*******************************************************************************
+! * maketwiss macro
+! *******************************************************************************/
+! maketwiss : macro={
+!                    use, sequence=ELENA;
+!
+!                    SELECT,flag=ptc_twiss,clear;
+!
+!                    PTC_CREATE_UNIVERSE;
+!                    PTC_CREATE_LAYOUT, MODEL=2, METHOD=6, NST=5, TIME=FALSE, EXACT; ! TIME=FALSE gives correct chromaticity calculation
+!                    PTC_TWISS, CLOSED_ORBIT, TABLE=PTC_TWISS, ICASE=5, NO=3, SUMMARY_TABLE; !, SUMMARY_FILE="summary", FILE="ptc_twiss.out" ;
+!
+!                    assign, echo = terminal;
+!                    print,text="";
+!                    print,text="__________________________________________________________________________________________________________";
+!                    value, KSF, KSD, table(ptc_twiss_summary,dq1), table(ptc_twiss_summary,dq2);
+!                    print,text="__________________________________________________________________________________________________________";
+!                    assign, echo = terminal;
+!
+!                    PTC_END;
+!                   }
+! exec, maketwiss;
+!
+!
+!
+!/*******************************************************************************
+! *******************************************************************************
+! * ZERO CHROMATICITY. MATCHING SEXTUPOLES WITH PTC
+! *******************************************************************************
+! *******************************************************************************/
+! option, -info;
+! option, -echo;
+!
+! match, use_macro;
+!          vary, name=KSF, STEP=0.0001,LOWER=-400,UPPER=400;
+!          vary, name=KSD, STEP=0.0001,LOWER=-400,UPPER=400;
+!
+!          use_macro,name=maketwiss;
+!
+!          constraint, expr=table(ptc_twiss_summary,dq1)=0;
+!          constraint, expr=table(ptc_twiss_summary,dq2)=0;
+!
+!!         jacobian,  calls= 25, tolerance=1.0E-12, bisec=9;
+!!         simplex,   calls= 15, tolerance=1.0E-12;
+!          lmdif,     calls=100, tolerance=1.0E-12;
+! endmatch;
+!
+!
+!
+!/*******************************************************************************
+! * Write ptc_twiss table. NB! Values at end of elements
+! *******************************************************************************/
+! select,flag=ptc_twiss,clear;
+! select,flag=ptc_twiss, column = name,s,x,px,disp1,alfa11,beta11,mu1,
+!                                        y,py,disp3,alfa22,beta22,mu2;
+! write,table=ptc_twiss,file="../out/ptc_twiss_zero_chrom.out";
+!
+!!write,table=ptc_twiss;
+!!value,table(ptc_twiss,BMH1,alfx);
+!
+! value, KSF, KSD;
+!!KSF =  23.44639 ;
+!!KSD = -42.72546 ;
+!
+! /*/
+
+
+
+
+/*******************************************************************************
+ * Clean up
+ *******************************************************************************/
+ !system,"rm  Maxwellian_bend_for_ptc.txt ";
+
+STOP;
+

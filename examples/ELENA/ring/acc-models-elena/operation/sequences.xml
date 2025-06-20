@@ -1,0 +1,5 @@
+<sequence-mapping>
+  <sequence name="elena" accelerator="ELENA" particle-transfer="ELENA">
+    <zone name="ELENA" end="3200.0"/>
+  </sequence>
+</sequence-mapping>

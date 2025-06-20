@@ -1,0 +1,65 @@
+
+/**********************************************************************************
+*
+* MAD-X input script to create a SURVEY file.
+* 24 Nov 2020 - davide.gamba@cern.ch
+************************************************************************************/
+
+
+/*****************************************************************************
+ * Load ELENA Sequence
+ * NB! The order of the .ele .str and .seq files matter.
+ *     The reason is a >feature< of MADX
+ *
+ *****************************************************************************/
+call, file = "../elena.seq";
+! Un comment the following if we want to split quads and add BPMs
+!call, file= "../tools/splitEle_installBPM.madx;
+
+/******************************************************************************************
+* Load BEAM and use ELENA sequence
+******************************************************************************************/
+BEAM,PARTICLE=ANTIPROTON;
+USE, sequence=ELENA;
+
+
+/*******************************************************************************
+* Generate survey
+*******************************************************************************/
+! Note: the following are GEODE coordinates, which are converted into MAD-X coordinate 
+!       in SURVEY command below
+THETA0 =      2.73899111466608913807; ! = 6.326209279*200/PI
+PHI0   =     -9.483951186e-06  ;
+PSI0   =     -4.049758845e-05  ;
+XX0    =   1738.562417         ;
+YY0    =   2151.142636         ;
+ZZ0    =   2436.146119         ;
+
+! cycle the sequence to start from LNR.BEGIN
+seqedit,sequence=ELENA;
+flatten;
+cycle,start=LNR.STARTSURVEY;
+!
+!SELECT,   FLAG=SEQEDIT, CLASS=MARKER;
+!REMOVE,   ELEMENT=SELECTED;
+! 
+!INSTALL,  ELEMENT=LNR.BEGIN,  at = 0;
+!INSTALL,  ELEMENT=LNR.END,    at = 2*4.4992 + 4*3.8956 + 6*LNR_LBMH; 
+endedit;
+use, sequence=ELENA;
+
+! add standard name to survey file
+title, "ELENA Ring (LNR)";
+
+! set generic output format:
+set,  format="15.9f";
+select, flag=survey, clear;
+select, flag=survey, column=NAME,KEYWORD,S,L,ANGLE,X,Y,Z,THETA,PHI,PSI,GLOBALTILT,SLOT_ID,ASSEMBLY_ID;
+
+survey, x0= YY0, y0= ZZ0, z0= XX0,
+      , theta0= -theta0*PI/200 + PI/2  , phi0=phi0 , psi0= psi0
+      , file="./ELENA_0.sur";
+
+survey, x0= -XX0, y0= ZZ0, z0= YY0,
+      , theta0= -theta0*PI/200         , phi0=phi0 , psi0= psi0
+      , file="./ELENA_input_for_GEODE.sur";

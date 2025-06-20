@@ -1,0 +1,206 @@
+
+ set,  format="-20s";
+ set,  format="8.5f";
+
+
+ !!! Qx=2.3,Qy=1.3, gap=76mm, E1=E2=Pi*17/180, FINT=0.424, Lbm=0.927m
+ KQ1:= 2.27646e+00;
+ KQ2:=-1.20793e+00;
+ KQ3:= 7.19841e-01;
+
+
+
+ KSF= 0; ! sextupole strength
+ KSD= 0;
+
+
+ Ax=75*1.E-6;
+ Ay=75*1.E-6;
+
+ ERR=0*2*1E-4;
+
+ CALL, FILE = "../ELENA_ring_srv.seq";
+
+
+/*******************************************************************************
+ *******************************************************************************
+ * MADX. NATURAL CHROMATICITY
+ *******************************************************************************
+ *******************************************************************************/
+
+/******************************************************************************************
+ * BEAM, USE
+ ******************************************************************************************/
+ BEAM,PARTICLE=ANTIPROTON;
+ USE, PERIOD=ELENA;
+
+
+/******************************************************************************************
+ * MADX
+ ******************************************************************************************/
+
+ SELECT, FLAG=TWISS, COLUMN=name,s,x,px,dx,alfx,betx,mux,
+                                   y,py,dy,alfy,bety,muy;
+ TWISS,SEQUENCE=ELENA,FILE="madx_twiss_natural_chrom.out";
+
+
+
+ SIG75Y:=1E3*SQRT(Ay*table(twiss,bety))+2;
+ HAP_X:=SIG75X+1E3 * abs(table(twiss,x));
+ HAP_Y:=SIG75Y+1E3 * abs(table(twiss,y));
+
+
+
+
+
+/*******************************************************************************
+ *******************************************************************************
+ * PTC. NATURAL CHROMATICITY
+ *******************************************************************************
+ *******************************************************************************/
+ deltap =0;
+
+/*******************************************************************************
+ * maketwiss macro
+ *******************************************************************************/
+ maketwiss : macro={
+                    use, sequence=ELENA;
+
+                    SELECT,flag=ptc_twiss,clear;
+
+                    PTC_CREATE_UNIVERSE;
+                    PTC_CREATE_LAYOUT, MODEL=2, METHOD=6, NST=5, TIME=FALSE, EXACT; ! TIME=FALSE gives correct chromaticity calculation
+                    PTC_TWISS, CLOSED_ORBIT, TABLE=PTC_TWISS, ICASE=5, NO=3, SUMMARY_TABLE; !, SUMMARY_FILE="summary", FILE="ptc_twiss.out" ;
+
+                    assign, echo = terminal;
+                    print,text="";
+                    print,text="__________________________________________________________________________________________________________";
+                    value, KSF, KSD, table(ptc_twiss_summary,dq1), table(ptc_twiss_summary,dq2);
+                    print,text="__________________________________________________________________________________________________________";
+                    assign, echo = terminal;
+
+                    PTC_END;
+                   }
+ exec, maketwiss;
+
+
+/*******************************************************************************
+ * Write ptc_twiss table. NB! Values at end of elements
+ *******************************************************************************/
+ select,flag=ptc_twiss,clear;
+ select,flag=ptc_twiss, column = name,s,x,px,disp1,alfa11,beta11,mu1,
+                                        y,py,disp3,alfa22,beta22,mu2;
+ write,table=ptc_twiss,file="ptc_twiss_natural_chrom.out";
+
+
+
+
+
+
+
+
+/*******************************************************************************
+ *******************************************************************************
+ * MADX. ZERO CHROMATICITY. MATCHING SEXTUPOLES WITH MADX
+ *******************************************************************************
+ *******************************************************************************/
+ KSF= 0;
+ KSD= 0;
+
+ MATCH,SEQUENCE=ELENA;
+ GLOBAL,dQ1=0,dQ2=0;
+ VARY,NAME=KSF,STEP=0.0001,LOWER=-100,UPPER=100;
+ VARY,NAME=KSD,STEP=0.0001,LOWER=-100,UPPER=100;
+ LMDIF,CALLS=300,TOLERANCE=1.E-8;
+ ENDMATCH;
+
+
+/******************************************************************************************
+ * MADX
+ ******************************************************************************************/
+ SELECT, FLAG=TWISS, COLUMN=name,s,x,px,dx,alfx,betx,mux,
+                                   y,py,dy,alfy,bety,muy;
+ TWISS,SEQUENCE=ELENA,FILE="madx_twiss_zero_chrom.out";
+
+ value, KSF, KSD;
+!KSF =  23.72590 ;
+!KSD = -45.47665 ;
+
+
+
+
+/*******************************************************************************
+ *******************************************************************************
+ * ZERO CHROMATICITY. MATCHING SEXTUPOLES WITH PTC
+ *******************************************************************************
+ *******************************************************************************/
+ option, -info;
+ option, -echo;
+
+ match, use_macro;
+          vary, name=KSF, STEP=0.0001,LOWER=-100,UPPER=100;
+          vary, name=KSD, STEP=0.0001,LOWER=-100,UPPER=100;
+
+          use_macro,name=maketwiss;
+
+          constraint, expr=table(ptc_twiss_summary,dq1)=0;
+          constraint, expr=table(ptc_twiss_summary,dq2)=0;
+
+!         jacobian,  calls= 25, tolerance=1.0E-12, bisec=9;
+!         simplex,   calls= 15, tolerance=1.0E-12;
+          lmdif,     calls=100, tolerance=1.0E-12;
+ endmatch;
+
+/*******************************************************************************
+ * Write ptc_twiss table. NB! Values at end of elements
+ *******************************************************************************/
+ select,flag=ptc_twiss,clear;
+ select,flag=ptc_twiss, column = name,s,x,px,disp1,alfa11,beta11,mu1,
+                                        y,py,disp3,alfa22,beta22,mu2;
+ write,table=ptc_twiss,file="ptc_twiss_zero_chrom.out";
+
+!write,table=ptc_twiss;
+!value,table(ptc_twiss,BMH1,alfx);
+
+ value, KSF, KSD;
+!KSF =  23.93084 ;
+!KSD = -47.06658 ;
+
+ /*/
+
+
+
+
+
+
+
+/*******************************************************************************
+ *******************************************************************************
+ * CALCULATE dq/dp WITH PTC_NORMAL
+ *******************************************************************************
+ *******************************************************************************/
+ KSF =  23.93084 ;
+ KSD = -47.06658 ;
+
+ PTC_CREATE_UNIVERSE;
+ PTC_CREATE_LAYOUT,MODEL=2,METHOD=6,NST=5,EXACT;
+ SELECT_PTC_NORMAL,ANHX=1,0,0;
+ SELECT_PTC_NORMAL,ANHY=0,1,0;
+ SELECT_PTC_NORMAL,ANHX=0,1,0;
+ SELECT_PTC_NORMAL,ANHY=1,0,0;
+ SELECT_PTC_NORMAL,DQ1=0,DQ2=0;
+ PTC_NORMAL, NORMAL, closed_orbit, ICASE=5,NO=3;
+ PTC_END;
+ write, table=NORMAL_RESULTS;
+ WRITE,TABLE=NORMAL_RESULTS,FILE=NORMAL_RESULTS;
+
+
+
+
+/*******************************************************************************
+ * Clean up
+ *******************************************************************************/
+ system,"rm fort.18 Maxwellian_bend_for_ptc.txt ";
+
+STOP;
+
