@@ -94,9 +94,11 @@ plt.legend()
 # XSUITE TRACKING                             #
 ###############################################
 
-# design field: 0.42 T, there is a mu0 factor missing in the fieldmap, but immediately corrects the length as well!
-dipole = bpmeth.DipoleFromFieldmap(data, 1/rho, l_magn, design_field=0.42, shape="enge", hgap=apt/2, apt=apt, radius=0.05, order=1, plot=True)
+# Design field: 0.42 T, there is a mu0 factor missing in the fieldmap, so divide by 4 pi 1e-7
+# but immediately corrects the length as well!
+# We want the integrated field to be k0l, so design field = k0 = 1/rho?
+dipole = bpmeth.DipoleFromFieldmap(data, 1/rho, l_magn, design_field=1/rho, shape="enge", hgap=apt/2, apt=apt, radius=0.05, order=1, nphi=2, plot=True)
 
 import xtrack as xt
-p = xt.Particles(x=np.linspace(-1e-3, 1e-3, 5), y=np.linspace(-1e-3, 1e-3, 5), p0c=0.1, mass0=0.938272, q0=1)
-dipole.track(p)
+p = xt.Particles(x=np.linspace(-2e-3, 2e-3, 11), y=np.linspace(-2e-3, 2e-3, 11), p0c=0.1, mass0=0.938272, q0=1)
+dipole.track(p, plot=True)

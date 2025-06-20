@@ -87,8 +87,9 @@ data = line.record_last_track
 t = line.twiss4d(betx=1, bety=1, include_collective=True)
 print(t.betx)
 
+
 # Track through the full element
-line = xt.Line([H_magnet_entry, H_magnet_body, H_magnet_exit])
+line = xt.Line([xt.Drift(length=1), H_magnet_entry, H_magnet_body, H_magnet_exit])
 line.particle_ref = xt.Particles(energy0=10e9, mass0=xt.PROTON_MASS_EV)
 
 p0 = line.build_particles(x=[0])

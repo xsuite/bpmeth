@@ -1,0 +1,35 @@
+<jmad-model-definition name="ELENA">
+  <optics>
+    <optic name="highenergy" overlay="false">
+      <init-files>
+        <call-file path="scenarios/highenergy/highenergy.str" parse="STRENGTHS" />
+        <call-file path="scenarios/highenergy/highenergy.beam" />
+      </init-files>
+    </optic>
+  </optics>
+  <default-optic ref-name="highenergy" />
+  <sequences>
+    <sequence name="ELENA">
+      <ranges>
+        <range name="defaultRange">
+          <twiss-initial-conditions name="default-twiss">
+            <chrom value="true" />
+            <centre value="true" />
+          </twiss-initial-conditions>
+        </range>
+      </ranges>
+      <default-range ref-name="defaultRange" />
+    </sequence>
+  </sequences>
+  <default-sequence ref-name="ELENA" />
+  <init-files>
+    <call-file path="elena.seq" />
+    <call-file path="elena.dbx" />
+    <call-file path="tools/splitEle_installBPM.madx" />
+  </init-files>
+  <path-offsets>
+    <repository-prefix value="../" />
+    <resource-prefix value="." />
+  </path-offsets>
+  <svn-revision>$Revision$</svn-revision>
+</jmad-model-definition>

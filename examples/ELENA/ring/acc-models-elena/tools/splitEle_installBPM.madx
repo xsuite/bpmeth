@@ -1,0 +1,292 @@
+! Small routine to split elements in two to allow adding BPMs as well more points for studies
+!
+! Based on Pavel's model, but separated in this file to have a "cleaner" survey without BPMs or 
+! or other points
+! Davide - 2021
+
+
+
+/******************************************************************************************************
+! Sometimes one needs to cut magnet in 2 parts, for example for better plots of Twiss functions, 
+! or for better calculations of lifetimes, or better knowledge of average values etc. 
+! In this case it worth to cut bending magnets in pieces
+******************************************************************************************************/
+LNR_BMH_H1: SBEND, L=LNR_LBMH/2, ANGLE=PI/6,E1:=LNR_ABMH, E2:=0  , FINT=0.424, HGAP=0.076/2, FINTX=0; 
+LNR_BMH_H2: SBEND, L=LNR_LBMH/2, ANGLE=PI/6,E1:=0  , E2:=LNR_ABMH, FINT=0,     HGAP=0.076/2, FINTX=0.424; 
+
+/******************************************************************************************************
+! thin quadrupole length can be installed on both sides of ELENA bending magnet to modify edge angle 
+******************************************************************************************************/
+LNR_BMH_edge_angle_error: MULTIPOLE, KNL={0,PI*16.45/180*0.001};
+
+/******************************************************************************************************
+! quadrupoles are divided in two equal parts (H=half)
+******************************************************************************************************/
+LNR_Q1H:  QUADRUPOLE, L=LNR_LQ/2, K1:=LNR_KQ1;
+LNR_Q2H:  QUADRUPOLE, L=LNR_LQ/2, K1:=LNR_KQ2;
+LNR_Q3H:  QUADRUPOLE, L=LNR_LQ/2, K1:=LNR_KQ3;
+
+/*****************************************************************************************************
+! These quadrupoles could be used like trims in case asymmetry in ELENA will be needed 
+! (for example, to put quadrupole trims in electron cooler section) 
+! 
+! This option was never implemented in hardware, but keeping it here as reference (Davide Sep 2021)
+*****************************************************************************************************/
+!  LNR_Q1T: QUADRUPOLE, L=0.125, K1:=LNR_KQ1 + LNR_dKQ1;
+!  LNR_Q2T: QUADRUPOLE, L=0.125, K1:=LNR_KQ2 + LNR_dKQ2;
+!  LNR_Q3T: QUADRUPOLE, L=0.125, K1:=LNR_KQ3 + LNR_dKQ3;
+
+/***************************************************************************************************
+! These quadrupoles will be used to take into account tilt of normal quadrupoles
+!
+! Keeping for reference, not used so far (Davide Sep 2021)
+****************************************************************************************************/
+!  LNR_TQ1: multipole, KNL:={0,LNR_K1TQ1};
+!  LNR_TQ2: multipole, KNL:={0,LNR_K1TQ2};
+!  LNR_TQ3: multipole, KNL:={0,LNR_K1TQ3};
+
+
+!  Cooler solenoid may be divided in pieces to take into account effect 
+!  of space charge of antiproton beam (Laslett tune shift).
+! 
+!  Here splitting is actually done to allow installation of BPMs along the solenoid.
+!  Davide Sep 2021: adjusted position of BPMs according to mechanical drawings AD_LM___0074
+LNR_MSOL1: SOLENOID, L=0.650-(2.09925-1.67195), KS:=LNR_KMSOL; 
+LNR_MSOL2: SOLENOID, L=      (2.09925-1.67195), KS:=LNR_KMSOL; 
+
+! Also orbit correctors might need to be split in 2 pieces to install BPMs
+! However, to ease integratino with YASP, zero-length kickers are used.
+!   (Davide - Sep 2021)
+LNR_DHV_ZL:  KICKER, L=0, HKICK:=0., VKICK:=0.;
+! Redefine all correctors as zero length kickers
+LNR.MCCAY.0105:   LNR_DHV_ZL;
+LNR.MCCAY.0130:   LNR_DHV_ZL;
+LNR.MCCAY.0230:   LNR_DHV_ZL;
+LNR.MCCAY.0330:   LNR_DHV_ZL;
+LNR.MCCAY.0405:   LNR_DHV_ZL;
+LNR.MCCAY.0420:   LNR_DHV_ZL;
+LNR.MCCAY.0440:   LNR_DHV_ZL;
+LNR.MCCAY.0460:   LNR_DHV_ZL;
+LNR.MCCAY.0535:   LNR_DHV_ZL;
+LNR.MCCAY.0615:   LNR_DHV_ZL;
+
+
+/***************************************************************************************************
+! The dirty job...
+****************************************************************************************************/
+
+
+! SECTION 1
+LNR.MBHEK.0135.H1:  LNR_BMH_H1;
+LNR.MBHEK.0135.M:   MARKER;
+LNR.MBHEK.0135.H2:  LNR_BMH_H2;
+SEQEDIT, SEQUENCE = SECTION1;
+! Bending:
+REMOVE,  ELEMENT  = LNR.MBHEK.0135;
+INSTALL, ELEMENT  = LNR.MBHEK.0135.H1,  at =  4.4992  + LNR_LBMH*1/4;
+INSTALL, ELEMENT  = LNR.MBHEK.0135.M,   at =  4.4992  + LNR_LBMH*1/2;
+INSTALL, ELEMENT  = LNR.MBHEK.0135.H2,  at =  4.4992  + LNR_LBMH*3/4;
+! BPMs:
+INSTALL, ELEMENT  = LNR.BPMEB.0110,     at = 0.15035 + 0.17025;
+INSTALL, ELEMENT  = LNR.BPMEB.0125,     at = 0.15035 + 4.02825; 
+ENDEDIT;
+
+
+! SECTION 2
+LNR.MQNLG.0205.H1:  LNR_Q1H;
+LNR.MQNLG.0205.M:   MARKER;
+LNR.MQNLG.0205.H2:  LNR_Q1H;
+!
+LNR.MQNLG.0210.H1:  LNR_Q2H;
+LNR.MQNLG.0210.M:   MARKER;
+LNR.MQNLG.0210.H2:  LNR_Q2H;
+!
+LNR.MQNLG.0235.H1:  LNR_Q3H;
+LNR.MQNLG.0235.M:   MARKER;
+LNR.MQNLG.0235.H2:  LNR_Q3H;
+!
+LNR.MBHEK.0245.H1:  LNR_BMH_H1;
+LNR.MBHEK.0245.M:   MARKER;
+LNR.MBHEK.0245.H2:  LNR_BMH_H2;
+SEQEDIT, SEQUENCE = SECTION2;
+! Quads
+REMOVE,  ELEMENT  = LNR.MQNLG.0205;
+INSTALL, ELEMENT  = LNR.MQNLG.0205.H1,  at =  0.15035 + 0.47425 - LNR_LQ/4;
+INSTALL, ELEMENT  = LNR.MQNLG.0205.M,   at =  0.15035 + 0.47425;
+INSTALL, ELEMENT  = LNR.MQNLG.0205.H2,  at =  0.15035 + 0.47425 + LNR_LQ/4;
+!
+REMOVE,  ELEMENT  = LNR.MQNLG.0210;
+INSTALL, ELEMENT  = LNR.MQNLG.0210.H1,  at =  0.15035 + 0.94745 - LNR_LQ/4;
+INSTALL, ELEMENT  = LNR.MQNLG.0210.M,   at =  0.15035 + 0.94745;
+INSTALL, ELEMENT  = LNR.BPMEA.0215,     at =  0.15035 + 0.94745;
+INSTALL, ELEMENT  = LNR.MQNLG.0210.H2,  at =  0.15035 + 0.94745 + LNR_LQ/4;
+!
+REMOVE,  ELEMENT  = LNR.MQNLG.0235;
+INSTALL, ELEMENT  = LNR.MQNLG.0235.H1,  at =  0.15035 + 3.32065 - LNR_LQ/4;
+INSTALL, ELEMENT  = LNR.MQNLG.0235.M,   at =  0.15035 + 3.32065;
+INSTALL, ELEMENT  = LNR.BPMEA.0240,     at =  0.15035 + 3.32065;
+INSTALL, ELEMENT  = LNR.MQNLG.0235.H2,  at =  0.15035 + 3.32065 + LNR_LQ/4;
+! Bending:
+REMOVE,  ELEMENT  = LNR.MBHEK.0245;
+INSTALL, ELEMENT  = LNR.MBHEK.0245.H1,  at =  3.8956  + LNR_LBMH*1/4;
+INSTALL, ELEMENT  = LNR.MBHEK.0245.M,   at =  3.8956  + LNR_LBMH*1/2;
+INSTALL, ELEMENT  = LNR.MBHEK.0245.H2,  at =  3.8956  + LNR_LBMH*3/4;
+ENDEDIT;
+
+
+! SECTION3
+LNR.MQNLG.0305.H1:  LNR_Q3H;
+LNR.MQNLG.0305.M:   MARKER;
+LNR.MQNLG.0305.H2:  LNR_Q3H;
+!
+LNR.MQNLG.0315.H1:  LNR_Q2H;
+LNR.MQNLG.0315.M:   MARKER;
+LNR.MQNLG.0315.H2:  LNR_Q2H;
+!
+LNR.MQNLG.0325.H1:  LNR_Q1H;
+LNR.MQNLG.0325.M:   MARKER;
+LNR.MQNLG.0325.H2:  LNR_Q1H;
+!
+LNR.MBHEK.0335.H1:  LNR_BMH_H1;
+LNR.MBHEK.0335.M:   MARKER;
+LNR.MBHEK.0335.H2:  LNR_BMH_H2;
+SEQEDIT, SEQUENCE = SECTION3;
+! Quads:
+REMOVE,  ELEMENT  = LNR.MQNLG.0305;
+INSTALL, ELEMENT  = LNR.MQNLG.0305.H1,  at =  0.15035 + 0.27425 - LNR_LQ/4;
+INSTALL, ELEMENT  = LNR.MQNLG.0305.M,   at =  0.15035 + 0.27425;
+INSTALL, ELEMENT  = LNR.MQNLG.0305.H2,  at =  0.15035 + 0.27425 + LNR_LQ/4;
+!
+REMOVE,  ELEMENT  = LNR.MQNLG.0315;
+INSTALL, ELEMENT  = LNR.MQNLG.0315.H1,  at =  0.15035 + 2.64745 - LNR_LQ/4;
+INSTALL, ELEMENT  = LNR.MQNLG.0315.M,   at =  0.15035 + 2.64745;
+INSTALL, ELEMENT  = LNR.MQNLG.0315.H2,  at =  0.15035 + 2.64745 + LNR_LQ/4;
+!
+REMOVE,  ELEMENT  = LNR.MQNLG.0325;
+INSTALL, ELEMENT  = LNR.MQNLG.0325.H1,  at =  0.15035 + 3.12065 - LNR_LQ/4;
+INSTALL, ELEMENT  = LNR.MQNLG.0325.M,   at =  0.15035 + 3.12065;
+INSTALL, ELEMENT  = LNR.BPMEA.0320,     at =  0.15035 + 3.12065;
+INSTALL, ELEMENT  = LNR.MQNLG.0325.H2,  at =  0.15035 + 3.12065 + LNR_LQ/4;
+! Bending:
+REMOVE,  ELEMENT  = LNR.MBHEK.0335;
+INSTALL, ELEMENT  = LNR.MBHEK.0335.H1,  at =  3.8956  + LNR_LBMH*1/4;
+INSTALL, ELEMENT  = LNR.MBHEK.0335.M,   at =  3.8956  + LNR_LBMH*1/2;
+INSTALL, ELEMENT  = LNR.MBHEK.0335.H2,  at =  3.8956  + LNR_LBMH*3/4;
+ENDEDIT;
+
+
+
+
+! SECTION 4
+! E-cooler pieces
+LNR.ECSOL.0430.A:  LNR_MSOL1; 
+LNR.ECSOL.0430.B:  LNR_MSOL2; 
+LNR.ECSOL.0430.M:  MARKER;    
+LNR.ECSOL.0430.C:  LNR_MSOL2; 
+LNR.ECSOL.0430.D:  LNR_MSOL1; 
+! Bending:
+LNR.MBHEK.0470.H1:  LNR_BMH_H1;
+LNR.MBHEK.0470.M:   MARKER;
+LNR.MBHEK.0470.H2:  LNR_BMH_H2;
+SEQEDIT, SEQUENCE = SECTION4;
+! E-Cooler:
+REMOVE,  ELEMENT  = LNR.ECSOL.0430;
+INSTALL, ELEMENT  = LNR.ECSOL.0430.A,   at = 0.15035 + 2.09925 - (2.09925-1.67195) - (0.650-(2.09925-1.67195))/2;
+INSTALL, ELEMENT  = LNR.BPMEC.0428,     at = 0.15035 + 1.67195; 
+INSTALL, ELEMENT  = LNR.ECSOL.0430.B,   at = 0.15035 + 2.09925 - (2.09925-1.67195)/2; 
+INSTALL, ELEMENT  = LNR.ECSOL.0430.M,   at = 0.15035 + 2.09925;  
+INSTALL, ELEMENT  = LNR.ECSOL.0430.C,   at = 0.15035 + 2.09925 + (2.09925-1.67195)/2; 
+INSTALL, ELEMENT  = LNR.BPMEC.0432,     at = 0.15035 + 2.52655; 
+INSTALL, ELEMENT  = LNR.ECSOL.0430.D,   at = 0.15035 + 2.09925 + (2.09925-1.67195) + (0.650-(2.09925-1.67195))/2; 
+! external BPMs:
+INSTALL, ELEMENT  = LNR.BPMEB.0407,     at = 0.15035 + 0.17025;
+INSTALL, ELEMENT  = LNR.BPMEB.0457,     at = 0.15035 + 4.02825;
+! Bending:
+REMOVE,  ELEMENT  = LNR.MBHEK.0470;
+INSTALL, ELEMENT  = LNR.MBHEK.0470.H1,  at =  4.4992  + LNR_LBMH*1/4;
+INSTALL, ELEMENT  = LNR.MBHEK.0470.M,   at =  4.4992  + LNR_LBMH*1/2;
+INSTALL, ELEMENT  = LNR.MBHEK.0470.H2,  at =  4.4992  + LNR_LBMH*3/4;
+ENDEDIT;
+
+
+! SECTION 5
+LNR.MQNLG.0510.H1:  LNR_Q1H;
+LNR.MQNLG.0510.M:   MARKER;
+LNR.MQNLG.0510.H2:  LNR_Q1H;
+!
+LNR.MQNLG.0515.H1:  LNR_Q2H;
+LNR.MQNLG.0515.M:   MARKER;
+LNR.MQNLG.0515.H2:  LNR_Q2H;
+!
+LNR.MQNLG.0550.H1:  LNR_Q3H;
+LNR.MQNLG.0550.M:   MARKER;
+LNR.MQNLG.0550.H2:  LNR_Q3H;
+!
+LNR.MBHEK.0560.H1:  LNR_BMH_H1;
+LNR.MBHEK.0560.M:   MARKER;
+LNR.MBHEK.0560.H2:  LNR_BMH_H2;
+SEQEDIT, SEQUENCE = SECTION5;
+! Quads
+REMOVE,  ELEMENT  = LNR.MQNLG.0510;
+INSTALL, ELEMENT  = LNR.MQNLG.0510.H1,  at =  0.15035 + 0.47425 - LNR_LQ/4;
+INSTALL, ELEMENT  = LNR.MQNLG.0510.M,   at =  0.15035 + 0.47425;
+INSTALL, ELEMENT  = LNR.MQNLG.0510.H2,  at =  0.15035 + 0.47425 + LNR_LQ/4;
+!
+REMOVE,  ELEMENT  = LNR.MQNLG.0515;
+INSTALL, ELEMENT  = LNR.MQNLG.0515.H1,  at =  0.15035 + 0.94745 - LNR_LQ/4;
+INSTALL, ELEMENT  = LNR.MQNLG.0515.M,   at =  0.15035 + 0.94745;
+INSTALL, ELEMENT  = LNR.BPMEA.0520,     at =  0.15035 + 0.94745;
+INSTALL, ELEMENT  = LNR.MQNLG.0515.H2,  at =  0.15035 + 0.94745 + LNR_LQ/4;
+!
+REMOVE,  ELEMENT  = LNR.MQNLG.0550;
+INSTALL, ELEMENT  = LNR.MQNLG.0550.H1,  at =  0.15035 + 3.32065 - LNR_LQ/4;
+INSTALL, ELEMENT  = LNR.MQNLG.0550.M,   at =  0.15035 + 3.32065;
+INSTALL, ELEMENT  = LNR.BPMEA.0555,     at =  0.15035 + 3.32065;
+INSTALL, ELEMENT  = LNR.MQNLG.0550.H2,  at =  0.15035 + 3.32065 + LNR_LQ/4;
+! Bending:
+REMOVE,  ELEMENT  = LNR.MBHEK.0560;
+INSTALL, ELEMENT  = LNR.MBHEK.0560.H1,  at =  3.8956  + LNR_LBMH*1/4;
+INSTALL, ELEMENT  = LNR.MBHEK.0560.M,   at =  3.8956  + LNR_LBMH*1/2;
+INSTALL, ELEMENT  = LNR.MBHEK.0560.H2,  at =  3.8956  + LNR_LBMH*3/4;
+ENDEDIT;
+
+
+! SECTION 6
+LNR.MQNLG.0605.H1:  LNR_Q3H;
+LNR.MQNLG.0605.M:   MARKER;
+LNR.MQNLG.0605.H2:  LNR_Q3H;
+!
+LNR.MQNLG.0620.H1:  LNR_Q2H;
+LNR.MQNLG.0620.M:   MARKER;
+LNR.MQNLG.0620.H2:  LNR_Q2H;
+!
+LNR.MQNLG.0630.H1:  LNR_Q1H;
+LNR.MQNLG.0630.M:   MARKER;
+LNR.MQNLG.0630.H2:  LNR_Q1H;
+!
+LNR.MBHEK.0640.H1:  LNR_BMH_H1;
+LNR.MBHEK.0640.M:   MARKER;
+LNR.MBHEK.0640.H2:  LNR_BMH_H2;
+SEQEDIT, SEQUENCE = SECTION6;
+! Quads:
+REMOVE,  ELEMENT  = LNR.MQNLG.0605;
+INSTALL, ELEMENT  = LNR.MQNLG.0605.H1,  at =  0.15035 + 0.27425 - LNR_LQ/4;
+INSTALL, ELEMENT  = LNR.MQNLG.0605.M,   at =  0.15035 + 0.27425;
+INSTALL, ELEMENT  = LNR.MQNLG.0605.H2,  at =  0.15035 + 0.27425 + LNR_LQ/4;
+!
+REMOVE,  ELEMENT  = LNR.MQNLG.0620;
+INSTALL, ELEMENT  = LNR.MQNLG.0620.H1,  at =  0.15035 + 2.64745 - LNR_LQ/4;
+INSTALL, ELEMENT  = LNR.MQNLG.0620.M,   at =  0.15035 + 2.64745;
+INSTALL, ELEMENT  = LNR.MQNLG.0620.H2,  at =  0.15035 + 2.64745 + LNR_LQ/4;
+!
+REMOVE,  ELEMENT  = LNR.MQNLG.0630;
+INSTALL, ELEMENT  = LNR.MQNLG.0630.H1,  at =  0.15035 + 3.12065 - LNR_LQ/4;
+INSTALL, ELEMENT  = LNR.MQNLG.0630.M,   at =  0.15035 + 3.12065;
+INSTALL, ELEMENT  = LNR.BPMEA.0625,     at =  0.15035 + 3.12065;
+INSTALL, ELEMENT  = LNR.MQNLG.0630.H2,  at =  0.15035 + 3.12065 + LNR_LQ/4;
+! Bending:
+REMOVE,  ELEMENT  = LNR.MBHEK.0640;
+INSTALL, ELEMENT  = LNR.MBHEK.0640.H1,  at =  3.8956  + LNR_LBMH*1/4;
+INSTALL, ELEMENT  = LNR.MBHEK.0640.M,   at =  3.8956  + LNR_LBMH*1/2;
+INSTALL, ELEMENT  = LNR.MBHEK.0640.H2,  at =  3.8956  + LNR_LBMH*3/4;
+ENDEDIT;

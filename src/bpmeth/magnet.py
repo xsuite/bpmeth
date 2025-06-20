@@ -13,7 +13,10 @@ import scipy as sc
 
 # A dipole element for XSuite with explicit solving created from a fieldmap
 class DipoleFromFieldmap:
-    def __init__(self, data, h, l_magn, design_field, order=3, nparams=6, hgap=0.05, apt=0.05, radius=0.05, shape="enge", plot=False, symmetric=True):
+
+    isthick=True
+
+    def __init__(self, data, h, l_magn, design_field, order=3, nparams=6, hgap=0.05, apt=0.05, radius=0.05, shape="enge", plot=False, symmetric=True, nphi=4):
         """
         :param data: Fieldmap points as columns x, y, z, Bx, By, Bz. Data in Tesla
         :param h: Curvature of the frame.
@@ -21,6 +24,7 @@ class DipoleFromFieldmap:
             If h!=0, the fieldmap is first converted in Frenet-Serrat coordinates consisting of a straight part before the 
             magnetic length, then a bent part with bending radius 1/h, then a straight part after the magnetic length.
         :param l_magn: Total magnetic length. For curved magnets, the bending angle is given by l_magn*h.
+        :param design_field: Desired value for the average field, if used for XSuite this is probably 1/rho
         :param order (optional): Highest order multipole (dipole=1)
         :param nparams (optional): Number of parameters in the function and its derivatives used to fit the multipole shapes. 
             nparams-1 is the order of the polynomial in an Enge function.
@@ -46,11 +50,14 @@ class DipoleFromFieldmap:
         self.xmin = -apt/2
         self.xmax = apt/2
         self.smin = -(3.8*hgap + l_magn/2)
-        self.smax = 3.8*hgap + l_magn/2
+        self.smax = 3.8*hgap + l_magn/2  # Limits where there is data for the ELENA fieldmap, to become parameter at some point.
         self.sedge = l_magn/2
         self.shape = shape
 
         self.length = self.smax - self.smin
+
+        self.symmetric = symmetric
+        self.nphi = nphi
         
         if not h==0:
             self.rho = 1/h
@@ -58,17 +65,19 @@ class DipoleFromFieldmap:
 
             xFS = np.linspace(self.xmin, self.xmax, 31)
             yFS = [0]
-            sFS = np.linspace(-0.75*l_magn, 0.75*l_magn, 201)
+            sFS = np.linspace(-0.75*l_magn, 0.75*l_magn, 201)  # Better a region that is a bit too large to have freedom :)
 
             self.fieldmap = self.fieldmap.calc_FS_coords(xFS, yFS, sFS, self.rho, self.phi, radius=radius)
             
-        self.fit_multipoles(plot=plot, symmetric=symmetric)
-        #self.create_Hamiltonian(plot=plot, symmetric=symmetric)
+        #self.fit_multipoles(plot=plot, symmetric=self.symmetric)
+        self.create_Hamiltonian(plot=plot, symmetric=self.symmetric)
         
 
     def fit_multipoles(self, plot=False, symmetric=True):
         # Calculate the dipole, quadrupole, sextupole component for the two halves
         # BE CAREFUL: The parameters are given for the edge at zero
+
+        print("Fitting multipoles")
 
         if self.shape == "tanh":
             self.shapefun = spTanh
@@ -81,7 +90,6 @@ class DipoleFromFieldmap:
         if plot:
             fig, ax = plt.subplots()
         
-        warnings.warn("change minimal value for fit")
         params_out_list, cov_out_list = self.fieldmap.fit_multipoles(self.shapefun, components=np.arange(1,self.order+1,1), design=1, 
                                                                      nparams=self.nparams, zmin=0, zmax=self.smax, zedge=self.sedge, ax=ax)
 
@@ -98,6 +106,9 @@ class DipoleFromFieldmap:
         scalefactor = self.design_field / average_field
         params_out_list[:, 0] = params_out_list[:, 0] * scalefactor
 
+        # scalefactor_quad = -0.31851618736281756/-0.524262748442634
+        # params_out_list[1, 0] = params_out_list[1, 0] * scalefactor_quad
+
         self.out_Bfield = params_out_list[0,0]
         print("Central field in the magnet: ", self.out_Bfield)
 
@@ -106,7 +117,6 @@ class DipoleFromFieldmap:
         average_field = integrated_field / self.l_magn
         print("Average field in the magnet: ", average_field)
 
-        
         if not symmetric:
             params_in_list, cov_in_list = self.fieldmap.fit_multipoles(self.shapefun, components=np.arange(1,self.order+1,1), design=1, 
                                                                    nparams=self.nparams, zmin=self.smin, zmax=0, zedge=-self.sedge, ax=ax)
@@ -116,14 +126,30 @@ class DipoleFromFieldmap:
             warnings.warn("be careful with asymmetric magnets, scalefactor might not be correct")
         else:
             params_in_list = params_out_list
+
+        self.params_in_list = params_in_list
+        self.params_out_list = params_out_list
         
         return params_in_list, params_out_list
+
+
+    def calc_integrated_field(self, component):
+        """
+        :param component: 1 is a dipole, 2 is a quadrupole etc.
+        """
+
+        warnings.warn("Not implemented yet for asymmetric fields")
+
+        ss = np.linspace(-self.sedge, self.smax-self.sedge, 500)
+        integrated_field = 2*np.trapz(get_derivative(component-1, self.nparams, func=self.shapefun, lambdify=True)(ss, *self.params_out_list[component-1]), ss)
+        return integrated_field
+
     
     
     def create_fieldexpansion(self, plot=False, symmetric=True):
-        print("Creating field expansion...")
         params_in_list, params_out_list = self.fit_multipoles(plot=plot, symmetric=symmetric)
 
+        print("Creating field expansion...")
         # Make a field expansion
         b_in = []
         b_out = []
@@ -132,24 +158,24 @@ class DipoleFromFieldmap:
             b_in.append(get_derivative(i, nparams=self.nparams, func=self.shapefun, lambdify=False)(-s if symmetric else s, *params_in_list[i]))
             b_out.append(get_derivative(i, nparams=self.nparams, func=self.shapefun, lambdify=False)(s, *params_out_list[i]))
         
-        self.straight_in = FieldExpansion(b=b_in, hs="0")
-        self.straight_out = FieldExpansion(b=b_out, hs="0")\
+        self.straight_in = FieldExpansion(b=b_in, hs="0", nphi=self.nphi)
+        self.straight_out = FieldExpansion(b=b_out, hs="0", nphi=self.nphi)
         
         self.A_straight_in = self.straight_in.get_A(lambdify=True)
         self.A_straight_out = self.straight_out.get_A(lambdify=True)
 
         if not self.h==0:
-            self.bent_in = FieldExpansion(b=b_in, hs=f"{self.h}")
-            self.bent_out = FieldExpansion(b=b_out, hs=f"{self.h}")
+            self.bent_in = FieldExpansion(b=b_in, hs=f"{self.h}", nphi=self.nphi)
+            self.bent_out = FieldExpansion(b=b_out, hs=f"{self.h}", nphi=self.nphi)
         
             self.A_bent_in = self.bent_in.get_A(lambdify=True)
             self.A_bent_out = self.bent_out.get_A(lambdify=True)
         
 
     def create_Hamiltonian(self, plot=False, symmetric=True):
-        print("Creating Hamiltonian...")
         self.create_fieldexpansion(plot=plot, symmetric=symmetric)
         
+        print("Creating Hamiltonian...")
         # Make a Hamiltonian
         if self.h==0: 
             self.H_straight_in = Hamiltonian(-self.smin, 0, self.straight_in)
@@ -162,9 +188,8 @@ class DipoleFromFieldmap:
             self.H_straight_out = Hamiltonian(self.smax-self.sedge, 0, self.straight_out)
 
 
+    def track(self, particle, ivp_opt={}, plot=False):
 
-    
-    def track(self, particle, ivp_opt={}):
         if self.h==0:
             self.H_straight_in.track(particle, s_span=[-self.smax, 0], ivp_opt=ivp_opt) 
             # Correct for discontinuity in vector potential, velocity continuous!
@@ -174,8 +199,10 @@ class DipoleFromFieldmap:
             self.h_straight_out.track(particle, s_span=[0, self.smax], ivp_opt=ivp_opt)
         
         else:
+            # Incoming straight part
             sol_sin = self.H_straight_in.track(particle, s_span=[-self.smax+self.sedge, 0], ivp_opt=ivp_opt, return_sol=True) 
 
+            # Correct for discontinuity in vector potential, velocity continuous!
             Ax_in = self.A_straight_in[0](particle.x, particle.y, particle.s)
             Ay_in = self.A_straight_in[1](particle.x, particle.y, particle.s)
             Ax_out = self.A_bent_in[0](particle.x, particle.y, particle.s)
@@ -187,8 +214,10 @@ class DipoleFromFieldmap:
             particle.px = particle.px - Ax_in + Ax_out
             particle.py = particle.py - Ay_in + Ay_out
 
+            # Incoming bent part
             sol_bin = self.H_bent_in.track(particle, s_span=[0, self.sedge], ivp_opt=ivp_opt, return_sol=True)
 
+            # Correct for discontinuity in vector potential, velocity continuous!
             Ax_in = self.A_bent_in[0](particle.x, particle.y, particle.s)
             Ay_in = self.A_bent_in[1](particle.x, particle.y, particle.s)
             Ax_out = self.A_bent_out[0](particle.x, particle.y, particle.s)
@@ -200,8 +229,10 @@ class DipoleFromFieldmap:
             particle.px = particle.px - Ax_in + Ax_out
             particle.py = particle.py - Ay_in + Ay_out
 
+            # Outgoing bent part
             sol_bout = self.H_bent_out.track(particle, s_span=[-self.sedge, 0], ivp_opt=ivp_opt, return_sol=True)
 
+            # Correct for discontinuity in vector potential, velocity continuous!
             Ax_in = self.A_bent_out[0](particle.x, particle.y, particle.s)
             Ay_in = self.A_bent_out[1](particle.x, particle.y, particle.s)
             Ax_out = self.A_straight_out[0](particle.x, particle.y, particle.s)
@@ -213,19 +244,21 @@ class DipoleFromFieldmap:
             particle.px = particle.px - Ax_in + Ax_out 
             particle.py = particle.py - Ay_in + Ay_out
             
+            # Outgoing straight part
             sol_sout = self.H_straight_out.track(particle, s_span=[0, self.smax-self.sedge], ivp_opt=ivp_opt, return_sol=True)
-
-            fig, ax = plt.subplots(2, sharex=True)
-            for i in range(len(particle.x)):
-                tlist = np.concatenate([sol_sin[i].t-self.sedge, sol_bin[i].t-self.sedge, sol_bout[i].t+self.sedge, sol_sout[i].t+self.sedge])
-                xlist = np.concatenate([sol_sin[i].y[0], sol_bin[i].y[0], sol_bout[i].y[0], sol_sout[i].y[0]])
-                ylist = np.concatenate([sol_sin[i].y[1], sol_bin[i].y[1], sol_bout[i].y[1], sol_sout[i].y[1]])
-                ax[0].scatter(tlist, xlist)
-                ax[1].scatter(tlist, ylist)
-            ax[1].set_xlabel("s")
-            ax[0].set_ylabel("x")
-            ax[1].set_ylabel("y")
-            plt.show()
+        
+            if plot:
+                fig, ax = plt.subplots(2, sharex=True)
+                for i in range(len(particle.x)):
+                    tlist = np.concatenate([sol_sin[i].t-self.sedge, sol_bin[i].t-self.sedge, sol_bout[i].t+self.sedge, sol_sout[i].t+self.sedge])
+                    xlist = np.concatenate([sol_sin[i].y[0], sol_bin[i].y[0], sol_bout[i].y[0], sol_sout[i].y[0]])
+                    ylist = np.concatenate([sol_sin[i].y[1], sol_bin[i].y[1], sol_bout[i].y[1], sol_sout[i].y[1]])
+                    ax[0].scatter(tlist, xlist)
+                    ax[1].scatter(tlist, ylist)
+                ax[1].set_xlabel("s")
+                ax[0].set_ylabel("x")
+                ax[1].set_ylabel("y")
+                plt.show()
         
 
 class FringeFromFint:
