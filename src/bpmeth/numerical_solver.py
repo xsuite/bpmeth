@@ -35,6 +35,10 @@ class Hamiltonian:
 
         return H
 
+    def get_A(self, x,y,s):
+        Ax, Ay, As = self.vectp.get_A(lambdify=True)
+        return Ax(x, y, s), Ay(x, y, s), As(x, y, s)
+
     def get_vectorfield(self, coords=None, lambdify=True):
         if coords is None:
             beta0 = sp.symbols("beta0", real=True, positive=True)
@@ -78,16 +82,23 @@ class Hamiltonian:
 
     def track(self, particle, s_span=None, return_sol=False, ivp_opt={}, backtrack=False):
         if s_span is None and not backtrack:
-             s_span = [self.s_start, self.length+ self.s_start]
+             s_span = [self.s_start, self.length + self.s_start]
         if backtrack:
             if s_span is None:
-                s_span = [self.length+ self.s_start, self.s_start]
+                s_span = [self.length + self.s_start, self.s_start]
             assert s_span[0] > s_span[1], "s_span not compatible with backtracking"
+
 
         if isinstance(particle.x, np.ndarray) or isinstance(particle.x, list):
             results = []
             out = []
             for i in range(len(particle.x)):
+                # adjust vector potential for each particle
+                ax, ay, _ = self.get_A(particle.x[i], particle.y[i], s_span[0])
+                kin_px= particle.px[i] - particle.ax[i]
+                kin_py= particle.py[i] - particle.ay[i]
+                particle.px[i] = kin_px + ax
+                particle.py[i] = kin_py + ay
                 qp0 = [
                     particle.x[i],
                     particle.y[i],
@@ -121,6 +132,17 @@ class Hamiltonian:
                 particle.s -= self.length
             else:
                 particle.s += self.length
+            # manage vector potential for each particle
+            ax, ay, _ = self.get_A(particle.x, particle.y, s_span[0])
+            # if we want to keep the vector potential in the particle
+            # particle.ax = ax 
+            # particle.ay = ay
+            # instead we remove it
+            particle.ax = np.zeros_like(ax)
+            particle.ay = np.zeros_like(ay)
+            particle.px -= ax
+            particle.py -= ay
+
         else:
             qp0 = [
                 particle.x,
