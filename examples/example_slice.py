@@ -63,3 +63,16 @@ line3.particle_ref = xt.Particles(energy0=10e9, mass0=xt.PROTON_MASS_EV)
 p1 = line3.build_particles(x=[0.1])
 line3.track(p1, turn_by_turn_monitor="ONE_TURN_EBE")
 data3 = line3.record_last_track
+
+line1 = xt.Line([H1])
+line1.particle_ref = xt.Particles(energy0=10e9, mass0=xt.PROTON_MASS_EV)
+line1.build_tracker()
+p0=line1.build_particles(x=[0.2],y=[0.3],px=[0.3],py=[0.4],delta=[0.5])
+mat=line1.compute_one_turn_matrix_finite_differences(p0,include_collective=True)['R_matrix']
+l=np.linalg.eigvals(mat)
+print(l)
+print(1-abs(l[1]*l[2]),1-abs(l[3]*l[4]),abs(1-l[0]*l[5]))
+
+
+
+
