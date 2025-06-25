@@ -103,7 +103,6 @@ print(t.s)
 print(t.betx)
 print(t.bety)
 
-# p = t._initial_particles
 
-# line.track(p, turn_by_turn_monitor="ONE_TURN_EBE")
-# mon = line.record_last_track
+
+
