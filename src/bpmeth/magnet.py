@@ -202,47 +202,47 @@ class DipoleFromFieldmap:
             # Incoming straight part
             sol_sin = self.H_straight_in.track(particle, s_span=[-self.smax+self.sedge, 0], ivp_opt=ivp_opt, return_sol=True) 
 
-            # Correct for discontinuity in vector potential, velocity continuous!
-            Ax_in = self.A_straight_in[0](particle.x, particle.y, particle.s)
-            Ay_in = self.A_straight_in[1](particle.x, particle.y, particle.s)
-            Ax_out = self.A_bent_in[0](particle.x, particle.y, particle.s)
-            Ay_out = self.A_bent_in[1](particle.x, particle.y, particle.s)
-            Ax_in = np.where(np.isnan(Ax_in), 0, Ax_in)
-            Ay_in = np.where(np.isnan(Ay_in), 0, Ay_in)
-            Ax_out = np.where(np.isnan(Ax_out), 0, Ax_out)
-            Ay_out = np.where(np.isnan(Ay_out), 0, Ay_out)
-            particle.px = particle.px - Ax_in + Ax_out
-            particle.py = particle.py - Ay_in + Ay_out
+#            # Correct for discontinuity in vector potential, velocity continuous!
+#            Ax_in = self.A_straight_in[0](particle.x, particle.y, particle.s)
+#            Ay_in = self.A_straight_in[1](particle.x, particle.y, particle.s)
+#            Ax_out = self.A_bent_in[0](particle.x, particle.y, particle.s)
+#            Ay_out = self.A_bent_in[1](particle.x, particle.y, particle.s)
+#            Ax_in = np.where(np.isnan(Ax_in), 0, Ax_in)
+#            Ay_in = np.where(np.isnan(Ay_in), 0, Ay_in)
+#            Ax_out = np.where(np.isnan(Ax_out), 0, Ax_out)
+#            Ay_out = np.where(np.isnan(Ay_out), 0, Ay_out)
+#            particle.px = particle.px - Ax_in + Ax_out
+#            particle.py = particle.py - Ay_in + Ay_out
 
             # Incoming bent part
             sol_bin = self.H_bent_in.track(particle, s_span=[0, self.sedge], ivp_opt=ivp_opt, return_sol=True)
 
-            # Correct for discontinuity in vector potential, velocity continuous!
-            Ax_in = self.A_bent_in[0](particle.x, particle.y, particle.s)
-            Ay_in = self.A_bent_in[1](particle.x, particle.y, particle.s)
-            Ax_out = self.A_bent_out[0](particle.x, particle.y, particle.s)
-            Ay_out = self.A_bent_out[1](particle.x, particle.y, particle.s)
-            Ax_in = np.where(np.isnan(Ax_in), 0, Ax_in)
-            Ay_in = np.where(np.isnan(Ay_in), 0, Ay_in)
-            Ax_out = np.where(np.isnan(Ax_out), 0, Ax_out)
-            Ay_out = np.where(np.isnan(Ay_out), 0, Ay_out)
-            particle.px = particle.px - Ax_in + Ax_out
-            particle.py = particle.py - Ay_in + Ay_out
+#            # Correct for discontinuity in vector potential, velocity continuous!
+#            Ax_in = self.A_bent_in[0](particle.x, particle.y, particle.s)
+#            Ay_in = self.A_bent_in[1](particle.x, particle.y, particle.s)
+#            Ax_out = self.A_bent_out[0](particle.x, particle.y, particle.s)
+#            Ay_out = self.A_bent_out[1](particle.x, particle.y, particle.s)
+#            Ax_in = np.where(np.isnan(Ax_in), 0, Ax_in)
+#            Ay_in = np.where(np.isnan(Ay_in), 0, Ay_in)
+#            Ax_out = np.where(np.isnan(Ax_out), 0, Ax_out)
+#            Ay_out = np.where(np.isnan(Ay_out), 0, Ay_out)
+#            particle.px = particle.px - Ax_in + Ax_out
+#            particle.py = particle.py - Ay_in + Ay_out
 
             # Outgoing bent part
             sol_bout = self.H_bent_out.track(particle, s_span=[-self.sedge, 0], ivp_opt=ivp_opt, return_sol=True)
 
-            # Correct for discontinuity in vector potential, velocity continuous!
-            Ax_in = self.A_bent_out[0](particle.x, particle.y, particle.s)
-            Ay_in = self.A_bent_out[1](particle.x, particle.y, particle.s)
-            Ax_out = self.A_straight_out[0](particle.x, particle.y, particle.s)
-            Ay_out = self.A_straight_out[1](particle.x, particle.y, particle.s)
-            Ax_in = np.where(np.isnan(Ax_in), 0, Ax_in)
-            Ay_in = np.where(np.isnan(Ay_in), 0, Ay_in)
-            Ax_out = np.where(np.isnan(Ax_out), 0, Ax_out)
-            Ay_out = np.where(np.isnan(Ay_out), 0, Ay_out)
-            particle.px = particle.px - Ax_in + Ax_out 
-            particle.py = particle.py - Ay_in + Ay_out
+#            # Correct for discontinuity in vector potential, velocity continuous!
+#            Ax_in = self.A_bent_out[0](particle.x, particle.y, particle.s)
+#            Ay_in = self.A_bent_out[1](particle.x, particle.y, particle.s)
+#            Ax_out = self.A_straight_out[0](particle.x, particle.y, particle.s)
+#            Ay_out = self.A_straight_out[1](particle.x, particle.y, particle.s)
+#            Ax_in = np.where(np.isnan(Ax_in), 0, Ax_in)
+#            Ay_in = np.where(np.isnan(Ay_in), 0, Ay_in)
+#            Ax_out = np.where(np.isnan(Ax_out), 0, Ax_out)
+#            Ay_out = np.where(np.isnan(Ay_out), 0, Ay_out)
+#            particle.px = particle.px - Ax_in + Ax_out 
+#            particle.py = particle.py - Ay_in + Ay_out
             
             # Outgoing straight part
             sol_sout = self.H_straight_out.track(particle, s_span=[0, self.smax-self.sedge], ivp_opt=ivp_opt, return_sol=True)
