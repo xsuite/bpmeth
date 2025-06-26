@@ -41,6 +41,7 @@ class DipoleFromFieldmap:
 
         self.h = h 
         self.l_magn = l_magn
+        self.angle = self.h*self.l_magn
         self.design_field = design_field
 
         self.nparams = nparams
@@ -90,8 +91,9 @@ class DipoleFromFieldmap:
         if plot:
             fig, ax = plt.subplots()
         
+        # Fitting with edge at zero
         params_out_list, cov_out_list = self.fieldmap.fit_multipoles(self.shapefun, components=np.arange(1,self.order+1,1), design=1, 
-                                                                     nparams=self.nparams, zmin=0, zmax=self.smax, zedge=self.sedge, ax=ax)
+                                                                     nparams=self.nparams, zmin=0, zmax=self.smax, zedge=self.sedge, ax=ax, force_zero=True)
 
 
         self.out_Bfield = params_out_list[0,0]
@@ -155,8 +157,12 @@ class DipoleFromFieldmap:
         b_out = []
         s = sp.symbols("s")
         for i in range(self.order):
-            b_in.append(get_derivative(i, nparams=self.nparams, func=self.shapefun, lambdify=False)(-s if symmetric else s, *params_in_list[i]))
-            b_out.append(get_derivative(i, nparams=self.nparams, func=self.shapefun, lambdify=False)(s, *params_out_list[i]))
+            b_in.append(get_derivative(i, nparams=self.nparams, func=self.shapefun, lambdify=False)(-s-self.sedge if symmetric else (s-self.sedge), *params_in_list[i]))
+            b_out.append(get_derivative(i, nparams=self.nparams, func=self.shapefun, lambdify=False)(s-self.sedge, *params_out_list[i]))
+
+        self.b_in = b_in
+        self.b_out = b_out
+        self.s = s
         
         self.straight_in = FieldExpansion(b=b_in, hs="0", nphi=self.nphi)
         self.straight_out = FieldExpansion(b=b_out, hs="0", nphi=self.nphi)
@@ -178,79 +184,39 @@ class DipoleFromFieldmap:
         print("Creating Hamiltonian...")
         # Make a Hamiltonian
         if self.h==0: 
-            self.H_straight_in = Hamiltonian(-self.smin, 0, self.straight_in)
-            self.H_straight_out = Hamiltonian(self.smax, 0, self.straight_out)
+            self.H_straight_in = Hamiltonian(-self.smin, 0, self.straight_in, s_start=self.smin)
+            self.H_straight_out = Hamiltonian(self.smax, 0, self.straight_out, s_start=0)
 
         else:
-            self.H_straight_in = Hamiltonian(self.smax-self.sedge, 0, self.straight_in)
-            self.H_bent_in = Hamiltonian(self.sedge, self.h, self.bent_in)
-            self.H_bent_out = Hamiltonian(self.sedge, self.h, self.bent_out)
-            self.H_straight_out = Hamiltonian(self.smax-self.sedge, 0, self.straight_out)
+            self.H_straight_in = Hamiltonian(self.smax-self.sedge, 0, self.straight_in, s_start=self.smin)
+            self.H_bent_in = Hamiltonian(self.sedge, self.h, self.bent_in, s_start=-self.sedge)
+            self.H_bent_out = Hamiltonian(self.sedge, self.h, self.bent_out, s_start=0)
+            self.H_straight_out = Hamiltonian(self.smax-self.sedge, 0, self.straight_out, s_start=self.sedge)
 
 
     def track(self, particle, ivp_opt={}, plot=False):
 
         if self.h==0:
-            self.H_straight_in.track(particle, s_span=[-self.smax, 0], ivp_opt=ivp_opt) 
-            # Correct for discontinuity in vector potential, velocity continuous!
-            #particle.px = particle.px - self.A_straight_in[0](particle.x, particle.y, particle.s) + self.A_straight_out[0](particle.x, particle.y, particle.s)
-            #particle.py = particle.py - self.A_straight_in[1](particle.x, particle.y, particle.s) + self.A_straight_out[1](particle.x, particle.y, particle.s)
-
-            self.h_straight_out.track(particle, s_span=[0, self.smax], ivp_opt=ivp_opt)
+            self.H_straight_in.track(particle, ivp_opt=ivp_opt) 
+            self.h_straight_out.track(particle, ivp_opt=ivp_opt)
         
         else:
             # Incoming straight part
-            sol_sin = self.H_straight_in.track(particle, s_span=[-self.smax+self.sedge, 0], ivp_opt=ivp_opt, return_sol=True) 
-
-#            # Correct for discontinuity in vector potential, velocity continuous!
-#            Ax_in = self.A_straight_in[0](particle.x, particle.y, particle.s)
-#            Ay_in = self.A_straight_in[1](particle.x, particle.y, particle.s)
-#            Ax_out = self.A_bent_in[0](particle.x, particle.y, particle.s)
-#            Ay_out = self.A_bent_in[1](particle.x, particle.y, particle.s)
-#            Ax_in = np.where(np.isnan(Ax_in), 0, Ax_in)
-#            Ay_in = np.where(np.isnan(Ay_in), 0, Ay_in)
-#            Ax_out = np.where(np.isnan(Ax_out), 0, Ax_out)
-#            Ay_out = np.where(np.isnan(Ay_out), 0, Ay_out)
-#            particle.px = particle.px - Ax_in + Ax_out
-#            particle.py = particle.py - Ay_in + Ay_out
+            sol_sin = self.H_straight_in.track(particle, ivp_opt=ivp_opt, return_sol=True) 
 
             # Incoming bent part
-            sol_bin = self.H_bent_in.track(particle, s_span=[0, self.sedge], ivp_opt=ivp_opt, return_sol=True)
-
-#            # Correct for discontinuity in vector potential, velocity continuous!
-#            Ax_in = self.A_bent_in[0](particle.x, particle.y, particle.s)
-#            Ay_in = self.A_bent_in[1](particle.x, particle.y, particle.s)
-#            Ax_out = self.A_bent_out[0](particle.x, particle.y, particle.s)
-#            Ay_out = self.A_bent_out[1](particle.x, particle.y, particle.s)
-#            Ax_in = np.where(np.isnan(Ax_in), 0, Ax_in)
-#            Ay_in = np.where(np.isnan(Ay_in), 0, Ay_in)
-#            Ax_out = np.where(np.isnan(Ax_out), 0, Ax_out)
-#            Ay_out = np.where(np.isnan(Ay_out), 0, Ay_out)
-#            particle.px = particle.px - Ax_in + Ax_out
-#            particle.py = particle.py - Ay_in + Ay_out
+            sol_bin = self.H_bent_in.track(particle, ivp_opt=ivp_opt, return_sol=True)
 
             # Outgoing bent part
-            sol_bout = self.H_bent_out.track(particle, s_span=[-self.sedge, 0], ivp_opt=ivp_opt, return_sol=True)
+            sol_bout = self.H_bent_out.track(particle, ivp_opt=ivp_opt, return_sol=True)
 
-#            # Correct for discontinuity in vector potential, velocity continuous!
-#            Ax_in = self.A_bent_out[0](particle.x, particle.y, particle.s)
-#            Ay_in = self.A_bent_out[1](particle.x, particle.y, particle.s)
-#            Ax_out = self.A_straight_out[0](particle.x, particle.y, particle.s)
-#            Ay_out = self.A_straight_out[1](particle.x, particle.y, particle.s)
-#            Ax_in = np.where(np.isnan(Ax_in), 0, Ax_in)
-#            Ay_in = np.where(np.isnan(Ay_in), 0, Ay_in)
-#            Ax_out = np.where(np.isnan(Ax_out), 0, Ax_out)
-#            Ay_out = np.where(np.isnan(Ay_out), 0, Ay_out)
-#            particle.px = particle.px - Ax_in + Ax_out 
-#            particle.py = particle.py - Ay_in + Ay_out
-            
             # Outgoing straight part
-            sol_sout = self.H_straight_out.track(particle, s_span=[0, self.smax-self.sedge], ivp_opt=ivp_opt, return_sol=True)
+            sol_sout = self.H_straight_out.track(particle, ivp_opt=ivp_opt, return_sol=True)
         
             if plot:
                 fig, ax = plt.subplots(2, sharex=True)
                 for i in range(len(particle.x)):
-                    tlist = np.concatenate([sol_sin[i].t-self.sedge, sol_bin[i].t-self.sedge, sol_bout[i].t+self.sedge, sol_sout[i].t+self.sedge])
+                    tlist = np.concatenate([sol_sin[i].t, sol_bin[i].t, sol_bout[i].t, sol_sout[i].t])
                     xlist = np.concatenate([sol_sin[i].y[0], sol_bin[i].y[0], sol_bout[i].y[0], sol_sout[i].y[0]])
                     ylist = np.concatenate([sol_sin[i].y[1], sol_bin[i].y[1], sol_bout[i].y[1], sol_sout[i].y[1]])
                     ax[0].scatter(tlist, xlist)
@@ -259,6 +225,19 @@ class DipoleFromFieldmap:
                 ax[0].set_ylabel("x")
                 ax[1].set_ylabel("y")
                 plt.show()
+
+                canvas = CanvasZX()
+                fr = Frame()
+                fr2 = fr.copy().arc_by(self.sedge, -self.angle/2)
+                fr3 = fr2.copy().move_by([(self.smin+self.sedge)*np.sin(self.angle/2), 0, (self.smin + self.sedge)*np.cos(self.angle/2)]).plot_zx(canvas=canvas)
+                fb = BendFrame(fr2, self.l_magn, self.angle).plot_zx(canvas=canvas)
+                fr4 = fb.end
+                fr5 = fr4.copy().move_by([-(self.smax-self.sedge)*np.sin(self.angle/2), 0, (self.smax - self.sedge)*np.cos(self.angle/2)]).plot_zx(canvas=canvas)
+                for i in range(len(particle.x)):
+                    fr3.plot_trajectory_zx(sol_sin[i].t-self.smin, sol_sin[i].y[0], sol_sin[i].y[1], canvas=canvas)
+                    fb.plot_trajectory_zx(sol_bin[i].t+self.sedge, sol_bin[i].y[0], sol_bin[i].y[1], canvas=canvas)
+                    fb.plot_trajectory_zx(sol_bout[i].t+self.sedge, sol_bout[i].y[0], sol_bout[i].y[1], canvas=canvas)
+                    fr4.plot_trajectory_zx(sol_sout[i].t-self.sedge, sol_sout[i].y[0], sol_sout[i].y[1], canvas=canvas)
         
 
 class FringeFromFint:
@@ -402,10 +381,10 @@ class DipoleFromFint:
             self.H_straight_out = Hamiltonian(self.smax, 0, self.straight_out)
 
         else:
-            self.H_straight_in = Hamiltonian(self.smax-self.sedge, 0, self.straight_in)
-            self.H_bent_in = Hamiltonian(self.sedge, self.h, self.bent_in)
-            self.H_bent_out = Hamiltonian(self.sedge, self.h, self.bent_out)
-            self.H_straight_out = Hamiltonian(self.smax-self.sedge, 0, self.straight_out)
+            self.H_straight_in = Hamiltonian(self.smax-self.sedge, 0, self.straight_in, s_start=self.smin)
+            self.H_bent_in = Hamiltonian(self.sedge, self.h, self.bent_in, s_start=-self.sedge)
+            self.H_bent_out = Hamiltonian(self.sedge, self.h, self.bent_out, s_start=0)
+            self.H_straight_out = Hamiltonian(self.smax-self.sedge, 0, self.straight_out, s_start=self.sedge)
         
     def plot_components(self, ax=None):
         if ax is None:
@@ -433,17 +412,6 @@ class DipoleFromFint:
         if self.h==0:
             sol_in = self.H_straight_in.track(particle, s_span=[self.smin, 0], ivp_opt=ivp_opt) 
             
-            Ax_in = self.A_straight_in[0](particle.x, particle.y, particle.s)
-            Ay_in = self.A_straight_in[1](particle.x, particle.y, particle.s)
-            Ax_out = self.A_straight_out[0](particle.x, particle.y, particle.s)
-            Ay_out = self.A_straight_out[1](particle.x, particle.y, particle.s)
-            Ax_in = np.where(np.isnan(Ax_in), 0, Ax_in)
-            Ay_in = np.where(np.isnan(Ay_in), 0, Ay_in)
-            Ax_out = np.where(np.isnan(Ax_out), 0, Ax_out)
-            Ay_out = np.where(np.isnan(Ay_out), 0, Ay_out)
-            particle.px = particle.px - Ax_in + Ax_out
-            particle.py = particle.py - Ay_in + Ay_out
-
             sol_out = self.H_straight_out.track(particle, s_span=[0, self.smax], ivp_opt=ivp_opt)
             
             fig, ax = plt.subplots(2, sharex=True)
@@ -460,46 +428,13 @@ class DipoleFromFint:
             
             
         else:
-            sol_sin = self.H_straight_in.track(particle, s_span=[self.smin, -self.sedge], ivp_opt=ivp_opt, return_sol=True) 
+            sol_sin = self.H_straight_in.track(particle, ivp_opt=ivp_opt, return_sol=True) 
 
-            Ax_in = self.A_straight_in[0](particle.x, particle.y, particle.s)
-            Ay_in = self.A_straight_in[1](particle.x, particle.y, particle.s)
-            Ax_out = self.A_bent_in[0](particle.x, particle.y, particle.s)
-            Ay_out = self.A_bent_in[1](particle.x, particle.y, particle.s)
-            Ax_in = np.where(np.isnan(Ax_in), 0, Ax_in)
-            Ay_in = np.where(np.isnan(Ay_in), 0, Ay_in)
-            Ax_out = np.where(np.isnan(Ax_out), 0, Ax_out)
-            Ay_out = np.where(np.isnan(Ay_out), 0, Ay_out)
-            particle.px = particle.px - Ax_in + Ax_out
-            particle.py = particle.py - Ay_in + Ay_out
+            sol_bin = self.H_bent_in.track(particle, ivp_opt=ivp_opt, return_sol=True)
 
-            sol_bin = self.H_bent_in.track(particle, s_span=[-self.sedge, 0], ivp_opt=ivp_opt, return_sol=True)
+            sol_bout = self.H_bent_out.track(particle, ivp_opt=ivp_opt, return_sol=True)
 
-            Ax_in = self.A_bent_in[0](particle.x, particle.y, particle.s)
-            Ay_in = self.A_bent_in[1](particle.x, particle.y, particle.s)
-            Ax_out = self.A_bent_out[0](particle.x, particle.y, particle.s)
-            Ay_out = self.A_bent_out[1](particle.x, particle.y, particle.s)
-            Ax_in = np.where(np.isnan(Ax_in), 0, Ax_in)
-            Ay_in = np.where(np.isnan(Ay_in), 0, Ay_in)
-            Ax_out = np.where(np.isnan(Ax_out), 0, Ax_out)
-            Ay_out = np.where(np.isnan(Ay_out), 0, Ay_out)
-            particle.px = particle.px - Ax_in + Ax_out
-            particle.py = particle.py - Ay_in + Ay_out
-
-            sol_bout = self.H_bent_out.track(particle, s_span=[0, self.sedge], ivp_opt=ivp_opt, return_sol=True)
-
-            Ax_in = self.A_bent_out[0](particle.x, particle.y, particle.s)
-            Ay_in = self.A_bent_out[1](particle.x, particle.y, particle.s)
-            Ax_out = self.A_straight_out[0](particle.x, particle.y, particle.s)
-            Ay_out = self.A_straight_out[1](particle.x, particle.y, particle.s)
-            Ax_in = np.where(np.isnan(Ax_in), 0, Ax_in)
-            Ay_in = np.where(np.isnan(Ay_in), 0, Ay_in)
-            Ax_out = np.where(np.isnan(Ax_out), 0, Ax_out)
-            Ay_out = np.where(np.isnan(Ay_out), 0, Ay_out)
-            particle.px = particle.px - Ax_in + Ax_out 
-            particle.py = particle.py - Ay_in + Ay_out
-            
-            sol_sout = self.H_straight_out.track(particle, s_span=[self.sedge, self.smax], ivp_opt=ivp_opt, return_sol=True)
+            sol_sout = self.H_straight_out.track(particle, ivp_opt=ivp_opt, return_sol=True)
 
             fig, ax = plt.subplots(2, sharex=True)
             for i in range(len(particle.x)):

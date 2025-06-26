@@ -223,9 +223,19 @@ class Fieldmap:
         for i, zpos in enumerate(zvals):
             coeffs[i], coeffsstd[i] = self.fit_xprofile(0, zpos, "By", order, xmax=xmax)
         return zvals, coeffs, coeffsstd
+
+
+    def integratedfield(self, order, xmax=None):
+        zvals, coeffs, coeffsstd = self.z_multipoles(order, xmax=xmax)
+        
+        integrals = np.zeros(order)
+        for i in range(order):
+            integrals[i] = np.trapezoid(coeffs[:,i], zvals)
+        return integrals
+
                
                
-    def fit_multipoles(self, shape, components=[1,2], design=1, nparams=6, xmax=None, zmin=-9999, zmax=9999, zedge=0, guess=None, ax=None):
+    def fit_multipoles(self, shape, components=[1,2], design=1, nparams=6, xmax=None, zmin=-9999, zmax=9999, zedge=0, guess=None, ax=None, force_zero=False):
         """
         Fit appropriate functions to the multipoles in the fieldmap, taking into account the design of the magnet.
 
@@ -242,6 +252,7 @@ class Fieldmap:
         :param zedge: Location of the magnet edge in case only the fringe field shape is fitted, default zero.
         :param guess: Guess for parameters of the Enge function.
         :param ax: If given, plot the fit in these axis.
+        :param force_zero: If true, force the field to be zero outside of the magnet, and the maximal field to be kept inside the magnet.
         :return: Parameters and covariances for all components.
         """
 
@@ -252,7 +263,6 @@ class Fieldmap:
 
         params_list = np.zeros((len(components), nparams))
         cov_list = np.zeros((len(components), nparams, nparams))
-
         
 
         for i, component in enumerate(components):
@@ -268,14 +278,37 @@ class Fieldmap:
                 guess[0] = b[np.argmax(np.abs(b))]
 
 
+            if force_zero:
+                zmin = np.min(zvals)
+                min_ind = np.argmin(zvals)
+                zmax = np.max(zvals)
+                max_ind = np.argmax(zvals)
+                print(component-design)
+                if component-design == 0:  # main field
+                    if b[min_ind] < b[max_ind]:  # entrance fringe
+                        centralfield = b[max_ind]
+                        b = np.append(b, [centralfield, centralfield])
+                        zv = np.append(zvals, [zmax+0.05, zmax+0.1])
+                        berr = np.append(berr, [1e-12, 1e-12])
+                    else:  # exit fringe
+                        centralfield = b[min_ind]
+                        b = np.append([centralfield, centralfield], b)
+                        zv = np.append([zmin-0.05, zmin-0.1], zvals)
+                        berr = np.append([1e-12, 1e-12], berr)
+
+                else:
+                    zv = zvals
+
+
             shape_derivative = get_derivative(component-design, nparams, shape)
-            params, cov = sc.optimize.curve_fit(shape_derivative, zvals-zedge, b, sigma=berr, p0=guess, maxfev=10000)
+            params, cov = sc.optimize.curve_fit(shape_derivative, zv-zedge, b, sigma=berr, p0=guess, maxfev=10000)
             params_list[i] = params
             cov_list[i] = cov
             
             if ax is not None:
-                ax.errorbar(zvals, b, yerr=berr, marker='.', capsize=5, label=f"b{component}", ls='', zorder=0)
-                ax.plot(zvals, shape_derivative(zvals-zedge, *params), label=f'Fit of {component-design}th order derivative with {nparams} parameters to component b{component}', zorder=10)
+                zz = np.linspace(min(zvals), max(zvals), 100)
+                ax.errorbar(zv, b, yerr=berr, marker='.', capsize=5, label=f"b{component}", ls='', zorder=0)
+                ax.plot(zz, shape_derivative(zz-zedge, *params), label=f'Fit of {component-design}th order derivative with {nparams} parameters to component b{component}', zorder=10)
 
             guess=params
 

@@ -72,9 +72,9 @@ class Hamiltonian:
         if "t_eval" not in ivp_opt:
             ivp_opt["t_eval"] = np.linspace(s_span[0], s_span[1], 500)
         if "rtol" not in ivp_opt:
-            ivp_opt["rtol"] = 1e-4
+            ivp_opt["rtol"] = 1e-5
         if "atol" not in ivp_opt:
-            ivp_opt["atol"] = 1e-7
+            ivp_opt["atol"] = 1e-8
 
         f = self.vectorfield
         sol = solve_ivp(f, s_span, qp0, args=(beta0,), **ivp_opt)
@@ -212,6 +212,7 @@ class DipoleVectorPotential(FieldExpansion):
     def __init__(self, curv, b1):
         """
         Dipoles without s-dependence, in this case the vector potential is known analytically.
+        Can also be used to study dipoles without any field derivatives!
 
         :param curv (float): Curvature of the reference frame.
         :param b1 (float): Dipole field strength.
