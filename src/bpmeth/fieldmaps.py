@@ -302,7 +302,7 @@ class Fieldmap:
 
             shape_derivative = get_derivative(component-design, nparams, shape)
             params, cov = sc.optimize.curve_fit(shape_derivative, zv-zedge, b, sigma=berr, p0=guess, maxfev=10000)
-            params_list[i] = params
+            params_list[i] = params.copy()
             cov_list[i] = cov
             
             if ax is not None:
@@ -310,7 +310,7 @@ class Fieldmap:
                 ax.errorbar(zv, b, yerr=berr, marker='.', capsize=5, label=f"b{component}", ls='', zorder=0)
                 ax.plot(zz, shape_derivative(zz-zedge, *params), label=f'Fit of {component-design}th order derivative with {nparams} parameters to component b{component}', zorder=10)
 
-            guess=params
+            guess=params.copy()
 
         if ax is not None:
             plt.legend()
