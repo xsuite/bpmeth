@@ -1,3 +1,6 @@
+from scipy.integrate import cumulative_trapezoid
+from sympy import primitive
+
 import bpmeth
 import xtrack as xt
 import numpy as np
@@ -5,6 +8,7 @@ from scipy.fft import fft, fftfreq
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.optimize import curve_fit
+from bpmeth import poly_fit
 
 plt.close("all")
 
@@ -33,6 +37,16 @@ z_values = subset.index.to_numpy()
 bx_values = subset['Bx'].to_numpy()
 by_values = subset['By'].to_numpy()
 
+# Compute the cumulative sum to see how the magnetic fields average to zero.
+# They do. Uncomment if you want to see.
+#primitivex = np.zeros_like(z_values)
+#primitivey = primitivex
+#primitivex[1:] = cumulative_trapezoid(bx_values, z_values)
+#primitivey[1:] = cumulative_trapezoid(by_values, z_values)
+#plt.plot(z_values, primitivex)
+#plt.plot(z_values, primitivey)
+#plt.show()
+
 # For integration to check if the field evaluates to zero.
 N = z_values.size
 ds = z_values[1] - z_values[0]
@@ -51,7 +65,9 @@ y_freqs = k_values[by_fft > 400]
 
 #print(x_freqs)
 #print(y_freqs)
-
+########################################################################################################################
+# FITTING SINUSOIDS
+########################################################################################################################
 def cosinelike(x, *params):
     """
     Combination of sinusoids with known frequencies.
@@ -63,6 +79,10 @@ def cosinelike(x, *params):
         phi = params[3 * i + 1]
         freq = params[3 * i + 2]
         y += A * np.cos(2 * np.pi * freq * x + phi)
+
+    # From 6 because we have six parameters for the cosinelike.
+    engeparams = np.concatenate(([1], params[-numberzeros:]))
+    y *= bpmeth.Enge(x, *engeparams)
 
     return y
 
@@ -78,6 +98,10 @@ def sinelike(x, *params):
         freq = params[3 * i + 2]
         y += A * np.sin(2 * np.pi * freq * x + phi)
 
+    # From 3 because we have three parameters for the sinelike.
+    engeparams = np.concatenate(([1], params[-numberzeros:]))
+    y *= bpmeth.Enge(x, *engeparams)
+
     return y
 
 # From the Fourier Transform, we can get good initial guesses for the frequencies present.
@@ -85,35 +109,39 @@ def sinelike(x, *params):
 x_freqs = [0.019, 0.037]
 y_freqs = [0.028]
 
+numberzeros = 5
+engezeros = np.zeros(numberzeros)
+engezeros[0] = 1
+
 # Initial parameter guesses [A1, phi1, freq1, tanhslope1.1, tanhslope1.2, tanhoffs]
-x_initial_guess = [0.4, 0, x_freqs[1], 0.2, 0, x_freqs[0]]
-y_initial_guess = [1, 0.75, y_freqs[0]]#, 0.01, 0, 0.0091]
+x_initial_guess = np.concatenate(([0.4, 0, x_freqs[1], 0.2, 0, x_freqs[0]], engezeros))
+y_initial_guess = np.concatenate(([1, 0.75, y_freqs[0]], engezeros))#, 0.01, 0, 0.0091]
 
 # Fit the curve. The border is to remove the contribution due to edge effects.
 # Turns out the x is close to a cos and the y is close to a sin.
-border = 117
-xpopt, xpcov = curve_fit(cosinelike, z_values[border: 2200 - border], bx_values[border: 2200 - border], p0=x_initial_guess)
-ypopt, ypcov = curve_fit(sinelike, z_values[border: 2200 - border], by_values[border: 2200 - border], p0=y_initial_guess)
+border = 100
+xoptsin, xpcovsin = curve_fit(cosinelike, z_values[border: 2200 - border], bx_values[border: 2200 - border], p0=x_initial_guess)
+yoptsin, ypcovsin = curve_fit(sinelike, z_values[border: 2200 - border], by_values[border: 2200 - border], p0=y_initial_guess)
 
-print(xpopt)
-print(ypopt)
+print(xoptsin)
+print(yoptsin)
 
 # Evaluate the resulting functions with the parameters from the fit.
-x_fit = cosinelike(z_values[border: 2200 - border], *xpopt)
-y_fit = sinelike(z_values[border: 2200 - border], *ypopt)
+x_fit = cosinelike(z_values[border: 2200 - border], *xoptsin)
+y_fit = sinelike(z_values[border: 2200 - border], *yoptsin)
 
 # Extract the y-parameters for building the wiggler magnet from B_y at the axis.
-y_amp = ypopt[0]
-y_phi = ypopt[1]
-y_frq = 2 * np.pi * ypopt[2] * 1000
+y_amp = yoptsin[0]
+y_phi = yoptsin[1]
+y_frq = 2 * np.pi * yoptsin[2] * 1000
 
 # Extract the x-parameters for building the wiggler magnet from B_x at the axis.
-x_amp1 = xpopt[0]
-x_amp2 = xpopt[3]
-x_phi1 = xpopt[1]
-x_phi2 = xpopt[4]
-x_frq1 = 2 * np.pi * xpopt[2] * 1000
-x_frq2 = 2 * np.pi * xpopt[5] * 1000
+x_amp1 = xoptsin[0]
+x_amp2 = xoptsin[3]
+x_phi1 = xoptsin[1]
+x_phi2 = xoptsin[4]
+x_frq1 = 2 * np.pi * xoptsin[2] * 1000
+x_frq2 = 2 * np.pi * xoptsin[5] * 1000
 
 # Particle.
 p_sp = bpmeth.SympyParticle()
@@ -135,7 +163,7 @@ H_wiggler = bpmeth.Hamiltonian(length, curv, wiggler)
 
 ivp_opt={"rtol":1e-4, "atol":1e-7}
 sol_wiggler = H_wiggler.solve(qp0, ivp_opt=ivp_opt)
-H_wiggler.plotsol(qp0, ivp_opt=ivp_opt)
+#H_wiggler.plotsol(qp0, ivp_opt=ivp_opt)
 
 p = xt.Particles(x = np.linspace(0, 0, 1), energy0=2.7e9, mass0=xt.ELECTRON_MASS_EV)
 sol = H_wiggler.track(p, return_sol=True)
@@ -143,12 +171,13 @@ t = sol[0].t
 x = sol[0].y[0]
 y = sol[0].y[1]
 
-print(f"x = {x}")
-print(f"y = {y}")
+#print(f"x = {x}")
+#print(f"y = {y}")
 
-wiggler.plotfield_xz()
-wiggler.plotfield_yz()
+#wiggler.plotfield_xz()
+#wiggler.plotfield_yz()
 
+'''
 fig1, (ax1, ax2) = plt.subplots(2)
 ax1.plot(t, x)
 ax2.plot(t, y)
@@ -161,7 +190,7 @@ ax2.legend(["y"], loc="upper right")
 ax1.grid()
 ax2.grid()
 plt.show()
-
+'''
 fig2, (ax3, ax4) = plt.subplots(2)
 ax3.plot(z_values, bx_values)
 ax3.plot(z_values[border: 2200 - border], x_fit)
@@ -175,17 +204,4 @@ ax3.legend(["$B_x$"], loc="upper right")
 ax4.legend(["$B_y$"], loc="upper right")
 ax3.grid()
 ax4.grid()
-plt.show()
-
-fig3, (ax5, ax6) = plt.subplots(2)
-ax5.plot(k_values, bx_fft)
-ax6.plot(k_values, by_fft)
-ax5.set_title(f"Fourier Transform of Magnetic Field at (X, Y) = {xy_point}")
-ax6.set_xlabel("Wave Number, $k$, [m⁻¹]")
-ax5.set_ylabel("Fourier Transform, $F[B_x]$, [T]")
-ax6.set_ylabel("Fourier Transform, $F[B_y]$, [T]")
-ax5.legend(["$F[B_x]$"], loc="upper right")
-ax6.legend(["$F[B_y]$"], loc="upper right")
-ax5.grid()
-ax6.grid()
 plt.show()
