@@ -248,7 +248,7 @@ class FieldExpansion:
         ss = np.linspace(smin, smax, 200)
         integrals = np.zeros(len(self.b))
         for i, bb in enumerate(self.b):
-            integral = np.trapezoid([bb.subs({self.s:sval}) for sval in ss], ss)
+            integral = np.trapezoid([sp.sympify(bb).subs({self.s:sval}) for sval in ss], ss)
             integrals[i] = integral
         return integrals
 
