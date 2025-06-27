@@ -244,6 +244,14 @@ class FieldExpansion:
             ax.plot(ss, [sp.sympify(self.bs).subs(self.s, sval).evalf() for sval in ss], label=f"bs")
         ax.legend()
     
+    def integrate_components(self, smin, smax):
+        ss = np.linspace(smin, smax, 200)
+        integrals = np.zeros(len(self.b))
+        for i, bb in enumerate(self.b):
+            integral = np.trapezoid([bb.subs({self.s:sval}) for sval in ss], ss)
+            integrals[i] = integral
+        return integrals
+
     def plotfield_z(self, X=0, Y=0, ax=None, zmin=-2, zmax=2, zstep=0.01):
         if ax is None:
             fig, ax = plt.subplots()
