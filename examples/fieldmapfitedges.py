@@ -88,31 +88,31 @@ yborder3 = by_valleys[-1]   # z =  961
 yborder4 = by_peaks[-1]     # z =  978
 
 # Assign the z-arrays for each region.
-zx_region1 = z_values[:xborder1+1].copy()
-zx_region2 = z_values[xborder1:xborder2+1].copy()
-zx_region3 = z_values[xborder2:xborder3+1].copy()
-zx_region4 = z_values[xborder3:xborder4+1].copy()
+zx_region1 = z_values[:xborder1].copy()
+zx_region2 = z_values[xborder1:xborder2].copy()
+zx_region3 = z_values[xborder2:xborder3].copy()
+zx_region4 = z_values[xborder3:xborder4].copy()
 zx_region5 = z_values[xborder4:].copy()
 
 # Same for y.
-zy_region1 = z_values[:yborder1+1].copy()
-zy_region2 = z_values[yborder1:yborder2+1].copy()
-zy_region3 = z_values[yborder2:yborder3+1].copy()
-zy_region4 = z_values[yborder3:yborder4+1].copy()
+zy_region1 = z_values[:yborder1].copy()
+zy_region2 = z_values[yborder1:yborder2].copy()
+zy_region3 = z_values[yborder2:yborder3].copy()
+zy_region4 = z_values[yborder3:yborder4].copy()
 zy_region5 = z_values[yborder4:].copy()
 
 # And the B_x arrays
-bx_region1 = bx_values[:xborder1+1].copy()
-bx_region2 = bx_values[xborder1:xborder2+1].copy()
-bx_region3 = bx_values[xborder2:xborder3+1].copy()
-bx_region4 = bx_values[xborder3:xborder4+1].copy()
+bx_region1 = bx_values[:xborder1].copy()
+bx_region2 = bx_values[xborder1:xborder2].copy()
+bx_region3 = bx_values[xborder2:xborder3].copy()
+bx_region4 = bx_values[xborder3:xborder4].copy()
 bx_region5 = bx_values[xborder4:].copy()
 
 # And for B_y
-by_region1 = by_values[:yborder1+1].copy()
-by_region2 = by_values[yborder1:yborder2+1].copy()
-by_region3 = by_values[yborder2:yborder3+1].copy()
-by_region4 = by_values[yborder3:yborder4+1].copy()
+by_region1 = by_values[:yborder1].copy()
+by_region2 = by_values[yborder1:yborder2].copy()
+by_region3 = by_values[yborder2:yborder3].copy()
+by_region4 = by_values[yborder3:yborder4].copy()
 by_region5 = by_values[yborder4:].copy()
 
 ########################################################################################################################
@@ -147,10 +147,9 @@ def sinusoid(x, *params):
 x_freqs = [19, 37]#[0.019, 0.037]
 y_freqs = [28]#[0.028]
 
-# Initial parameter guesses [A1.1, A1.2, freq1, A2.1, A2.2, freq2, engepoly1, engepoly2, ...]
-# engepoly1, engepoly2 etc. are the coefficients of the polynomial in the Enge function
-x_initial_guess = np.array([0.63, -0.78, x_freqs[1], 1, 0, x_freqs[0]])
-y_initial_guess = np.array([0.92, -0.38, y_freqs[0]])
+# Initial parameter guesses [A1.1, A1.2, freq1, A2.1, A2.2, freq2]
+x_initial_guess = np.array([0.29, 0.031, x_freqs[0], 0.083, -0.1, x_freqs[1]])
+y_initial_guess = np.array([0.3, 0.8, y_freqs[0]])
 
 # Fit the curve.
 xpoptreg3, xpcovreg3 = curve_fit(sinusoid, zx_region3, bx_region3, p0=x_initial_guess)
@@ -160,8 +159,8 @@ print(xpoptreg3)
 print(ypoptreg3)
 
 # Calculates the output of the fit.
-bx_re3_fit = sinusoid(zx_region3, *xpoptreg3)
-by_re3_fit = sinusoid(zy_region3, *ypoptreg3)
+xfit_reg3 = sinusoid(zx_region3, *xpoptreg3)
+yfit_reg3 = sinusoid(zy_region3, *ypoptreg3)
 #bt_re3_fit = np.sqrt(bx_re3_fit ** 2 + by_re3_fit ** 2)
 
 # Find the pole length from k_y, the wavenumber of B_y
@@ -177,7 +176,7 @@ print(f"Pole length [mm] = {polelength}")
 ########################################################################################################################
 
 
-def fit_polynomial_with_sinusoidal_matching(z_region, b_region, sinparams, boundaries, x, left):
+def fit_polynomial_matching(degree, z_region, b_region, b_match_region, left):
     """
     Fits a polynomial to any region that matches the middle sinusoidal region.
 
@@ -190,139 +189,165 @@ def fit_polynomial_with_sinusoidal_matching(z_region, b_region, sinparams, bound
         list: Polynomial coefficients for a polynomial of order N.
     """
 
-    leftboundary = boundaries[0]
-    rightboundary = boundaries[1]
+    # Derivatives of region
+    # First derivative (centered difference)
+    db_dz_region = np.gradient(b_region, 0.001, edge_order=2)
+    # Second derivative (applying gradient twice)
+    d2b_dz2_region = np.gradient(db_dz_region, 0.001, edge_order=2)
 
-    # Order of the polynomial.
-    Npoly = 5
+    # Derivatives of match region
+    # First derivative (centered difference)
+    db_dz_match = np.gradient(b_match_region, 0.001, edge_order=2)
+    # Second derivative (applying gradient twice)
+    d2b_dz2_match = np.gradient(db_dz_match, 0.001, edge_order=2)
 
-    # Define symbols
-    z, A1, A2, ki = sp.symbols('z A1 A2 omega')
+    if degree >= 5:
+        # Fit polynomial with boundary conditions
+        if left:
+            bpol_reg = poly_fit.poly_fit(
+                N=degree,
+                xdata=z_region,
+                ydata=b_region,
+                x0=[z_region[0], z_region[-1]],
+                y0=[b_region[0], b_match_region[0]],
+                xp0=[z_region[0], z_region[-1]],
+                yp0=[db_dz_region[0], db_dz_match[0]],
+                xpp0=[z_region[0], z_region[-1]],
+                ypp0=[d2b_dz2_region[0], d2b_dz2_match[0]]
+            )
 
-    # Define the sinusoidal function and its derivatives
-    Bi = A1 * sp.cos(ki * z) + A2 * sp.sin(ki * z)
-    Bi_prime = sp.diff(Bi, z)
-    Bi_double_prime = sp.diff(Bi_prime, z)
-
-    # Create numerical evaluation functions
-    Bi_num = sp.lambdify((z, A1, A2, ki), Bi, 'numpy')
-    Bi_prime_num = sp.lambdify((z, A1, A2, ki), Bi_prime, 'numpy')
-    Bi_double_prime_num = sp.lambdify((z, A1, A2, ki), Bi_double_prime, 'numpy')
-
-    # Fit polynomial with boundary conditions
-    if left:
-        if x:
-            b_atbound = bx_values[leftboundary - 1:leftboundary + 2]
         else:
-            b_atbound = by_values[leftboundary - 1:leftboundary + 2]
+            bpol_reg = poly_fit.poly_fit(
+                N=degree,
+                xdata=z_region,
+                ydata=b_region,
+                x0=[z_region[0], z_region[-1]],
+                y0=[b_match_region[-1], b_region[-1]],
+                xp0=[z_region[0], z_region[-1]],
+                yp0=[db_dz_match[-1], db_dz_region[-1]],
+                xpp0=[z_region[0], z_region[-1]],
+                ypp0=[d2b_dz2_match[-1], d2b_dz2_region[-1]]
+            )
+    elif degree >=3:
+        # Fit polynomial with boundary conditions
+        if left:
+            bpol_reg = poly_fit.poly_fit(
+                N=degree,
+                xdata=z_region,
+                ydata=b_region,
+                x0=[z_region[0], z_region[-1]],
+                y0=[b_region[0], b_match_region[0]],
+                xp0=[z_region[0], z_region[-1]],
+                yp0=[db_dz_region[0], db_dz_match[0]]
+            )
 
-        z_atbound = z_values[rightboundary - 1:rightboundary + 1]
-        # Calculate the derivative of the region, to be evaluated at the end where the match is being done.
-        # Since we are only interested in the derivative at the boundary, we take only the first three values.
-        # This is the minimum required for a second derivative.
-        db = np.diff(b_atbound, 1)
-        dz = np.diff(z_atbound, 1)
-        bp = db / dz
-        zp = 0.5 * (z_atbound[:2] + z_atbound[1:3])
-
-        # Calculate the second derivative of the region, to be evaluated at the end where the match is being done.
-        ddb = np.diff(bp, 1)
-        ddz = np.diff(zp, 1)
-        bpp = ddb / ddz
-
-        print(f"bp and bpp are: {bp, bpp}")
-
-        # Evaluate at the boundary point
-        z_boundary = z_region[-1]
-        Bi0 = Bi_num(z_boundary, sinparams[0], sinparams[1], sinparams[2])
-        Bip0 = Bi_prime_num(z_boundary, sinparams[0], sinparams[1], sinparams[2])
-        Bipp0 = Bi_double_prime_num(z_boundary, sinparams[0], sinparams[1], sinparams[2])
-
-        bpol_reg = poly_fit.poly_fit(
-            N=Npoly,
-            xdata=z_region,
-            ydata=b_region,
-            x0=[z_region[0], z_region[-1]],
-            y0=[b_region[0], Bi0],
-            xp0=[z_region[0], z_region[-1]],
-            yp0=[bp[0], Bip0],
-            xpp0=[z_region[0], z_region[-1]],
-            ypp0=[bpp[0], Bipp0]
-        )
-
-    else:
-        if x:
-            b_atbound = bx_values[rightboundary - 1:rightboundary + 2]
         else:
-            b_atbound = by_values[rightboundary - 1:rightboundary + 2]
+            bpol_reg = poly_fit.poly_fit(
+                N=degree,
+                xdata=z_region,
+                ydata=b_region,
+                x0=[z_region[0], z_region[-1]],
+                y0=[b_match_region[-1], b_region[-1]],
+                xp0=[z_region[0], z_region[-1]],
+                yp0=[db_dz_match[-1], db_dz_region[-1]]
+            )
 
-        z_atbound = z_values[rightboundary - 1:rightboundary + 1]
-        # Calculate the derivative of the region, to be evaluated at the end where the match is being done.
-        # Since we are only interested in the derivative at the boundary, we take only the first three values.
-        # This is the minimum required for a second derivative.
-        db = np.diff(b_atbound, 1)
-        dz = np.diff(z_atbound, 1)
-        bp = db / dz
-        zp = 0.5 * (z_atbound[:2] + z_atbound[1:3])
+    elif degree >=1:
+        # Fit polynomial with boundary conditions
+        if left:
+            bpol_reg = poly_fit.poly_fit(
+                N=degree,
+                xdata=z_region,
+                ydata=b_region,
+                x0=[z_region[0], z_region[-1]],
+                y0=[b_region[0], b_match_region[0]]
+            )
 
-        # Calculate the second derivative of the region, to be evaluated at the end where the match is being done.
-        ddb = np.diff(bp, 1)
-        ddz = np.diff(zp, 1)
-        bpp = ddb / ddz
+        else:
+            bpol_reg = poly_fit.poly_fit(
+                N=degree,
+                xdata=z_region,
+                ydata=b_region,
+                x0=[z_region[0], z_region[-1]],
+                y0=[b_match_region[-1], b_region[-1]]
+            )
 
-        print(f"bp and bpp are: {bp, bpp}")
-
-        # Evaluate at the boundary point
-        z_boundary = z_region[0]
-        Bi0 = Bi_num(z_boundary, sinparams[0], sinparams[1], sinparams[2])
-        Bip0 = Bi_prime_num(z_boundary, sinparams[0], sinparams[1], sinparams[2])
-        Bipp0 = Bi_double_prime_num(z_boundary, sinparams[0], sinparams[1], sinparams[2])
-
-        print(Bi0, Bip0, Bipp0)
-
-        bpol_reg = poly_fit.poly_fit(
-            N=Npoly,
-            xdata=z_region,
-            ydata=b_region,
-            x0=[z_region[0], z_region[-1]],
-            y0=[Bi0, b_region[-1]],
-            xp0=[z_region[0], z_region[-1]],
-            yp0=[Bip0, bp[-1]],
-            xpp0=[z_region[0], z_region[-1]],
-            ypp0=[Bipp0, bpp[-1]]
-        )
 
     return bpol_reg
 
-xpoptreg2 = fit_polynomial_with_sinusoidal_matching(zx_region2, bx_region2, xpoptreg3, [xborder1, xborder2], x=True, left=True)
+degree = 5
+# Polynomial fits for regions 2 and 4
+# B_x, region 2
+xpoptreg2 = fit_polynomial_matching(degree, zx_region2, bx_region2, xfit_reg3, left=True)
 xpoly2 = numpy.polynomial.Polynomial(xpoptreg2)
 xfit_reg2 = xpoly2(zx_region2)
 
-xpoptreg4 = fit_polynomial_with_sinusoidal_matching(zx_region4, bx_region4, xpoptreg3, [xborder3, xborder4], x=True, left=False)
+# B_x, region 4
+xpoptreg4 = fit_polynomial_matching(degree, zx_region4, bx_region4, xfit_reg3, left=False)
 xpoly4 = numpy.polynomial.Polynomial(xpoptreg4)
 xfit_reg4 = xpoly4(zx_region4)
 
-ypoptreg2 = fit_polynomial_with_sinusoidal_matching(zy_region2, by_region2, ypoptreg3, [yborder1, yborder2], x=False, left=True)
+# B_y, region 2
+ypoptreg2 = fit_polynomial_matching(degree, zy_region2, by_region2, yfit_reg3, left=True)
 ypoly2 = numpy.polynomial.Polynomial(ypoptreg2)
 yfit_reg2 = ypoly2(zy_region2)
 
-ypoptreg4 = fit_polynomial_with_sinusoidal_matching(zy_region4, by_region4, ypoptreg3, [yborder3, yborder4], x=False, left=False)
+# B_y, region 4
+ypoptreg4 = fit_polynomial_matching(degree, zy_region4, by_region4, yfit_reg3, left=False)
 ypoly4 = numpy.polynomial.Polynomial(ypoptreg4)
 yfit_reg4 = ypoly4(zy_region4)
+
+degree = 2
+# Polynomial fits for regions 1 and 5
+# B_x, region 1
+xpoptreg1 = fit_polynomial_matching(degree, zx_region1, bx_region1, xfit_reg2, left=True)
+xpoly1 = numpy.polynomial.Polynomial(xpoptreg1)
+xfit_reg1 = xpoly1(zx_region1)
+
+# B_x, region 5
+xpoptreg5 = fit_polynomial_matching(degree, zx_region5, bx_region5, xfit_reg4, left=False)
+xpoly5 = numpy.polynomial.Polynomial(xpoptreg5)
+xfit_reg5 = xpoly5(zx_region5)
+
+# B_y, region 1
+ypoptreg1 = fit_polynomial_matching(degree, zy_region1, by_region1, yfit_reg2, left=True)
+ypoly1 = numpy.polynomial.Polynomial(ypoptreg1)
+yfit_reg1 = ypoly1(zy_region1)
+
+# B_y, region 5
+ypoptreg5 = fit_polynomial_matching(degree, zy_region5, by_region5, yfit_reg4, left=False)
+ypoly5 = numpy.polynomial.Polynomial(ypoptreg5)
+yfit_reg5 = ypoly5(zy_region5)
+
+########################################################################################################################
+# MERGE IT ALL TOGETHER
+########################################################################################################################
+
+bx_fit = np.concatenate((xfit_reg1, xfit_reg2, xfit_reg3, xfit_reg4, xfit_reg5))
+by_fit = np.concatenate((yfit_reg1, yfit_reg2, yfit_reg3, yfit_reg4, yfit_reg5))
+bt_fit = np.sqrt(bx_fit**2 + by_fit**2)
+
+
 ########################################################################################################################
 # PLOTS
 ########################################################################################################################
 fig1, (ax1, ax2, ax3) = plt.subplots(3)
 ax1.plot(z_values, bx_values)
-ax1.plot(zx_region2, xfit_reg2)
-ax1.plot(zx_region4, xfit_reg4)
-ax1.plot(zx_region3, bx_re3_fit)
+ax1.plot(z_values, bx_fit)
+#ax1.plot(zx_region1, xfit_reg1)
+#ax1.plot(zx_region2, xfit_reg2)
+#ax1.plot(zx_region3, xfit_reg3)
+#ax1.plot(zx_region4, xfit_reg4)
+#ax1.plot(zx_region5, xfit_reg5)
 ax2.plot(z_values, by_values)
-ax2.plot(zy_region3, by_re3_fit)
-ax2.plot(zy_region2, yfit_reg2)
-ax2.plot(zy_region4, yfit_reg4)
+ax2.plot(z_values, by_fit)
+#ax2.plot(zy_region1, yfit_reg1)
+#ax2.plot(zy_region2, yfit_reg2)
+#ax2.plot(zy_region3, yfit_reg3)
+#ax2.plot(zy_region4, yfit_reg4)
+#ax2.plot(zy_region5, yfit_reg5)
 ax3.plot(z_values, bt_values)
-#ax3.plot(zx_region3, bt_re3_fit)
+ax3.plot(z_values, bt_fit)
 
 ax1.set_title(f"Magnetic Field at (X, Y) = {xy_point}")
 ax3.set_xlabel("Longitudinal Position, $s$, [m]")
@@ -330,9 +355,9 @@ ax1.set_ylabel("Horizontal Field, $B_x$, [T]")
 ax2.set_ylabel("Vertical Field, $B_y$, [T]")
 ax3.set_ylabel("Magnitude, $|B|$, [T]")
 
-ax1.legend(["$B_x$"], loc="upper right")
-ax2.legend(["$B_y$"], loc="upper right")
-ax3.legend(["$|B|$"], loc="upper right")
+ax1.legend(["$B_x$ Data", "$B_x$ Fit"], loc="upper right")
+ax2.legend(["$B_y$ Data", "$B_y$ Fit"], loc="upper right")
+ax3.legend(["$|B|$ Data", "$|B|$ Fit"], loc="upper right")
 
 ax1.grid()
 ax2.grid()
