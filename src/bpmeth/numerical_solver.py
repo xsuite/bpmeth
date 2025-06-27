@@ -135,13 +135,13 @@ class Hamiltonian:
             # manage vector potential for each particle
             ax, ay, _ = self.get_A(particle.x, particle.y, s_span[0])
             # if we want to keep the vector potential in the particle
-            # particle.ax = ax 
-            # particle.ay = ay
-            # instead we remove it
-            particle.ax = np.zeros_like(ax)
-            particle.ay = np.zeros_like(ay)
-            particle.px -= ax
-            particle.py -= ay
+            particle.ax = ax 
+            particle.ay = ay
+            # we could remove it, but the operation is not symplectic 
+            # particle.ax = np.zeros_like(ax)
+            # particle.ay = np.zeros_like(ay)
+            # particle.px -= ax
+            # particle.py -= ay
 
         else:
             qp0 = [
