@@ -29,13 +29,40 @@ file_path = 'example_data/knot_map_test.txt'
 df = parse_to_dataframe(file_path)
 
 # Select at which transverse coordinates (x, y) we want to evaluate the field.
+# The subsetz indicates that it takes the z-axis as the independent coordinate.
 xy_point = (0, 0)
-subset = df.xs(xy_point, level=['X', 'Y'])
+subsetz = df.xs(xy_point, level=['X', 'Y'])
 
 # Extract the transverse fields and the longitudinal axis as numpy arrays.
-z_values = subset.index.to_numpy()
-bx_values = subset['Bx'].to_numpy()
-by_values = subset['By'].to_numpy()
+z_values = subsetz.index.to_numpy()
+bx_values = subsetz['Bx'].to_numpy()
+by_values = subsetz['By'].to_numpy()
+
+# For plotting B_x and B_y against x and y
+#yz_point = (0, 116)
+#subsetx = df.xs(yz_point, level=['Y', 'Z'])
+
+# All of these are arrays of length 3.
+#x_values = subsetx.index.to_numpy()
+#xbx_values = subsetx['Bx'].to_numpy()
+#xby_values = subsetx['By'].to_numpy()
+
+#plt.plot(x_values, xbx_values)
+#plt.plot(x_values, xby_values)
+#plt.show()
+
+# For plotting B_x and B_y against x and y
+#xz_point = (0, 116)
+#subsety = df.xs(xz_point, level=['X', 'Z'])
+
+# All of these are arrays of length 3.
+#y_values = subsety.index.to_numpy()
+#ybx_values = subsety['Bx'].to_numpy()
+#yby_values = subsety['By'].to_numpy()
+
+#plt.plot(y_values, xbx_values)
+#plt.plot(y_values, yby_values)
+#plt.show()
 
 # Compute the cumulative sum to see how the magnetic fields average to zero.
 # They do. Uncomment if you want to see.
@@ -80,10 +107,6 @@ def cosinelike(x, *params):
         freq = params[3 * i + 2]
         y += A * np.cos(2 * np.pi * freq * x + phi)
 
-    # From 6 because we have six parameters for the cosinelike.
-    engeparams = np.concatenate(([1], params[-numberzeros:]))
-    y *= bpmeth.Enge(x, *engeparams)
-
     return y
 
 def sinelike(x, *params):
@@ -98,10 +121,6 @@ def sinelike(x, *params):
         freq = params[3 * i + 2]
         y += A * np.sin(2 * np.pi * freq * x + phi)
 
-    # From 3 because we have three parameters for the sinelike.
-    engeparams = np.concatenate(([1], params[-numberzeros:]))
-    y *= bpmeth.Enge(x, *engeparams)
-
     return y
 
 # From the Fourier Transform, we can get good initial guesses for the frequencies present.
@@ -109,7 +128,7 @@ def sinelike(x, *params):
 x_freqs = [0.019, 0.037]
 y_freqs = [0.028]
 
-numberzeros = 5
+numberzeros = 1
 engezeros = np.zeros(numberzeros)
 engezeros[0] = 1
 
@@ -120,6 +139,8 @@ y_initial_guess = np.concatenate(([1, 0.75, y_freqs[0]], engezeros))#, 0.01, 0, 
 # Fit the curve. The border is to remove the contribution due to edge effects.
 # Turns out the x is close to a cos and the y is close to a sin.
 border = 100
+# For x, right border 990 is better (so 110).
+# For y, left border -990 is better, right border 970 seems even bete
 xoptsin, xpcovsin = curve_fit(cosinelike, z_values[border: 2200 - border], bx_values[border: 2200 - border], p0=x_initial_guess)
 yoptsin, ypcovsin = curve_fit(sinelike, z_values[border: 2200 - border], by_values[border: 2200 - border], p0=y_initial_guess)
 
