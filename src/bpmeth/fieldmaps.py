@@ -213,7 +213,7 @@ class Fieldmap:
             
         return coeffs, coeffsstd
 
-    def z_multipoles(self, order, xmax=None):
+    def z_multipoles(self, order, xmax=None, ax=None):
         """
         So far only normal multipoles
         """
@@ -222,6 +222,11 @@ class Fieldmap:
         coeffsstd = np.zeros((len(zvals), order+1))
         for i, zpos in enumerate(zvals):
             coeffs[i], coeffsstd[i] = self.fit_xprofile(0, zpos, "By", order, xmax=xmax)
+
+        if ax is not None:
+            for i in range(order):
+                print(coeffs[:, i].shape)
+                ax.errorbar(zvals, coeffs[:,i], yerr=coeffsstd[:,i], label=f"b{i}", ls='', capsize=1, marker='.')
         return zvals, coeffs, coeffsstd
 
 

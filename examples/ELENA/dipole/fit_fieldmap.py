@@ -28,8 +28,9 @@ data = np.loadtxt("ELENA_fieldmap.csv", skiprows=1, delimiter=",")[:, [0,1,2,7,8
 ELENA_dipole = bpmeth.Fieldmap(data)
 
 xFS = np.linspace(-apt/2, apt/2, 31)
-yFS = np.linspace(-apt/2, apt/2, 11)
-sFS = np.linspace(-0.75*l_magn, 0.75*l_magn, 201)
+#yFS = np.linspace(-apt/2, apt/2, 11)
+yFS = [0]
+sFS = np.linspace(-l_magn/2-7.5*apt, l_magn/2+7.5*apt, 201)
 ELENA_dipole_FS = ELENA_dipole.calc_FS_coords(xFS, yFS, sFS, rho, phi, radius=0.05)
 # ELENA_dipole_FS.plot()
 
