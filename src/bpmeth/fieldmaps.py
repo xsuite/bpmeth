@@ -230,12 +230,14 @@ class Fieldmap:
         return zvals, coeffs, coeffsstd
 
 
-    def integratedfield(self, order, xmax=None):
+    def integratedfield(self, order, xmax=None, zmin=-9999, zmax=9999):
         zvals, coeffs, coeffsstd = self.z_multipoles(order, xmax=xmax)
+        
+        mask = (zvals>zmin) & (zvals<zmax)
         
         integrals = np.zeros(order)
         for i in range(order):
-            integrals[i] = np.trapezoid(coeffs[:,i], zvals)
+            integrals[i] = np.trapezoid(coeffs[:,i][mask], zvals[mask])
         return integrals
 
                
