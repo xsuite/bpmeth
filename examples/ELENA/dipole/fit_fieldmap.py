@@ -27,12 +27,15 @@ data = np.loadtxt("ELENA_fieldmap.csv", skiprows=1, delimiter=",")[:, [0,1,2,7,8
 
 ELENA_dipole = bpmeth.Fieldmap(data)
 
-xFS = np.linspace(-apt/2, apt/2, 31)
+xFS = np.linspace(-apt/2, apt/2, 51)
 #yFS = np.linspace(-apt/2, apt/2, 11)
 yFS = [0]
-sFS = np.linspace(-l_magn/2-7.5*apt, l_magn/2+7.5*apt, 201)
-ELENA_dipole_FS = ELENA_dipole.calc_FS_coords(xFS, yFS, sFS, rho, phi, radius=0.05)
-# ELENA_dipole_FS.plot()
+sFS = np.arange(-l_magn/2-7.5*apt, l_magn/2+7.5*apt, 0.001)
+ELENA_dipole_FS = ELENA_dipole.calc_FS_coords(xFS, yFS, sFS, rho, phi, radius=0.0025)
+ELENA_dipole_FS.plot()
+
+fig, ax = plt.subplots()
+ELENA_dipole_FS.z_multipoles(3, ax=ax)
 
 
 ###############################################
@@ -41,7 +44,8 @@ ELENA_dipole_FS = ELENA_dipole.calc_FS_coords(xFS, yFS, sFS, rho, phi, radius=0.
 
 # Multipole components fitted over the whole s-range at once
 fig, ax = plt.subplots()
-params, cov = ELENA_dipole_FS.fit_multipoles(bpmeth.spEnge, components=[1,2,3], design=1, zmin=0, zmax=l_magn/2+3.8*hgap, zedge=l_magn/2, ax=ax)
+guess = [ 4.27855927e-01, 7.63365939e+02, -1.44485719e+02, 2.59387643e+01, 5.81379154e-01]
+params, cov = ELENA_dipole_FS.fit_multipoles(bpmeth.spEnge, components=[1,2,3], design=1, zmin=0, zmax=l_magn/2+7.5*hgap, zedge=l_magn/2, ax=ax, guess=guess)
 
 
 fig, ax = plt.subplots()
