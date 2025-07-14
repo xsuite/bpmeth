@@ -240,7 +240,7 @@ class Fieldmap:
 
                
                
-    def fit_multipoles(self, shape, components=[1,2], design=1, nparams=6, xmax=None, zmin=-9999, zmax=9999, zedge=0, guess=None, ax=None, force_zero=False):
+    def fit_multipoles(self, shape, components=[1,2], design=1, nparams=5, xmax=None, zmin=-9999, zmax=9999, zedge=0, guess=None, ax=None):
         """
         Fit appropriate functions to the multipoles in the fieldmap, taking into account the design of the magnet.
 
@@ -250,14 +250,16 @@ class Fieldmap:
                        The design component has an Enge as fringe field, each higher order
                        scales with a higher order derivative for fitting.
                        NO COMBINED FUNCTION ALLOWED 
-        :param nparams (optional): Number of parameters in the shape, nparams-1 is the order of the polynomial in the Enge function.
+        :param nparams (optional): Number of parameters in the shape, nparams-1 is the order of the polynomial in the Enge function. 
+                                   Notice the following for a fringe field: our fit should remain at one for large negative values of x, 
+                                   and go to zero at large positive values of x (or vise versa). The highest order term of the polynomial
+                                   in the Enge function should be odd. Hence nparams should be odd as well.
         :param xmax: Range in x to take into account in multipole fitting in transverse plane.
         :param zmin: Longitudinal range.
         :param zmax: Longitudinal range.
         :param zedge: Location of the magnet edge in case only the fringe field shape is fitted, default zero.
         :param guess: Guess for parameters of the Enge function.
         :param ax: If given, plot the fit in these axis.
-        :param force_zero: If true, force the field to be zero outside of the magnet, and the maximal field to be kept inside the magnet.
         :return: Parameters and covariances for all components.
         """
 
@@ -282,37 +284,14 @@ class Fieldmap:
                 guess = np.zeros(nparams)
                 guess[0] = b[np.argmax(np.abs(b))]
 
-
-            if force_zero:
-                zmin = np.min(zvals)
-                min_ind = np.argmin(zvals)
-                zmax = np.max(zvals)
-                max_ind = np.argmax(zvals)
-                print(component-design)
-                if component-design == 0:  # main field
-                    if b[min_ind] < b[max_ind]:  # entrance fringe
-                        centralfield = b[max_ind]
-                        b = np.append(b, [centralfield, centralfield])
-                        zv = np.append(zvals, [zmax+0.05, zmax+0.1])
-                        berr = np.append(berr, [1e-12, 1e-12])
-                    else:  # exit fringe
-                        centralfield = b[min_ind]
-                        b = np.append([centralfield, centralfield], b)
-                        zv = np.append([zmin-0.05, zmin-0.1], zvals)
-                        berr = np.append([1e-12, 1e-12], berr)
-
-                else:
-                    zv = zvals
-
-
             shape_derivative = get_derivative(component-design, nparams, shape)
-            params, cov = sc.optimize.curve_fit(shape_derivative, zv-zedge, b, sigma=berr, p0=guess, maxfev=10000)
+            params, cov = sc.optimize.curve_fit(shape_derivative, zvals-zedge, b, sigma=berr, p0=guess, maxfev=10000)
             params_list[i] = params.copy()
             cov_list[i] = cov
             
             if ax is not None:
                 zz = np.linspace(min(zvals), max(zvals), 100)
-                ax.errorbar(zv, b, yerr=berr, marker='.', capsize=5, label=f"b{component}", ls='', zorder=0)
+                ax.errorbar(zvals, b, yerr=berr, marker='.', capsize=5, label=f"b{component}", ls='', zorder=0)
                 ax.plot(zz, shape_derivative(zz-zedge, *params), label=f'Fit of {component-design}th order derivative with {nparams} parameters to component b{component}', zorder=10)
 
             guess=params.copy()
