@@ -16,7 +16,7 @@ class DipoleFromFieldmap:
 
     isthick=True
 
-    def __init__(self, data, h, l_magn, design_field, order=3, nparams=5, hgap=0.05, apt=0.05, radius=0.05, shape="enge", plot=False, symmetric=True, nphi=4):
+    def __init__(self, data, h, l_magn, design_field, order=3, nparams=5, hgap=0.05, apt=0.05, radius=0.05, shape="enge", plot=False, symmetric=True, nphi=4, guess=None):
         """
         :param data: Fieldmap points as columns x, y, z, Bx, By, Bz. Data in Tesla
         :param h: Curvature of the frame.
@@ -59,6 +59,7 @@ class DipoleFromFieldmap:
 
         self.symmetric = symmetric
         self.nphi = nphi
+        self.guess = guess
         
         if not h==0:
             self.rho = 1/h
@@ -74,7 +75,7 @@ class DipoleFromFieldmap:
         self.create_Hamiltonian(plot=plot, symmetric=self.symmetric)
         
 
-    def fit_multipoles(self, plot=False, symmetric=True):
+    def fit_multipoles(self, plot=False, symmetric=True, guess=None):
         # Calculate the dipole, quadrupole, sextupole component for the two halves
         # BE CAREFUL: The parameters are given for the edge at zero
 
@@ -92,7 +93,8 @@ class DipoleFromFieldmap:
             fig, ax = plt.subplots()
         
         params_out_list, cov_out_list = self.fieldmap.fit_multipoles(self.shapefun, components=np.arange(1,self.order+1,1), design=1, 
-                                                                     nparams=self.nparams, zmin=0, zmax=self.smax, zedge=self.sedge, ax=ax)
+                                                                     nparams=self.nparams, zmin=0, zmax=self.smax, zedge=self.sedge, ax=ax,
+                                                                     guess=guess)
 
 
         self.out_Bfield = params_out_list[0,0]
@@ -148,7 +150,7 @@ class DipoleFromFieldmap:
     
     
     def create_fieldexpansion(self, plot=False, symmetric=True):
-        params_in_list, params_out_list = self.fit_multipoles(plot=plot, symmetric=symmetric)
+        params_in_list, params_out_list = self.fit_multipoles(plot=plot, symmetric=symmetric,guess=self.guess)
 
         print("Creating field expansion...")
         # Make a field expansion
@@ -194,6 +196,7 @@ class DipoleFromFieldmap:
 
 
     def track(self, particle, ivp_opt={}, plot=False):
+        ivp_opt = {"rtol": 1e-12, "atol": 1e-12}
 
         if self.h==0:
             self.H_straight_in.track(particle, ivp_opt=ivp_opt) 
