@@ -16,7 +16,7 @@ class DipoleFromFieldmap:
 
     isthick=True
 
-    def __init__(self, data, h, l_magn, design_field, order=3, nparams=6, hgap=0.05, apt=0.05, radius=0.05, shape="enge", plot=False, symmetric=True, nphi=4):
+    def __init__(self, data, h, l_magn, design_field, order=3, nparams=5, hgap=0.05, apt=0.05, radius=0.05, shape="enge", plot=False, symmetric=True, nphi=4):
         """
         :param data: Fieldmap points as columns x, y, z, Bx, By, Bz. Data in Tesla
         :param h: Curvature of the frame.
@@ -50,8 +50,8 @@ class DipoleFromFieldmap:
 
         self.xmin = -apt/2
         self.xmax = apt/2
-        self.smin = -(3.8*hgap + l_magn/2)
-        self.smax = 3.8*hgap + l_magn/2  # Limits where there is data for the ELENA fieldmap, to become parameter at some point.
+        self.smin = -(7.5*hgap + l_magn/2)
+        self.smax = 7.5*hgap + l_magn/2  # Limits where there is data for the ELENA fieldmap, to become parameter at some point.
         self.sedge = l_magn/2
         self.shape = shape
 
@@ -66,7 +66,7 @@ class DipoleFromFieldmap:
 
             xFS = np.linspace(self.xmin, self.xmax, 31)
             yFS = [0]
-            sFS = np.linspace(-0.75*l_magn, 0.75*l_magn, 201)  # Better a region that is a bit too large to have freedom :)
+            sFS = np.arange(-0.75*l_magn, 0.75*l_magn, 0.001)  # Better a region that is a bit too large to have freedom :)
 
             self.fieldmap = self.fieldmap.calc_FS_coords(xFS, yFS, sFS, self.rho, self.phi, radius=radius)
             
@@ -91,9 +91,8 @@ class DipoleFromFieldmap:
         if plot:
             fig, ax = plt.subplots()
         
-        # Fitting with edge at zero
         params_out_list, cov_out_list = self.fieldmap.fit_multipoles(self.shapefun, components=np.arange(1,self.order+1,1), design=1, 
-                                                                     nparams=self.nparams, zmin=0, zmax=self.smax, zedge=self.sedge, ax=ax, force_zero=True)
+                                                                     nparams=self.nparams, zmin=0, zmax=self.smax, zedge=self.sedge, ax=ax)
 
 
         self.out_Bfield = params_out_list[0,0]
