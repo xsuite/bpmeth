@@ -158,6 +158,43 @@ class Fieldmap:
 
         return Fieldmap(data)
 
+
+    def calc_edge_frame(self, Xedge, Yedge, Zedge, edge_angle, rho, phi, radius=0.01):
+        """
+        :param Xedge: local X coordinates in the edge frame.
+        :param Yedge: local Y coordinates in the edge frame.
+        :param Zedge: local Z coordinates in the edge frame.
+        :param edge_angle: Angle with respect to a sector bend, in radians
+        :param rho: Bending radius of the magnet, in radians.
+        :param phi: Angle of the magnet. Related to the magnetic length by l_magn = rho * phi.
+        :param radius: Interpolation radius, default 0.01.
+        :return: Fieldmap object in FS_coordinates.
+        """
+
+        l_magn = rho*phi
+        x, y, z = np.meshgrid(Xedge, Yedge, Zedge)
+
+        X = rho * np.cos(phi/2) + x * np.cos(phi/2-edge_angle) - z * np.sin(phi/2-edge_angle)
+        Y = y
+        Z = rho * np.sin(phi/2) + x * np.sin(phi/2-edge_angle) + z * np.cos(phi/2-edge_angle)
+
+        XYZ = np.array([X.flatten(), Y.flatten(), Z.flatten()]).T
+        dst = pv.PolyData(XYZ).interpolate(self.src, radius=radius)
+
+        Bx = dst["Bx"] * np.cos(phi/2-edge_angle) - dst["Bz"] * np.sin(phi/2-edge_angle)
+        By = dst["By"]
+        Bz = dst["Bx"] * np.sin(phi/2-edge_angle) + dst["Bz"] * np.cos(phi/2-edge_angle)
+
+        data = np.array([x.flatten(), y.flatten(), z.flatten(), Bx, By, Bz]).T
+
+        return Fieldmap(data)
+
+    
+    def rescale(self, scalefactor):
+        self.src["Bx"] = self.src["Bx"] * scalefactor
+        self.src["By"] = self.src["By"] * scalefactor
+        self.src["Bz"] = self.src["Bz"] * scalefactor
+
         
     def xprofile(self, ypos, zpos, field, ax=None, xmax=None):
         assert ypos in self.src['y'] and zpos in self.src['z'], "These values are not present in the data"
@@ -217,6 +254,7 @@ class Fieldmap:
         """
         So far only normal multipoles
         """
+
         zvals = np.unique(self.src['z'])
         coeffs = np.zeros((len(zvals), order+1))
         coeffsstd = np.zeros((len(zvals), order+1))
@@ -240,6 +278,46 @@ class Fieldmap:
             integrals[i] = np.trapezoid(coeffs[:,i][mask], zvals[mask])
         return integrals
 
+
+    def calc_Fint(self, gap, b0):
+        """
+        Fringe field integral that specifies the closed orbit distortion.
+
+        :param hgap: The gap of the magnet, used to make K0 dimensionless.
+        :param b0: The design field of the body of the magnet. If unknown, one can estimate this as the maximum of b1.
+        :return: Fully dimensionless integral: divided by b0 and gap^2
+        """
+
+        zvals, coeffs, coeffsstd = self.z_multipoles(2)
+        b1 = coeffs[:, 0]
+
+        Fint = 1/gap * np.trapezoid(b1 * (b0 - b1) / b0**2, zvals)
+
+        return Fint
+
+
+    def calc_K0(self, gap, b0, entrance=True):
+        """
+        Fringe field integral that specifies the closed orbit distortion.
+        Assumes that the edge is located at z=0, as would be returned by the function calc_edge_frame.
+        This will change the value of the integral.
+        Entrance and exit integrals are connected by a minus sign.
+
+        :param hgap: The gap of the magnet, used to make K0 dimensionless.
+        :param b0: The design field of the body of the magnet. If unknown, one can estimate this as the maximum of b1.
+        :param entrance: Optional parameter specifying if edge is entrance or exit of the magnet.
+        :return: Fully dimensionless integral: divided by b0 and gap^2
+        """
+
+        zvals, coeffs, coeffsstd = self.z_multipoles(2)
+        b1 = coeffs[:, 0]
+
+        if entrance is False:
+            b1 = b1[::-1]
+
+        K0 = 1/gap**2 * np.trapezoid((zvals) * (b0*np.heaviside(zvals, 0.5) - b1) / b0, zvals)
+
+        return K0
                
                
     def fit_multipoles(self, shape, components=[1,2], design=1, nparams=5, xmax=None, zmin=-9999, zmax=9999, zedge=0, guess=None, ax=None):
