@@ -2,12 +2,13 @@ from .fieldmaps import Fieldmap, get_derivative, spTanh, spEnge, Enge
 from .generate_expansion import FieldExpansion
 from .numerical_solver import Hamiltonian, DipoleVectorPotential
 from .frames import CanvasZX, Frame, BendFrame
+from .poly_fit import poly_print
 import numpy as np
 import sympy as sp
 import warnings
 import matplotlib.pyplot as plt
 import scipy as sc
-
+import math
     
 
 
@@ -35,6 +36,9 @@ class DipoleFromFieldmap:
         :param shape: Shape of the fieldmap. "enge" or "tanh". Default is "enge".
         :param plot: If True, plot the fieldmap and the fitted multipoles when creating the element.
         :param symmetric: If True, the fieldmap is assumed to be symmetric. The multipole fit is mirrored
+        :param nphi: Number of phi terms in the expansion, at least phi0 and phi1. If set to zero, use DipoleVectorPotential object
+            which doesn't include any field derivatives.
+        :param guess: Initial guess for the lowest order fit. 
         """
 
         self.data = data
@@ -51,7 +55,7 @@ class DipoleFromFieldmap:
         self.xmin = -apt/2
         self.xmax = apt/2
         self.smin = -(7.5*hgap + l_magn/2)
-        self.smax = 7.5*hgap + l_magn/2  # Limits where there is data for the ELENA fieldmap, to become parameter at some point.
+        self.smax = 7.5*hgap + l_magn/2  
         self.sedge = l_magn/2
         self.shape = shape
 
@@ -67,7 +71,7 @@ class DipoleFromFieldmap:
 
             xFS = np.linspace(self.xmin, self.xmax, 31)
             yFS = [0]
-            sFS = np.arange(-0.75*l_magn, 0.75*l_magn, 0.001)  # Better a region that is a bit too large to have freedom :)
+            sFS = np.arange(self.smin, self.smax, 0.001)  # Better a region that is a bit too large to have freedom :)
 
             self.fieldmap = self.fieldmap.calc_FS_coords(xFS, yFS, sFS, self.rho, self.phi, radius=radius)
             
@@ -177,7 +181,7 @@ class DipoleFromFieldmap:
         
             self.A_bent_in = self.bent_in.get_A(lambdify=True)
             self.A_bent_out = self.bent_out.get_A(lambdify=True)
-        
+
 
     def create_Hamiltonian(self, plot=False, symmetric=True):
         self.create_fieldexpansion(plot=plot, symmetric=symmetric)
@@ -241,6 +245,172 @@ class DipoleFromFieldmap:
                     fb.plot_trajectory_zx(sol_bin[i].t+self.sedge, sol_bin[i].y[0], sol_bin[i].y[1], canvas=canvas)
                     fb.plot_trajectory_zx(sol_bout[i].t+self.sedge, sol_bout[i].y[0], sol_bout[i].y[1], canvas=canvas)
                     fr4.plot_trajectory_zx(sol_sout[i].t-self.sedge, sol_sout[i].y[0], sol_sout[i].y[1], canvas=canvas)
+
+                  
+class MagnetFromFieldmap:
+    isthick=True
+    def __init__(self, data, h, l_magn, design_field, order=3, hgap=0.05, apt=0.05, radius=0.05, nphi=4, plot=False, step=50):
+        """
+        :param data: Fieldmap points as columns x, y, z, Bx, By, Bz. Data in Tesla
+        :param h: Curvature of the frame.
+            If h==0, the magnet is treated as a straight magnet with magnetic length l_magn
+            If h!=0, the fieldmap is first converted in Frenet-Serrat coordinates consisting of a straight part before the 
+            magnetic length, then a bent part with bending radius 1/h, then a straight part after the magnetic length.
+        :param l_magn: Total magnetic length. For curved magnets, the bending angle is given by l_magn*h.
+        :param design_field: Desired value for the average field of lowest component, this is probably 1/rho
+        :param order (optional): Highest order multipole (dipole=1)
+        :param hgap (optional): Half the gap of the magnet. Only used to estimate a reasonable range of the fringe field.
+        :param apt (optional): Total aperture of the magnet (over which the fieldmap should also be given, otherwise give maximal 
+            range of the fieldmap). Used to fit the multipoles.
+        :param radius (optional): Interpolation radius for determination of field in Frenet-Serrat coordinates.
+        :param nphi: Number of phi terms in the expansion, at least phi0 and phi1.
+        :param plot: If True, plot the fieldmap and the fitted multipoles when creating the element.
+        :param step: Number of points in one step of spline.
+        """
+
+        self.data = data
+
+        self.h = h 
+        self.l_magn = l_magn
+        self.angle = self.h*self.l_magn
+        
+        self.design_field = design_field
+
+        self.order=order
+        self.fieldmap = Fieldmap(data)
+
+        self.xmin = -apt/2
+        self.xmax = apt/2
+        self.smin = -(7.5*hgap + l_magn/2)
+        self.smax = 7.5*hgap + l_magn/2 
+        self.sedge = l_magn/2
+
+        self.length = self.smax - self.smin
+
+        self.nphi = nphi
+
+        self.step = step
+                
+        assert self.h != 0, "This method is only implemented for curved magnets with h!=0"
+        if not h==0:
+            self.rho = 1/h
+            self.phi = l_magn*h
+
+            xFS = np.linspace(self.xmin, self.xmax, 31)
+            yFS = [0]
+            ns = math.ceil(((self.smax - self.smin) / 0.001) /step) * step + 1  # Make sure we have a multiple of steps plus one
+            sFS = np.linspace(self.smin, self.smax, ns) 
+
+            self.fieldmap = self.fieldmap.calc_FS_coords(xFS, yFS, sFS, self.rho, self.phi, radius=radius)
+            
+            scalefactor = self.design_field / (self.fieldmap.integratedfield(3)[0] / self.l_magn)
+            self.fieldmap.rescale(scalefactor)
+            
+        self.create_Hamiltonian(plot=plot)
+        
+
+    def fit_multipoles(self, plot=False):
+        print("Fitting multipoles")
+        
+        if plot:
+            fig, ax = plt.subplots()
+        else:
+            ax=None
+
+        segments, all_pols = self.fieldmap.fit_spline_multipoles(components=np.arange(1,self.order+1,1), ax=ax, step=self.step)
+        bfuncs = [[poly_print(all_pols[i][j], x="s") for j in range(len(all_pols[i]))] for i in range(len(all_pols))]
+
+        self.segments = segments
+        self.bfuncs = bfuncs
+
+        
+    def create_fieldexpansion(self, plot=False):
+        self.fit_multipoles(plot=plot)
+
+        print("Creating field expansion...")
+        
+        expansions_in = []
+        segments_in = [] 
+        expansions_body = []
+        segments_body = []
+        expansions_out = []
+        segments_out = []
+
+        for i in range(len(self.segments)): 
+            # Loop over all segments and create expansions
+            bb = [bbs[i] for bbs in self.bfuncs]
+            
+            # split in straight and bent parts
+            if self.segments[i][0] < -self.sedge:  # Incoming drift
+                expansion = FieldExpansion(b=bb, hs="0", nphi=self.nphi)
+                expansions_in.append(expansion)
+                segments_in.append([self.segments[i][0], min(self.segments[i][1], -self.sedge)])
+
+            if self.segments[i][1] > -self.sedge and self.segments[i][0] < self.sedge:  # Body part
+                expansion = FieldExpansion(b=bb, hs=f"{self.h}", nphi=self.nphi)
+                expansions_body.append(expansion)
+                segments_body.append([max(self.segments[i][0], -self.sedge), min(self.segments[i][1], self.sedge)])
+
+            if self.segments[i][1] > self.sedge:  # Outgoing drift
+                expansion = FieldExpansion(b=bb, hs="0", nphi=self.nphi)
+                expansions_out.append(expansion)
+                segments_out.append([max(self.segments[i][0], self.sedge), self.segments[i][1]])
+                
+        self.expansions_in = expansions_in
+        self.segments_in = segments_in
+        self.expansions_body = expansions_body
+        self.segments_body = segments_body
+        self.expansions_out = expansions_out
+        self.segments_out = segments_out
+        
+
+    def create_Hamiltonian(self, plot=False):
+        self.create_fieldexpansion(plot=plot)
+        
+        print("Creating Hamiltonian...")
+
+        hamiltonians_in = []
+        hamiltonians_body = []
+        hamiltonians_out = []
+        
+        for i in range(len(self.expansions_in)):
+            hamiltonians_in.append(Hamiltonian(self.segments_in[i][1]-self.segments_in[i][0], 0, self.expansions_in[i], s_start=self.segments_in[i][0]))
+        for i in range(len(self.expansions_body)):
+            hamiltonians_body.append(Hamiltonian(self.segments_body[i][1]-self.segments_body[i][0], self.h, self.expansions_body[i], s_start=self.segments_body[i][0]))
+        for i in range(len(self.expansions_out)):
+            hamiltonians_out.append(Hamiltonian(self.segments_out[i][1]-self.segments_out[i][0], 0, self.expansions_out[i], s_start=self.segments_out[i][0]))
+            
+        self.hamiltonians_in = hamiltonians_in
+        self.hamiltonians_body = hamiltonians_body
+        self.hamiltonians_out = hamiltonians_out
+
+
+    def track(self, particle, ivp_opt={}, plot=False):
+        ivp_opt = {"rtol": 1e-12, "atol": 1e-12}
+        
+        sols_x = []
+        sols_s = []
+        for hamiltonian in self.hamiltonians_in:
+            sol = hamiltonian.track(particle, ivp_opt=ivp_opt, return_sol=True)
+            sols_x.append(sol[0].y[0])
+            sols_s.append(sol[0].t)
+        for hamiltonian in self.hamiltonians_body:
+            sol = hamiltonian.track(particle, ivp_opt=ivp_opt, return_sol=True)
+            sols_x.append(sol[0].y[0])
+            sols_s.append(sol[0].t)
+        for hamiltonian in self.hamiltonians_out:
+            sol = hamiltonian.track(particle, ivp_opt=ivp_opt, return_sol=True)
+            sols_x.append(sol[0].y[0])
+            sols_s.append(sol[0].t)
+
+
+        if plot:
+            fig, ax = plt.subplots()
+            ax.plot(sols_s, sols_x, marker='.', linestyle = '', color='black')
+            
+       
+       
+       
         
 
 class FringeFromFint:

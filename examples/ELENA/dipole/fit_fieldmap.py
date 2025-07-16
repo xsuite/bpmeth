@@ -102,7 +102,9 @@ plt.legend()
 # Design field: 0.42 T, there is a mu0 factor missing in the fieldmap, so divide by 4 pi 1e-7
 # but immediately corrects the length as well!
 # We want the integrated field to be k0l, so design field = k0 = 1/rho?
-dipole = bpmeth.DipoleFromFieldmap(data, 1/rho, l_magn, design_field=1/rho*1.001803, shape="enge", hgap=apt/2, apt=apt, radius=0.05, order=1, nphi=2, plot=True)
+
+guess = [ 4.27855927e-01, 7.63365939e+02, -1.44485719e+02, 2.59387643e+01, 5.81379154e-01]
+dipole = bpmeth.DipoleFromFieldmap(data, 1/rho, l_magn, design_field=1/rho*1.001803, shape="enge", hgap=apt/2, apt=apt, radius=0.05, order=1, nphi=2, plot=True, guess=guess)
 
 import xtrack as xt
 p = xt.Particles(x=np.linspace(-2e-3, 2e-3, 11), y=np.linspace(-2e-3, 2e-3, 11), p0c=0.1, mass0=0.938272, q0=1)
