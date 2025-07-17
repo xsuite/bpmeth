@@ -13,7 +13,6 @@ def Enge(x, *params):
 def spEnge(s, *params):
     return params[0] / (1+sp.exp(sp.Poly(params[1:], s).as_expr()))
 
-    
 
     
 def get_derivative(deriv_order, nparams, func, lambdify=True):
@@ -36,6 +35,15 @@ def get_derivative(deriv_order, nparams, func, lambdify=True):
 
 def spTanh(s, *params):
     return 1/2*params[0]*(sp.tanh(s/params[1])+1)
+
+    
+def moving_average(arr, N):
+    pad_width = (N-1)//2
+    arr_padded = np.pad(arr, pad_width, mode='edge')  # or mode='reflect'
+    weights = np.ones(N) / N
+    arr_ma = np.convolve(arr_padded, weights, mode='valid')
+    return arr_ma
+
 
 
 
@@ -251,7 +259,7 @@ class Fieldmap:
             
         return coeffs, coeffsstd
 
-    def z_multipoles(self, order, xmax=None, ax=None):
+    def z_multipoles(self, order, xmax=None, ax=None, mov_av=1):
         """
         So far only normal multipoles
         """
@@ -261,9 +269,13 @@ class Fieldmap:
         coeffsstd = np.zeros((len(zvals), order+1))
         for i, zpos in enumerate(zvals):
             coeffs[i], coeffsstd[i] = self.fit_xprofile(0, zpos, "By", order, xmax=xmax)
+        
+        for i in range(order + 1):
+            coeffs[:, i] = moving_average(coeffs[:, i], N=mov_av)
+            coeffsstd[:, i] = moving_average(coeffsstd[:, i], N=mov_av)
 
         if ax is not None:
-            for i in range(order):
+            for i in range(order + 1):
                 print(coeffs[:, i].shape)
                 ax.errorbar(zvals, coeffs[:,i], yerr=coeffsstd[:,i], label=f"b{i}", ls='', capsize=1, marker='.')
         return zvals, coeffs, coeffsstd
@@ -383,7 +395,7 @@ class Fieldmap:
         return params_list, cov_list 
     
     
-    def fit_spline_multipoles(self, components=[1,2], step=50, ax=None):
+    def fit_spline_multipoles(self, components=[1,2], step=50, ax=None, smin=-9999, smax=9999):
         """
         Fit splines to the multipoles in the fieldmap, taking into account the design of the magnet.
 
@@ -391,12 +403,16 @@ class Fieldmap:
         :param ax: If given, plot the fit in these axis.
         """        
         
-        order = max(components) - 1        
-        zvals, coeffs, coeffsstd = self.z_multipoles(order)
-        
+        order = max(components) - 1
+        zvals, coeffs, coeffsstd = self.z_multipoles(order, mov_av = 3)
+
+        mask = (zvals>smin) & (zvals<smax)
+        zvals = zvals[mask]
+        coeffs = coeffs[mask]
+        coeffsstd = coeffsstd[mask]
+
         all_pols = []
         ii=np.arange(0,len(zvals)-step,step)
-        print(ii)
         segments = []
 
         for component in components:
@@ -405,11 +421,10 @@ class Fieldmap:
             b = coeffs[:, index]
             dz = np.diff(zvals, prepend=zvals[0])
             bp = np.nan_to_num(np.diff(b,prepend=b[0])/dz, copy=True)
-            bpp = np.nan_to_num(np.diff(bp,prepend=bp[0])/dz, copy=True)            
+            # bpp = np.nan_to_num(np.diff(bp,prepend=bp[0])/dz, copy=True)            
 
             for ia,ib in zip(ii,ii+step):
-                print(ia, ib)
-                pol=fit_segment(ia,ib,zvals,b,bp,bpp)
+                pol=fit_segment(ia,ib,zvals,b,bp)
                 if ax is not None:
                     plot_fit(ia,ib,zvals,b,pol, ax=ax, data=True)
                 pols.append(pol)

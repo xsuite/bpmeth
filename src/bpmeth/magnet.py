@@ -183,6 +183,35 @@ class DipoleFromFieldmap:
             self.A_bent_out = self.bent_out.get_A(lambdify=True)
 
 
+    def get_Bfield(self, x, y, s):
+        x = np.asarray(x)
+        y = np.asarray(y)
+        s = np.asarray(s)
+    
+        Bx_out = np.empty_like(s)
+        By_out = np.empty_like(s)
+        Bs_out = np.empty_like(s)
+    
+        # Regions
+        mask1 = s < -self.sedge
+        mask2 = (s >= -self.sedge) & (s < 0)
+        mask3 = (s >= 0) & (s < self.sedge)
+        mask4 = s >= self.sedge
+    
+        for mask, region in zip(
+            [mask1, mask2, mask3, mask4],
+            [self.straight_in, self.bent_in, self.bent_out, self.straight_out]
+        ):
+            if not np.any(mask):
+                continue
+            Bx_func, By_func, Bs_func = region.get_Bfield()
+            Bx_out[mask] = Bx_func(x[mask], y[mask], s[mask])
+            By_out[mask] = By_func(x[mask], y[mask], s[mask])
+            Bs_out[mask] = Bs_func(x[mask], y[mask], s[mask])
+    
+        return Bx_out, By_out, Bs_out
+
+
     def create_Hamiltonian(self, plot=False, symmetric=True):
         self.create_fieldexpansion(plot=plot, symmetric=symmetric)
         
@@ -231,25 +260,24 @@ class DipoleFromFieldmap:
                 ax[1].set_xlabel("s")
                 ax[0].set_ylabel("x")
                 ax[1].set_ylabel("y")
-                plt.show()
 
-                canvas = CanvasZX()
-                fr = Frame()
-                fr2 = fr.copy().arc_by(self.sedge, -self.angle/2)
-                fr3 = fr2.copy().move_by([(self.smin+self.sedge)*np.sin(self.angle/2), 0, (self.smin + self.sedge)*np.cos(self.angle/2)]).plot_zx(canvas=canvas)
-                fb = BendFrame(fr2, self.l_magn, self.angle).plot_zx(canvas=canvas)
-                fr4 = fb.end
-                fr5 = fr4.copy().move_by([-(self.smax-self.sedge)*np.sin(self.angle/2), 0, (self.smax - self.sedge)*np.cos(self.angle/2)]).plot_zx(canvas=canvas)
-                for i in range(len(particle.x)):
-                    fr3.plot_trajectory_zx(sol_sin[i].t-self.smin, sol_sin[i].y[0], sol_sin[i].y[1], canvas=canvas)
-                    fb.plot_trajectory_zx(sol_bin[i].t+self.sedge, sol_bin[i].y[0], sol_bin[i].y[1], canvas=canvas)
-                    fb.plot_trajectory_zx(sol_bout[i].t+self.sedge, sol_bout[i].y[0], sol_bout[i].y[1], canvas=canvas)
-                    fr4.plot_trajectory_zx(sol_sout[i].t-self.sedge, sol_sout[i].y[0], sol_sout[i].y[1], canvas=canvas)
+                # canvas = CanvasZX()
+                # fr = Frame()
+                # fr2 = fr.copy().arc_by(self.sedge, -self.angle/2)
+                # fr3 = fr2.copy().move_by([(self.smin+self.sedge)*np.sin(self.angle/2), 0, (self.smin + self.sedge)*np.cos(self.angle/2)]).plot_zx(canvas=canvas)
+                # fb = BendFrame(fr2, self.l_magn, self.angle).plot_zx(canvas=canvas)
+                # fr4 = fb.end
+                # fr5 = fr4.copy().move_by([-(self.smax-self.sedge)*np.sin(self.angle/2), 0, (self.smax - self.sedge)*np.cos(self.angle/2)]).plot_zx(canvas=canvas)
+                # for i in range(len(particle.x)):
+                #     fr3.plot_trajectory_zx(sol_sin[i].t-self.smin, sol_sin[i].y[0], sol_sin[i].y[1], canvas=canvas)
+                #     fb.plot_trajectory_zx(sol_bin[i].t+self.sedge, sol_bin[i].y[0], sol_bin[i].y[1], canvas=canvas)
+                #     fb.plot_trajectory_zx(sol_bout[i].t+self.sedge, sol_bout[i].y[0], sol_bout[i].y[1], canvas=canvas)
+                #     fr4.plot_trajectory_zx(sol_sout[i].t-self.sedge, sol_sout[i].y[0], sol_sout[i].y[1], canvas=canvas)
 
                   
 class MagnetFromFieldmap:
     isthick=True
-    def __init__(self, data, h, l_magn, design_field, order=3, hgap=0.05, apt=0.05, radius=0.05, nphi=4, plot=False, step=50):
+    def __init__(self, data, h, l_magn, design_field, order=3, hgap=0.05, apt=0.05, radius=0.05, nphi=4, plot=False, step=50, in_FS_coord=False):
         """
         :param data: Fieldmap points as columns x, y, z, Bx, By, Bz. Data in Tesla
         :param h: Curvature of the frame.
@@ -266,6 +294,7 @@ class MagnetFromFieldmap:
         :param nphi: Number of phi terms in the expansion, at least phi0 and phi1.
         :param plot: If True, plot the fieldmap and the fitted multipoles when creating the element.
         :param step: Number of points in one step of spline.
+        :param in_FS_coord: If True, the fieldmap is already in Frenet-Serrat coordinates.
         """
 
         self.data = data
@@ -300,11 +329,13 @@ class MagnetFromFieldmap:
             yFS = [0]
             ns = math.ceil(((self.smax - self.smin) / 0.001) /step) * step + 1  # Make sure we have a multiple of steps plus one
             sFS = np.linspace(self.smin, self.smax, ns) 
+            sFS = np.concatenate([[self.smin-0.01], sFS, [self.smax+0.01]])  # Add a bit of space to the edges to avoid problems with the fieldmap
 
-            self.fieldmap = self.fieldmap.calc_FS_coords(xFS, yFS, sFS, self.rho, self.phi, radius=radius)
+            if not in_FS_coord:
+                self.fieldmap = self.fieldmap.calc_FS_coords(xFS, yFS, sFS, self.rho, self.phi, radius=radius)
             
-            scalefactor = self.design_field / (self.fieldmap.integratedfield(3)[0] / self.l_magn)
-            self.fieldmap.rescale(scalefactor)
+                scalefactor = self.design_field / (self.fieldmap.integratedfield(3)[0] / self.l_magn)
+                self.fieldmap.rescale(scalefactor)
             
         self.create_Hamiltonian(plot=plot)
         
@@ -317,7 +348,7 @@ class MagnetFromFieldmap:
         else:
             ax=None
 
-        segments, all_pols = self.fieldmap.fit_spline_multipoles(components=np.arange(1,self.order+1,1), ax=ax, step=self.step)
+        segments, all_pols = self.fieldmap.fit_spline_multipoles(components=np.arange(1,self.order+1,1), ax=ax, step=self.step, smin=self.smin, smax=self.smax)
         bfuncs = [[poly_print(all_pols[i][j], x="s") for j in range(len(all_pols[i]))] for i in range(len(all_pols))]
 
         self.segments = segments
@@ -341,20 +372,20 @@ class MagnetFromFieldmap:
             bb = [bbs[i] for bbs in self.bfuncs]
             
             # split in straight and bent parts
-            if self.segments[i][0] < -self.sedge:  # Incoming drift
+            if self.segments[i][0] < -self.sedge and self.segments[i][1] > self.smin:  # Incoming drift
                 expansion = FieldExpansion(b=bb, hs="0", nphi=self.nphi)
                 expansions_in.append(expansion)
-                segments_in.append([self.segments[i][0], min(self.segments[i][1], -self.sedge)])
+                segments_in.append([max(self.segments[i][0], self.smin), min(self.segments[i][1], -self.sedge)])
 
             if self.segments[i][1] > -self.sedge and self.segments[i][0] < self.sedge:  # Body part
                 expansion = FieldExpansion(b=bb, hs=f"{self.h}", nphi=self.nphi)
                 expansions_body.append(expansion)
                 segments_body.append([max(self.segments[i][0], -self.sedge), min(self.segments[i][1], self.sedge)])
 
-            if self.segments[i][1] > self.sedge:  # Outgoing drift
+            if self.segments[i][1] > self.sedge and self.segments[i][0] < self.smax:  # Outgoing drift
                 expansion = FieldExpansion(b=bb, hs="0", nphi=self.nphi)
                 expansions_out.append(expansion)
-                segments_out.append([max(self.segments[i][0], self.sedge), self.segments[i][1]])
+                segments_out.append([max(self.segments[i][0], self.sedge), min(self.segments[i][1], self.smax)])
                 
         self.expansions_in = expansions_in
         self.segments_in = segments_in
@@ -385,28 +416,37 @@ class MagnetFromFieldmap:
         self.hamiltonians_out = hamiltonians_out
 
 
-    def track(self, particle, ivp_opt={}, plot=False):
+    def track(self, particles, ivp_opt={}, plot=False):
         ivp_opt = {"rtol": 1e-12, "atol": 1e-12}
         
-        sols_x = []
-        sols_s = []
+        sols = []
         for hamiltonian in self.hamiltonians_in:
-            sol = hamiltonian.track(particle, ivp_opt=ivp_opt, return_sol=True)
-            sols_x.append(sol[0].y[0])
-            sols_s.append(sol[0].t)
+            sol = hamiltonian.track(particles, ivp_opt=ivp_opt, return_sol=True)
+            sols.append(sol)
         for hamiltonian in self.hamiltonians_body:
-            sol = hamiltonian.track(particle, ivp_opt=ivp_opt, return_sol=True)
-            sols_x.append(sol[0].y[0])
-            sols_s.append(sol[0].t)
+            sol = hamiltonian.track(particles, ivp_opt=ivp_opt, return_sol=True)
+            sols.append(sol)
         for hamiltonian in self.hamiltonians_out:
-            sol = hamiltonian.track(particle, ivp_opt=ivp_opt, return_sol=True)
-            sols_x.append(sol[0].y[0])
-            sols_s.append(sol[0].t)
+            sol = hamiltonian.track(particles, ivp_opt=ivp_opt, return_sol=True)
+            sols.append(sol)
 
 
         if plot:
-            fig, ax = plt.subplots()
-            ax.plot(sols_s, sols_x, marker='.', linestyle = '', color='black')
+            fig, ax = plt.subplots(2, sharex=True)
+            for i in range(len(particles.x)):
+                tlist = np.concatenate([sol[i].t for sol in sols])
+                xlist = np.concatenate([sol[i].y[0] for sol in sols])
+                ylist = np.concatenate([sol[i].y[1] for sol in sols])
+                ax[0].scatter(tlist, xlist, marker='.')
+                ax[1].scatter(tlist, ylist, marker='.')
+
+            ax[0].set_xlabel("s")
+            ax[1].set_xlabel("s")
+            ax[0].set_ylabel("x")
+            ax[1].set_ylabel("y")
+
+
+
             
        
        
