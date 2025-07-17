@@ -74,6 +74,8 @@ class DipoleFromFieldmap:
             sFS = np.arange(self.smin, self.smax, 0.001)  # Better a region that is a bit too large to have freedom :)
 
             self.fieldmap = self.fieldmap.calc_FS_coords(xFS, yFS, sFS, self.rho, self.phi, radius=radius)
+            scalefactor = self.design_field / (self.fieldmap.integratedfield(3)[0] / self.l_magn)
+            self.fieldmap.rescale(scalefactor)
             
         #self.fit_multipoles(plot=plot, symmetric=self.symmetric)
         self.create_Hamiltonian(plot=plot, symmetric=self.symmetric)
