@@ -439,7 +439,7 @@ class Fieldmap:
         order = max(components) - 1
         zvals, coeffs, coeffsstd = self.z_multipoles(order, mov_av = 5)
 
-        mask = (zvals>smin) & (zvals<smax)
+        mask = (zvals>=smin) & (zvals<=smax)
         zvals = zvals[mask]
         coeffs = coeffs[mask]
         coeffsstd = coeffsstd[mask]

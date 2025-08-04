@@ -330,7 +330,7 @@ class MagnetFromFieldmap:
 
             xFS = np.linspace(self.xmin, self.xmax, 31)
             yFS = [0]
-            ns = math.ceil(((self.smax - self.smin) / 0.001) / step) * step + 2  # I didn't figure out why but like this the length is correct...
+            ns = math.ceil(((self.smax - self.smin) / 0.001) / step) * step + 1
             sFS = np.linspace(self.smin, self.smax, ns) 
 
             if not in_FS_coord:
