@@ -38,11 +38,22 @@ def spTanh(s, *params):
 
     
 def moving_average(arr, N):
-    pad_width = (N-1)//2
-    arr_padded = np.pad(arr, pad_width, mode='edge')  # or mode='reflect'
-    weights = np.ones(N) / N
-    arr_ma = np.convolve(arr_padded, weights, mode='valid')
-    return arr_ma
+    # Step 1: Compute trimmed moving average (shorter result)
+    result = []
+    for i in range(len(arr) - N + 1):
+        window = arr[i:i+N]
+        if N >= 3:
+            trimmed = np.sort(window)[1:-1]  # remove min and max
+            result.append(np.mean(trimmed))
+        else:
+            result.append(np.mean(window))
+    result = np.array(result)
+
+    # Step 2: Pad the result to match the original length
+    pad_width = (N - 1) // 2
+    result_padded = np.pad(result, pad_width, mode='edge')  # replicate edges
+
+    return result_padded
 
 
 
@@ -197,6 +208,28 @@ class Fieldmap:
         data = np.array([x.flatten(), y.flatten(), z.flatten(), Bx, By, Bz]).T
 
         return Fieldmap(data)
+
+
+    def symmetrize(self, radius=0.01):
+        sarr = np.unique(self.src['z'])
+        xarr = np.unique(self.src['x'])
+        yarr = np.unique(self.src['y'])
+
+        s, x, y = np.meshgrid(sarr, xarr, yarr)
+        xys1 = np.array([x.flatten(), y.flatten(), s.flatten()]).T
+        dst1 = pv.PolyData(xys1).interpolate(self.src, radius=radius)
+
+        xys2 = np.array([x.flatten(), y.flatten(), -s.flatten()]).T
+        dst2 = pv.PolyData(xys2).interpolate(self.src, radius=radius)
+
+        Bx = (dst1["Bx"] + dst2["Bx"])/2
+        By = (dst1["By"] + dst2["By"])/2
+        Bs = (dst1["Bz"] - dst2["Bz"])/2
+
+        data = np.array([x.flatten(), y.flatten(), s.flatten(), Bx, By, Bs]).T
+
+        return Fieldmap(data)
+            
 
     
     def rescale(self, scalefactor):
@@ -404,7 +437,7 @@ class Fieldmap:
         """        
         
         order = max(components) - 1
-        zvals, coeffs, coeffsstd = self.z_multipoles(order, mov_av = 3)
+        zvals, coeffs, coeffsstd = self.z_multipoles(order, mov_av = 5)
 
         mask = (zvals>smin) & (zvals<smax)
         zvals = zvals[mask]

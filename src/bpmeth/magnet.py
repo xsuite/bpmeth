@@ -279,7 +279,7 @@ class DipoleFromFieldmap:
                   
 class MagnetFromFieldmap:
     isthick=True
-    def __init__(self, data, h, l_magn, design_field, order=3, hgap=0.05, apt=0.05, radius=0.05, nphi=4, plot=False, step=50, in_FS_coord=False):
+    def __init__(self, data, h, l_magn, design_field, order=3, hgap=0.05, apt=0.05, radius=0.05, nphi=4, plot=False, step=50, in_FS_coord=False, symmetric=False):
         """
         :param data: Fieldmap points as columns x, y, z, Bx, By, Bz. Data in Tesla
         :param h: Curvature of the frame.
@@ -297,6 +297,7 @@ class MagnetFromFieldmap:
         :param plot: If True, plot the fieldmap and the fitted multipoles when creating the element.
         :param step: Number of points in one step of spline.
         :param in_FS_coord: If True, the fieldmap is already in Frenet-Serrat coordinates.
+        :param symmetric: If True, the fieldmap is symmetrized.
         """
 
         self.data = data
@@ -329,15 +330,17 @@ class MagnetFromFieldmap:
 
             xFS = np.linspace(self.xmin, self.xmax, 31)
             yFS = [0]
-            ns = math.ceil(((self.smax - self.smin) / 0.001) /step) * step + 1  # Make sure we have a multiple of steps plus one
+            ns = math.ceil(((self.smax - self.smin) / 0.001) / step) * step + 2  # I didn't figure out why but like this the length is correct...
             sFS = np.linspace(self.smin, self.smax, ns) 
-            sFS = np.concatenate([[self.smin-0.01], sFS, [self.smax+0.01]])  # Add a bit of space to the edges to avoid problems with the fieldmap
 
             if not in_FS_coord:
                 self.fieldmap = self.fieldmap.calc_FS_coords(xFS, yFS, sFS, self.rho, self.phi, radius=radius)
             
                 scalefactor = self.design_field / (self.fieldmap.integratedfield(3)[0] / self.l_magn)
                 self.fieldmap.rescale(scalefactor)
+
+        if symmetric:
+            self.fieldmap = self.fieldmap.symmetrize(radius=radius)
             
         self.create_Hamiltonian(plot=plot)
         
