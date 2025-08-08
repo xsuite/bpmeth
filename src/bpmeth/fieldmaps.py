@@ -209,6 +209,40 @@ class Fieldmap:
 
         return Fieldmap(data)
 
+    def rotate(self, theta):
+        """
+        Rotate the frame around the y-axis by theta radians counterclockwise
+        """
+        
+        x = self.src['x']
+        z = self.src['z']
+        
+        Bx = self.src['Bx']
+        Bz = self.src['Bz']
+        
+        x_rotated = x * np.cos(theta) + z * np.sin(theta)
+        z_rotated = -x * np.sin(theta) + z * np.cos(theta)
+        
+        Bx_rotated = Bx * np.cos(theta) + Bz * np.sin(theta)
+        Bz_rotated = -Bx * np.sin(theta) + Bz * np.cos(theta)
+        
+        self.src['x'] = x_rotated
+        self.src['z'] = z_rotated
+        self.src['Bx'] = Bx_rotated
+        self.src['Bz'] = Bz_rotated
+
+        return self
+        
+    def translate(self, dx, dy, dz): 
+        """
+        Translate the frame by dx, dy, dz in the x, y, z directions respectively
+        """
+        
+        self.src['x'] += dx
+        self.src['y'] += dy
+        self.src['z'] += dz
+        
+        return self
 
     def symmetrize(self, radius=0.01):
         sarr = np.unique(self.src['z'])
@@ -305,8 +339,8 @@ class Fieldmap:
         
         for i in range(order + 1):
             coeffs[:, i] = moving_average(coeffs[:, i], N=mov_av)
-            coeffsstd[:, i] = moving_average(coeffsstd[:, i], N=mov_av)
-
+            coeffsstd[:, i] = moving_average(coeffsstd[:, i], N=mov_av)            
+        
         if ax is not None:
             for i in range(order + 1):
                 print(coeffs[:, i].shape)
@@ -366,7 +400,7 @@ class Fieldmap:
         return K0
                
                
-    def fit_multipoles(self, shape, components=[1,2], design=1, nparams=5, xmax=None, zmin=-9999, zmax=9999, zedge=0, guess=None, ax=None):
+    def fit_multipoles(self, shape, components=[1,2], design=1, nparams=5, xmax=None, zmin=-9999, zmax=9999, zedge=0, guess=None, ax=None, padding=False, entrance=False, design_field=None):
         """
         Fit appropriate functions to the multipoles in the fieldmap, taking into account the design of the magnet.
 
@@ -397,6 +431,8 @@ class Fieldmap:
         params_list = np.zeros((len(components), nparams))
         cov_list = np.zeros((len(components), nparams, nparams))
         
+        if design_field is None:
+            design_field = b[np.argmax(np.abs(b))]
 
         for i, component in enumerate(components):
             print(f"fitting b{component}...")
@@ -405,10 +441,21 @@ class Fieldmap:
 
             b = b[mask]
             berr = berr[mask]
+            
+            if padding:
+                if entrance:
+                    b = np.pad(b, (0, 50), mode='linear_ramp', end_values=design_field)
+                    b = np.pad(b, (50, 0), mode='constant', constant_values=0)
+                else:
+                    b = np.pad(b, (50, 0), mode='linear_ramp', end_values=design_field)
+                    b = np.pad(b, (0, 50), mode='constant', constant_values=0)
+                berr = np.pad(berr, (50, 50), mode='constant', constant_values=np.mean(berr)/2)
+                zvals = np.pad(zvals, (50, 0), mode='linear_ramp', end_values=np.min(zvals)-0.75)
+                zvals = np.pad(zvals, (0, 50), mode='linear_ramp', end_values=np.max(zvals)+0.75)
 
             if guess is None:
                 guess = np.zeros(nparams)
-                guess[0] = b[np.argmax(np.abs(b))]
+                guess[0] = design_field
 
             shape_derivative = get_derivative(component-design, nparams, shape)
             params, cov = sc.optimize.curve_fit(shape_derivative, zvals-zedge, b, sigma=berr, p0=guess, maxfev=10000)
