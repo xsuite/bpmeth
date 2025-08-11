@@ -70,8 +70,8 @@ class Fieldmap:
         self.src['y'] = self.data.T[1].T
         self.src['z'] = self.data.T[2].T
 
-    def plot(self):
-        self.src.plot(scalars="By")
+    def plot(self, field="By"):
+        self.src.plot(scalars=field)
         
     def interpolate_points(self, X, Y, Z, radius=0.01):
         """
@@ -93,6 +93,7 @@ class Fieldmap:
         """
         Determine a dataframe consisting of a straight piece up to -l_magn/2, then a bent piece up to l_magn/2, 
         then again a straight piece.
+        (0,0,0) is center of curvature???
 
         :param XFS: Array of X positions in Frenet-Serrat coordinates.
         :param YFS: Array of Y positions in Frenet-Serrat coordinates.
@@ -124,6 +125,8 @@ class Fieldmap:
         Bx_ns = dst["Bx"]*np.cos(phi/2) + dst["Bz"]*np.sin(phi/2)
         By_ns = dst["By"]
         Bs_ns = -dst["Bx"]*np.sin(phi/2) + dst["Bz"]*np.cos(phi/2)
+        plt.scatter(self.src['z'], self.src['x'])
+        plt.scatter(Z_ns, X_ns)
 
         # Bent part 
         xarr = XFS
@@ -144,6 +147,8 @@ class Fieldmap:
         Bx_b = dst["Bx"]*np.cos(s.flatten()/rho) - dst["Bz"]*np.sin(s.flatten()/rho)
         By_b = dst["By"]
         Bs_b = dst["Bx"]*np.sin(s.flatten()/rho) + dst["Bz"]*np.cos(s.flatten()/rho)
+        plt.scatter(Z_b, X_b)
+        plt.show()
 
         # Straight part positive s
         xarr = XFS
@@ -215,9 +220,11 @@ class Fieldmap:
         """
         
         x = self.src['x']
+        y = self.src['y']
         z = self.src['z']
         
         Bx = self.src['Bx']
+        By = self.src['By']
         Bz = self.src['Bz']
         
         x_rotated = x * np.cos(theta) + z * np.sin(theta)
@@ -226,23 +233,34 @@ class Fieldmap:
         Bx_rotated = Bx * np.cos(theta) + Bz * np.sin(theta)
         Bz_rotated = -Bx * np.sin(theta) + Bz * np.cos(theta)
         
-        self.src['x'] = x_rotated
-        self.src['z'] = z_rotated
-        self.src['Bx'] = Bx_rotated
-        self.src['Bz'] = Bz_rotated
+        # Create new dataframe to update geometry and not only the coordinates of the points, 
+        # needed for interpolation later on, easier than updating it in place.        
+        data = np.array([x_rotated, y, z_rotated, Bx_rotated, By, Bz_rotated]).T
 
-        return self
+        return Fieldmap(data)
         
     def translate(self, dx, dy, dz): 
         """
         Translate the frame by dx, dy, dz in the x, y, z directions respectively
         """
         
-        self.src['x'] += dx
-        self.src['y'] += dy
-        self.src['z'] += dz
-        
-        return self
+        x = self.src['x']
+        y = self.src['y']
+        z = self.src['z']
+
+        Bx = self.src['Bx']
+        By = self.src['By']
+        Bz = self.src['Bz']
+
+        x_translated = x + dx 
+        y_translated = y + dy 
+        z_translated = z + dz 
+
+        # Create new dataframe to update geometry and not only the coordinates of the points, 
+        # needed for interpolation later on, easier than updating it in place.        
+        data = np.array([x_translated, y_translated, z_translated, Bx, By, Bz]).T
+    
+        return Fieldmap(data)
 
     def symmetrize(self, radius=0.01):
         sarr = np.unique(self.src['z'])
