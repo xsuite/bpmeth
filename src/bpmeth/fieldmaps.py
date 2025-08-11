@@ -125,8 +125,6 @@ class Fieldmap:
         Bx_ns = dst["Bx"]*np.cos(phi/2) + dst["Bz"]*np.sin(phi/2)
         By_ns = dst["By"]
         Bs_ns = -dst["Bx"]*np.sin(phi/2) + dst["Bz"]*np.cos(phi/2)
-        plt.scatter(self.src['z'], self.src['x'])
-        plt.scatter(Z_ns, X_ns)
 
         # Bent part 
         xarr = XFS
@@ -147,8 +145,6 @@ class Fieldmap:
         Bx_b = dst["Bx"]*np.cos(s.flatten()/rho) - dst["Bz"]*np.sin(s.flatten()/rho)
         By_b = dst["By"]
         Bs_b = dst["Bx"]*np.sin(s.flatten()/rho) + dst["Bz"]*np.cos(s.flatten()/rho)
-        plt.scatter(Z_b, X_b)
-        plt.show()
 
         # Straight part positive s
         xarr = XFS
