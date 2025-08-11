@@ -41,7 +41,7 @@ b1model = bpmeth.spEnge(-s, *engeparams[0])
 dipole_model = bpmeth.GeneralVectorPotential(b=(b1model,))
 
 Bx, By, Bs = dipole_model.get_Bfield()
-xx, yy, zz = np.meshgrid(np.linspace(-0.5, 0.5, 200), [0], np.linspace(-0.5, 0.5, 200))
+xx, yy, zz = np.meshgrid(np.linspace(-0.2, 0.2, 500), [0], np.linspace(-0.5, 0.5, 200))
 xx = xx.flatten()
 yy = yy.flatten()
 zz = zz.flatten()
@@ -54,7 +54,7 @@ data = np.column_stack((xx, yy, zz, Bxvals, Byvals, Bsvals))
 
 test_fieldmap = bpmeth.Fieldmap(data)
 test_fieldmap = test_fieldmap.rotate(phi/2-theta_E)
-test_fieldmap = test_fieldmap.translate(dx=-rho*(1-np.cos(-phi/2)), dy=0, dz=rho*np.sin(-phi/2))  # Global frame of edge fieldmap
+test_fieldmap = test_fieldmap.translate(dx=rho*np.cos(-phi/2), dy=0, dz=rho*np.sin(-phi/2))  # Global frame of edge fieldmap
 
 # fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
 # ax.scatter(test_fieldmap.src["z"], test_fieldmap.src["x"], test_fieldmap.src["By"])
@@ -62,12 +62,12 @@ test_fieldmap = test_fieldmap.translate(dx=-rho*(1-np.cos(-phi/2)), dy=0, dz=rho
 # ax.set_ylabel("x")
 # ax.set_zlabel("By")
 
-xFS = np.linspace(-0.05, 0.05, 501)
+xFS = np.linspace(-0.05, 0.05, 201)
 yFS = [0]
-sFS = np.arange(-l_magn, 0, 0.01)
+sFS = np.arange(-l_magn, 0, 0.001)
 
-FS_fieldmap = test_fieldmap.calc_FS_coords(xFS, yFS, sFS, rho, phi, radius=0.5)
+FS_fieldmap = test_fieldmap.calc_FS_coords(xFS, yFS, sFS, rho, phi, radius=0.01)
 fig, ax = plt.subplots()
-FS_fieldmap.z_multipoles(2, xmax=0.02, ax=ax)
+FS_fieldmap.z_multipoles(2, ax=ax)
 
 
