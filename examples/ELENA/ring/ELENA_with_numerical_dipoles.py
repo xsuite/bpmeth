@@ -4,6 +4,7 @@ import bpmeth
 import matplotlib.pyplot as plt
 from cpymad.madx import Madx
 import sympy as sp
+import pandas as pd
 
 ##########################
 # ELENA lattice in MAD-X #
@@ -67,6 +68,7 @@ dipole_splines_without_sext = bpmeth.MagnetFromFieldmap(data, 1/rho, l_magn, des
 # Plot trajectory of particle on the closed orbit
 p = xt.Particles()
 dipole_splines.track(p, plot=True)
+plt.savefig("ELENA_orbit.png", dpi=500)
 
 ######################################### 
 # Edge model: what to expect for dipole #
@@ -134,6 +136,7 @@ ax.plot(df_merged.s, df_merged.bety_splines, label='bety splines')
 ax.set_xlabel('s (m)')
 ax.set_ylabel('Beta function (m)')
 plt.legend()
+plt.savefig("ELENA_betas_designVSreal.png", dpi=500)
 
 # Beta beating
 fig, ax = plt.subplots()
@@ -141,7 +144,8 @@ ax.plot(df_merged.s, (df_merged.betx_splines - df_merged.betx_design) / df_merge
 ax.plot(df_merged.s, (df_merged.bety_splines - df_merged.bety_design) / df_merged.bety_design, label='Beta beating y')
 ax.set_xlabel('s (m)')
 ax.set_ylabel('Beta beating')
-plt.legend()
+plt.legend() 
+plt.savefig("ELENA_betabeating_designVSreal.png", dpi=500)
 
 # Plotting the dispersion
 fig, ax = plt.subplots()
@@ -150,6 +154,16 @@ ax.plot(df_merged.s, df_merged.dx_design, label='dispersion design')
 ax.set_xlabel('s (m)')
 ax.set_ylabel('Dispersion (m)')
 plt.legend()
+plt.savefig("ELENA_dispersion_designVSreal.png", dpi=500)
+
+# plotting the normalized dispersion
+fig, ax = plt.subplots()
+ax.plot(df_merged.s, df_merged.dx_splines / df_merged.betx_splines, label='Normalized dispersion splines')
+ax.plot(df_merged.s, df_merged.dx_design / df_merged.betx_design, label='Normalized dispersion design')
+ax.set_xlabel('s (m)')
+ax.set_ylabel('Normalized dispersion (m)')
+plt.legend()
+plt.savefig("ELENA_normalizeddispersion_designVSreal.png", dpi=500)
 
 # Dispersion beating
 fig, ax = plt.subplots()
@@ -157,6 +171,17 @@ ax.plot(df_merged.s, (df_merged.dx_splines - df_merged.dx_design) / df_merged.dx
 ax.set_xlabel('s (m)')
 ax.set_ylabel('Dispersion beating')
 plt.legend()
+plt.savefig("ELENA_dispersionbeating_designVSreal.png", dpi=500)
+
+# Dispersion beating in normalized dispersion
+fig, ax = plt.subplots()
+ax.plot(df_merged.s, (df_merged.dx_splines/df_merged.betx_splines - df_merged.dx_design/df_merged.betx_design) / np.max(df_merged.dx_design/df_merged.betx_design), label='Normalized dispersion beating')
+ax.set_xlabel('s (m)')
+ax.set_ylabel('Dispersion beating')
+plt.legend()
+plt.savefig("ELENA_normalizeddispersionbeating_designVSreal.png", dpi=500)
+
+print("Maximal normalized dispersion beating: ", np.max(np.abs((df_merged.dx_splines/df_merged.betx_splines - df_merged.dx_design/df_merged.betx_design) / np.max(df_merged.dx_design/df_merged.betx_design))))
 
 ##########################################################
 # Line with replaced dipoles without sextupole component #
