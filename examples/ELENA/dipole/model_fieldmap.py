@@ -34,12 +34,16 @@ guess = [dipole_h,  5.45050869e+02, -1.34905910e+02, 2.84624272e+01,  5.49796478
 engeparams, engecov = dipole_edge.fit_multipoles(bpmeth.spEnge, components=[1], design=1, nparams=5, ax=ax,
                                                  guess = guess, padding=True, entrance=False, design_field=dipole_h)
 
+# If we would plot the higher order components of the edge fieldmap, we can see that there is a quadrupole 
+# and sextupole component as well. These are from the design, and will not be included in the fringe field maps.
 
+# Model of fieldmap based on real b1 component only
 s = sp.symbols('s')
 b1 = sp.Function('b1')(s)
 b1model = bpmeth.spEnge(-s, *engeparams[0])
 dipole_model = bpmeth.GeneralVectorPotential(b=(b1model,))
 
+# Extract field points in space
 Bx, By, Bs = dipole_model.get_Bfield()
 xx, yy, zz = np.meshgrid(np.linspace(-0.2, 0.2, 500), [0], np.linspace(-0.5, 0.5, 200))
 xx = xx.flatten()
@@ -52,22 +56,18 @@ Bsvals = Bs(xx, yy, zz)
 
 data = np.column_stack((xx, yy, zz, Bxvals, Byvals, Bsvals))
 
-test_fieldmap = bpmeth.Fieldmap(data)
-test_fieldmap = test_fieldmap.rotate(phi/2-theta_E)
-test_fieldmap = test_fieldmap.translate(dx=rho*np.cos(-phi/2), dy=0, dz=rho*np.sin(-phi/2))  # Global frame of edge fieldmap
-
-# fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-# ax.scatter(test_fieldmap.src["z"], test_fieldmap.src["x"], test_fieldmap.src["By"])
-# ax.set_xlabel("z")
-# ax.set_ylabel("x")
-# ax.set_zlabel("By")
+# Create fieldmap object based on this data, and rotate and translate it to the position of the edge
+model_fieldmap = bpmeth.Fieldmap(data)
+model_fieldmap = model_fieldmap.rotate(phi/2-theta_E)
+model_fieldmap = model_fieldmap.translate(dx=rho*np.cos(-phi/2), dy=0, dz=rho*np.sin(-phi/2))  # Global frame of edge fieldmap
 
 xFS = np.linspace(-0.05, 0.05, 201)
 yFS = [0]
 sFS = np.arange(-l_magn, 0, 0.001)
 
-FS_fieldmap = test_fieldmap.calc_FS_coords(xFS, yFS, sFS, rho, phi, radius=0.01)
+# Edge as seen in FS coordinates, so what we would expect from the ELENA fieldmap if there were no design components
+FS_model_fieldmap = model_fieldmap.calc_FS_coords(xFS, yFS, sFS, rho, phi, radius=0.01)
 fig, ax = plt.subplots()
-FS_fieldmap.z_multipoles(2, ax=ax)
+FS_model_fieldmap.z_multipoles(2, ax=ax)
 
 

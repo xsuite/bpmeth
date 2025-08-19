@@ -5,8 +5,10 @@ import matplotlib.pyplot as plt
 from cpymad.madx import Madx
 import sympy as sp
 
+##########################
+# ELENA lattice in MAD-X #
+##########################
 
-# ELENA lattice in MAD-X
 madx = Madx()
 madx.call("ring/acc-models-elena/elena.seq")
 madx.call("ring/acc-models-elena/elena.dbx")
@@ -15,8 +17,10 @@ madx.call("ring/acc-models-elena/scenarios/highenergy/highenergy.str")
 madx.call("ring/acc-models-elena/scenarios/highenergy/highenergy.beam")
 madx.use("elena")
 
+#########################
+# ELENA model in XSuite #
+#########################
 
-# ELENA model in XSuite
 line_mad = xt.Line.from_madx_sequence(madx.sequence.elena)
 start_elem = "lnr.vvgbf.0114"
 line_mad.cycle(name_first_element=start_elem, inplace=True)  # Such that dipole is not spanning over end-beginning of lattice
@@ -25,20 +29,48 @@ line_mad.configure_bend_model(core='adaptive', edge='full')
 tw = line_mad.twiss4d()
 tw.plot()
 
-# Magnet parameters
+############################
+# Magnet design parameters #
+############################
+
 phi = 60/180*np.pi
 rho = 0.927  # https://edms.cern.ch/ui/file/1311860/2.0/LNA-MBHEK-ER-0001-20-00.pdf
 dipole_h = 1/rho
 l_magn = rho*phi
 gap=0.076
 theta_E = 17/180*np.pi
+fint = 0.424
+
+###########################
+# Line with design dipole #
+###########################
+
+line_design = line_mad.copy()
+for dipole_number in ["0135", "0245", "0335", "0470", "0560", "0640"]:
+    line_design[f"lnr.mbhek.{dipole_number}.h1"].edge_entry_angle = theta_E
+    line_design[f"lnr.mbhek.{dipole_number}.h2"].edge_exit_angle = theta_E
+    line_design[f"lnr.mbhek.{dipole_number}.h1"].edge_entry_fint = fint
+    line_design[f"lnr.mbhek.{dipole_number}.h2"].edge_exit_fint = fint
+tw_design = line_design.twiss4d(include_collective=True)
+
+############################################# 
+# bpmeth dipole fieldmap model with splines #
+#############################################
 
 # My dipole with splines, matched such that the closed orbit remains zero
 data = np.loadtxt("dipole/ELENA_fieldmap.csv", skiprows=1, delimiter=",")[:, [0,1,2,7,8,9]]
 
-kf_splines=1.000447
+kf_splines=1.000447  # No closed orbit
 dipole_splines = bpmeth.MagnetFromFieldmap(data, 1/rho, l_magn, design_field=1/rho*kf_splines, order=3, hgap=gap/2, nphi=2, plot=True, symmetric=True, step=50, radius=0.0025)
-dipole_splines_without_sext = bpmeth.MagnetFromFieldmap(data, 1/rho, l_magn, design_field=1/rho*kf_splines, order=2, hgap=gap/2, nphi=2, plot=True, symmetric=True, step=50, radius=0.0025)
+dipole_splines_without_sext = bpmeth.MagnetFromFieldmap(data, 1/rho, l_magn, design_field=1/rho*kf_splines, order=2, hgap=gap/2, nphi=2, plot=False, symmetric=True, step=50, radius=0.0025)
+
+# Plot trajectory of particle on the closed orbit
+p = xt.Particles()
+dipole_splines.track(p, plot=True)
+
+######################################### 
+# Edge model: what to expect for dipole #
+######################################### 
 
 # Edge of magnet fieldmap
 xmin, xmax, n_x = -0.4*gap, 0.4*gap, 51
@@ -71,8 +103,13 @@ fig, ax = plt.subplots()
 dipole_splines.fieldmap.z_multipoles(2, ax=ax)
 dipole_model_FS.plot_components(smin=-0.5, smax=0.5, s_shift=-l_magn/2, ax=ax)
 
+print("Integrated components splines: ", dipole_splines.fieldmap.integratedfield(3, zmin=-0.45-l_magn/2, zmax=0.45-l_magn/2))
+print("Integrated components model: ", dipole_model_FS.integrate_components(smin=-0.45, smax=0.45))
 
-# Line with replaced dipoles with sextupole component
+#######################################################
+# Line with replaced dipoles with sextupole component #
+#######################################################
+
 line_splines = line_mad.copy()
 for dipole_number in ["0135", "0245", "0335", "0470", "0560", "0640"]:
     dipole_s = line_mad.get_s_position(at_elements=f"lnr.mbhek.{dipole_number}.m")
@@ -80,9 +117,51 @@ for dipole_number in ["0135", "0245", "0335", "0470", "0560", "0640"]:
     line_splines.remove(f"lnr.mbhek.{dipole_number}.m")
     line_splines.remove(f"lnr.mbhek.{dipole_number}.h2")
     line_splines.insert(f"spline_{dipole_number}", dipole_splines, at=dipole_s)
-tw_splines = line_splines.twiss4d(include_collective=True)
+tw_splines = line_splines.twiss4d(include_collective=True, compute_chromatic_properties=False)
 
-# Line with replaced dipoles without sextupole component
+# Compare twiss with design twiss (tw_design)
+df_design = tw_design.to_pandas()
+df_splines = tw_splines.to_pandas()
+df_merged = pd.merge_asof(df_design, df_splines, on="s", direction="nearest", tolerance=1e-10, suffixes=("_design", "_splines"))
+df_merged = df_merged.dropna(subset=["betx_design", "betx_splines", "bety_design", "bety_splines"])
+
+# Plotting the beta functions to compare
+fig, ax = plt.subplots()
+ax.plot(df_merged.s, df_merged.betx_design, label='betx design')
+ax.plot(df_merged.s, df_merged.betx_splines, label='betx splines')
+ax.plot(df_merged.s, df_merged.bety_design, label='bety design')
+ax.plot(df_merged.s, df_merged.bety_splines, label='bety splines')
+ax.set_xlabel('s (m)')
+ax.set_ylabel('Beta function (m)')
+plt.legend()
+
+# Beta beating
+fig, ax = plt.subplots()
+ax.plot(df_merged.s, (df_merged.betx_splines - df_merged.betx_design) / df_merged.betx_design, label='Beta beating x')
+ax.plot(df_merged.s, (df_merged.bety_splines - df_merged.bety_design) / df_merged.bety_design, label='Beta beating y')
+ax.set_xlabel('s (m)')
+ax.set_ylabel('Beta beating')
+plt.legend()
+
+# Plotting the dispersion
+fig, ax = plt.subplots()
+ax.plot(df_merged.s, df_merged.dx_splines, label='dispersion splines')
+ax.plot(df_merged.s, df_merged.dx_design, label='dispersion design')
+ax.set_xlabel('s (m)')
+ax.set_ylabel('Dispersion (m)')
+plt.legend()
+
+# Dispersion beating
+fig, ax = plt.subplots()
+ax.plot(df_merged.s, (df_merged.dx_splines - df_merged.dx_design) / df_merged.dx_design, label='Dispersion beating')
+ax.set_xlabel('s (m)')
+ax.set_ylabel('Dispersion beating')
+plt.legend()
+
+##########################################################
+# Line with replaced dipoles without sextupole component #
+##########################################################
+
 line_splines_without_sext = line_mad.copy()
 for dipole_number in ["0135", "0245", "0335", "0470", "0560", "0640"]:
     dipole_s = line_mad.get_s_position(at_elements=f"lnr.mbhek.{dipole_number}.m")
@@ -92,7 +171,10 @@ for dipole_number in ["0135", "0245", "0335", "0470", "0560", "0640"]:
     line_splines_without_sext.insert(f"spline_{dipole_number}", dipole_splines, at=dipole_s)
 tw_splines_without_sext = line_splines_without_sext.twiss4d(include_collective=True)
 
-# XSuite line with same body sextupole as the fieldmap of the magnet
+######################################################################
+# XSuite line with same body sextupole as the fieldmap of the magnet #
+######################################################################
+
 body_smin = -0.35
 body_smax = 0.35
 k2 = dipole_splines.fieldmap.integratedfield(3, zmin=body_smin, zmax=body_smax)[2] / (body_smax - body_smin) # Average sextupole component of the body
@@ -104,8 +186,29 @@ for dipole_number in ["0135", "0245", "0335", "0470", "0560", "0640"]:
     line_mad_with_sext[f"lnr.mbhek.{dipole_number}.h2"].knl[2] = k2l/2
 tw_with_sext = line_mad_with_sext.twiss4d()
 
+####################################################
+# XSuite line with feeddown quadrupole in the body #
+# => 0.5% in y, 0.1% in x, so neglegible?          #
+####################################################
 
-# Print results to compare. Main difference is in chromaticity, not in the linear optics
+feeddown_k1l = 0.000467
+line_with_quads = line_mad.copy()
+for dipole_number in ["0135", "0245", "0335", "0470", "0560", "0640"]:
+    line_with_quads[f"lnr.mbhek.{dipole_number}.h1"].knl[1] = feeddown_k1l/2
+    line_with_quads[f"lnr.mbhek.{dipole_number}.h2"].knl[1] = feeddown_k1l/2
+    
+tw_with_quads = line_with_quads.twiss4d()
+
+fig, ax = plt.subplots()
+ax.plot(tw.s, (tw_with_quads.bety - tw.bety)/tw.bety, label="beta beating x")
+ax.plot(tw.s, (tw_with_quads.betx - tw.betx)/tw.betx, label="beta beating y")
+plt.legend()
+
+################################################################
+# Print results to compare.                                    #
+# Main difference is in chromaticity, not in the linear optics #
+################################################################
+
 print("XSuite qx: ", tw.qx)
 print("Xsuite with sextupole qx:", tw_with_sext.qx)
 print("Fieldmap qx:", tw_splines.qx)
