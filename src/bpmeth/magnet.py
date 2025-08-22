@@ -279,7 +279,8 @@ class DipoleFromFieldmap:
                   
 class MagnetFromFieldmap:
     isthick=True
-    def __init__(self, data, h, l_magn, design_field, order=3, hgap=0.05, apt=0.05, radius=0.05, nphi=4, plot=False, step=50, in_FS_coord=False, symmetric=False):
+    def __init__(self, data, h, l_magn, design_field, order=3, hgap=0.05, apt=0.05, radius=0.05, nphi=4, plot=False, step=50, in_FS_coord=False, symmetric=False,
+                 smin=None, smax=None):
         """
         :param data: Fieldmap points as columns x, y, z, Bx, By, Bz. Data in Tesla
         :param h: Curvature of the frame.
@@ -313,8 +314,14 @@ class MagnetFromFieldmap:
 
         self.xmin = -apt/2
         self.xmax = apt/2
-        self.smin = -(7.5*hgap + l_magn/2)
-        self.smax = 7.5*hgap + l_magn/2 
+        if smin is None:
+            self.smin = -(7.5*hgap + l_magn/2)
+        else:
+            self.smin = smin
+        if smax is None:
+            self.smax = 7.5*hgap + l_magn/2 
+        else:
+            self.smax = smax
         self.sedge = l_magn/2
 
         self.length = self.smax - self.smin
@@ -340,6 +347,8 @@ class MagnetFromFieldmap:
                 # We still need the correct number of points in s to work with the splines, 
                 # otherwise the length would change
                 s = np.unique(self.fieldmap.src['z'])
+                smask = (s >= self.smin) & (s <= self.smax)
+                s = s[smask]
                 x = np.unique(self.fieldmap.src['x'])
                 y = np.unique(self.fieldmap.src['y'])
 

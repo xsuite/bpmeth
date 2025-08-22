@@ -1,7 +1,6 @@
 import numpy as np
 import bpmeth
 import matplotlib.pyplot as plt
-from cpymad.madx import Madx
 import sympy as sp
 
 ############################

@@ -130,6 +130,10 @@ class FieldExpansion:
     # TO BE OPTIMISED FROM HERE             #
     #########################################
 
+    def translate(self, ds):
+        self.a = tuple(sp.sympify(an).subs(self.s, self.s - ds) for an in self.a)
+        self.b = tuple(sp.sympify(bn).subs(self.s, self.s - ds) for bn in self.b)
+        self.bs = sp.sympify(self.bs).subs(self.s, self.s - ds)
     
     def transform(self, theta_E=0, rho=np.inf, maxpow=None):
         """
@@ -213,7 +217,7 @@ class FieldExpansion:
         
         phi0 = phi0.subs([(s,st)])
         phi1 = phi1.subs([(s,st)])
-
+        
         phi0 = phi0.series(x, 0, maxpow).removeO().as_poly(x)
         phi1 = phi1.series(x, 0, maxpow).removeO().as_poly(x)        
         

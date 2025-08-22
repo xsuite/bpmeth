@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from cpymad.madx import Madx
 import sympy as sp
 import pandas as pd
-import json
 from save_read_twiss import save_twiss
 
 ##########################

@@ -73,6 +73,24 @@ class Fieldmap:
         self.src['y'] = self.data.T[1].T
         self.src['z'] = self.data.T[2].T
 
+    def __add__(self, other):
+        # Needs to have fieldmaps defined in the same points
+        if self.src.n_points != other.src.n_points:
+            raise ValueError("Fieldmaps have different number of points.")
+        if not np.allclose(self.src.points, other.src.points):
+            raise ValueError("Fieldmaps have different point coordinates.")
+
+        x = self.src["x"]
+        y = self.src["y"]
+        z = self.src["z"]
+        Bx = self.src["Bx"] + other.src["Bx"]
+        By = self.src["By"] + other.src["By"]
+        Bz = self.src["Bz"] + other.src["Bz"]
+        
+        data = np.array([x, y, z, Bx, By, Bz]).T
+
+        return Fieldmap(data)
+    
     def plot(self, field="By"):
         self.src.plot(scalars=field)
         
