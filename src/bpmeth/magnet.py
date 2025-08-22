@@ -328,19 +328,35 @@ class MagnetFromFieldmap:
             self.rho = 1/h
             self.phi = l_magn*h
 
-            xFS = np.linspace(self.xmin, self.xmax, 31)
-            yFS = [0]
-            ns = math.ceil(((self.smax - self.smin) / 0.001) / step) * step + 1
-            sFS = np.linspace(self.smin, self.smax, ns) 
-
             if not in_FS_coord:
+                xFS = np.linspace(self.xmin, self.xmax, 31)
+                yFS = [0]
+                ns = math.ceil(((self.smax - self.smin) / 0.001) / step) * step + 1
+                sFS = np.linspace(self.smin, self.smax, ns) 
+
                 self.fieldmap = self.fieldmap.calc_FS_coords(xFS, yFS, sFS, self.rho, self.phi, radius=radius)
             
-                scalefactor = self.design_field / (self.fieldmap.integratedfield(3)[0] / self.l_magn)
-                self.fieldmap.rescale(scalefactor)
+            else:
+                # We still need the correct number of points in s to work with the splines, 
+                # otherwise the length would change
+                s = np.unique(self.fieldmap.src['z'])
+                x = np.unique(self.fieldmap.src['x'])
+                y = np.unique(self.fieldmap.src['y'])
+
+                ds = s[1] - s[0]
+                ns = math.ceil(((self.smax - self.smin) / ds) / step) * step + 1
+                ss = np.linspace(self.smin, self.smax, ns)
+                
+                X, Y, S = np.meshgrid(x, y, ss)
+                
+
+                self.fieldmap = self.fieldmap.interpolate_points(X, Y, S, radius=radius)
 
         if symmetric:
             self.fieldmap = self.fieldmap.symmetrize(radius=radius)
+
+        scalefactor = self.design_field / (self.fieldmap.integratedfield(3)[0] / self.l_magn)
+        self.fieldmap.rescale(scalefactor)
             
         self.create_Hamiltonian(plot=plot)
         

@@ -13,6 +13,9 @@ def Enge(x, *params):
 def spEnge(s, *params):
     return params[0] / (1+sp.exp(sp.Poly(params[1:], s).as_expr()))
 
+def spTanh(s, *params):
+    return params[0] * (sp.tanh(s/params[1]) + 1)/2
+
 
     
 def get_derivative(deriv_order, nparams, func, lambdify=True):
@@ -81,13 +84,9 @@ class Fieldmap:
         XYZ = np.array([X.flatten(), Y.flatten(), Z.flatten()]).T
         dst = pv.PolyData(XYZ).interpolate(self.src, radius=radius)
         
-        #dst.plot(scalars=field)
-        
-        dst['x'] = X.flatten()
-        dst['y'] = Y.flatten()
-        dst['z'] = Z.flatten()
-        
-        return dst
+        data = np.array([X.flatten(), Y.flatten(), Z.flatten(), dst['Bx'], dst['By'], dst['Bz']]).T
+
+        return Fieldmap(data)
 
     def calc_FS_coords(self, XFS, YFS, SFS, rho, phi, radius=0.01):
         """
@@ -210,6 +209,11 @@ class Fieldmap:
 
         return Fieldmap(data)
 
+    def get_data(self):
+        data = np.array([self.src['x'], self.src['y'], self.src['z'],
+                         self.src['Bx'], self.src['By'], self.src['Bz']]).T
+        return data
+    
     def rotate(self, theta):
         """
         Rotate the frame around the y-axis by theta radians counterclockwise
@@ -278,7 +282,39 @@ class Fieldmap:
 
         return Fieldmap(data)
             
+    def mirror(self, left=True):
+        """
+        Mirror the frame
+        :param left: If True, take left side and mirror, otherwise right side.
+        """
+        
+        z = self.src['z']
+        if left:
+            mask = z < 0
+        else:
+            mask = z > 0
 
+        x = self.src['x'][mask]
+        y = self.src['y'][mask]
+        z = self.src['z'][mask]
+
+        Bx = self.src['Bx'][mask]
+        By = self.src['By'][mask]
+        Bz = self.src['Bz'][mask]
+
+        xx = np.concatenate((x, x))
+        yy = np.concatenate((y, y))
+        zz = np.concatenate((z, -z))
+        
+        Bxx = np.concatenate((Bx, Bx))
+        Byy = np.concatenate((By, By))
+        Bzz = np.concatenate((Bz, -Bz))
+
+        # Create new dataframe to update geometry and not only the coordinates of the points, 
+        # needed for interpolation later on, easier than updating it in place.        
+        data = np.array([xx, yy, zz, Bxx, Byy, Bzz]).T
+    
+        return Fieldmap(data)
     
     def rescale(self, scalefactor):
         self.src["Bx"] = self.src["Bx"] * scalefactor
@@ -446,9 +482,9 @@ class Fieldmap:
         cov_list = np.zeros((len(components), nparams, nparams))
         
         if design_field is None:
-            design_field = b[np.argmax(np.abs(b))]
+            design_field = b[np.argmax(np.abs(b))]  # Does not work
 
-        for i, component in enumerate(components):
+        for i, component in enumerate(components):        
             print(f"fitting b{component}...")
             b = coeffs[:, component-1]
             berr = coeffsstd[:, component-1]
