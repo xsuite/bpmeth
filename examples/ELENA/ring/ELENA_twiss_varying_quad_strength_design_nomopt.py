@@ -54,10 +54,12 @@ for dipole_number in ["0135", "0245", "0335", "0470", "0560", "0640"]:
 # Vary k1, k2, k3 of quadrupoles #
 ##################################    
 
-k2val, k3val = 0, 0
-# for k1val in np.linspace(-0.25, 0.25, 5):
-for k1val in [-0.01, 0.01]:
+k1nom, k2nom, k3nom = 2.7423, -1.9514, 0.6381
+k2val, k3val = k2nom, k3nom
+# for deltak1 in np.linspace(-0.25, 0.25, 5):
+for deltak1 in [-0.01, 0.01]:
     try:
+        k1val = k1nom + deltak1
         print(k1val, k2val, k3val)
         line_design.vars["lnr_kq1"] = k1val
         line_design.vars["lnr_kq2"] = k2val
@@ -71,10 +73,11 @@ for k1val in [-0.01, 0.01]:
         print(f"Computation failed for k1={k1val}, k2={k2val}, k3={k3val}")
         continue
     
-k1val, k3val = 0, 0
-# for k2val in np.linspace(-0.25, 0.25, 5):
-for k2val in [-0.01, 0.01]:
+k1val, k3val = k1nom, k3nom
+# for deltak2 in np.linspace(-0.25, 0.25, 5):
+for deltak2 in [-0.01, 0.01]:
     try:
+        k2val = k2nom + deltak2
         print(k1val, k2val, k3val)
         line_design.vars["lnr_kq1"] = k1val
         line_design.vars["lnr_kq2"] = k2val
@@ -89,10 +92,11 @@ for k2val in [-0.01, 0.01]:
         continue
     
 
-k1val, k2val = 0, 0
-# for k3val in np.linspace(-0.25, 0.25, 5):
-for k3val in [-0.01, 0.01]:
+k1val, k2val = k1nom, k2nom
+# for deltak3 in np.linspace(-0.25, 0.25, 5):
+for deltak3 in [-0.01, 0.01]:
     try:
+        k3val = k3nom + deltak3
         print(k1val, k2val, k3val)
         line_design.vars["lnr_kq1"] = k1val
         line_design.vars["lnr_kq2"] = k2val

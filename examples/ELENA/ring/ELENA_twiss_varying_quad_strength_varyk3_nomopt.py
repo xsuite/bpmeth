@@ -74,13 +74,14 @@ for dipole_number in ["0135", "0245", "0335", "0470", "0560", "0640"]:
     line_splines.remove(f"lnr.mbhek.{dipole_number}.h2")
     line_splines.insert(f"spline_{dipole_number}", dipole_splines, at=dipole_s)
     
-##################################
-# Vary k1, k2, k3 of quadrupoles #
-##################################    
+########################################################
+# Vary k1, k2, k3 of quadrupoles around nominal optics #
+########################################################
 
-k1val, k3val = 0, 0
-# for k2val in np.linspace(-0.25, 0.25, 5):
-for k2val in [-0.01, 0.01]:
+k1val, k2val = line_mad["lnr_kq1"], line_mad["lnr_kq2"]
+# for deltak3 in np.linspace(-0.25, 0.25, 5):
+for deltak3 in [-0.01, 0.01]:
+    k3val = line_mad["lnr_kq3"] + deltak3
     try:
         print(k1val, k2val, k3val)
         line_splines.vars["lnr_kq1"] = k1val
@@ -94,3 +95,4 @@ for k2val in [-0.01, 0.01]:
     except ValueError:
         print(f"Computation failed for k1={k1val}, k2={k2val}, k3={k3val}")
         continue
+    

@@ -50,7 +50,8 @@ for dipole_number in ["0135", "0245", "0335", "0470", "0560", "0640"]:
 ##################################    
 
 k2val, k3val = 0, 0
-for k1val in np.linspace(-0.25, 0.25, 5):
+# for k1val in np.linspace(-0.25, 0.25, 5):
+for k1val in [-0.01, 0.01]:
     try:
         print(k1val, k2val, k3val)
         line_fitted.vars["lnr_kq1"] = k1val
@@ -66,7 +67,8 @@ for k1val in np.linspace(-0.25, 0.25, 5):
         continue
     
 k1val, k3val = 0, 0
-for k2val in np.linspace(-0.25, 0.25, 5):
+# for k2val in np.linspace(-0.25, 0.25, 5):
+for k2val in [-0.01, 0.01]:
     try:
         print(k1val, k2val, k3val)
         line_fitted.vars["lnr_kq1"] = k1val
@@ -83,7 +85,8 @@ for k2val in np.linspace(-0.25, 0.25, 5):
     
 
 k1val, k2val = 0, 0
-for k3val in np.linspace(-0.25, 0.25, 5):
+# for k3val in np.linspace(-0.25, 0.25, 5):
+for k3val in [-0.01, 0.01]:
     try:
         print(k1val, k2val, k3val)
         line_fitted.vars["lnr_kq1"] = k1val

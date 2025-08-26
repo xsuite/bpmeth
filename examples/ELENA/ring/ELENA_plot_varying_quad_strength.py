@@ -14,40 +14,40 @@ for model in ["splines", "design", "fitted"]:
     qxlist = []
     qylist = []
     klist = []
-    for k1val in np.linspace(-0.25, 0.25, 5):
+    for k1val in [-0.25, -0.125, -0.01, 0, 0.01, 0.125, 0.25]:
         df, scalar = load_twiss(f"twissresults/MD/twiss_{model}_{k1val:.2f}_{k2val:.2f}_{k3val:.2f}")
         klist.append(k1val)
         qxlist.append(scalar['qx'])
         qylist.append(scalar['qy'])
     
-    ax[0].plot(klist, qxlist, label=f'Qx {model}')
-    ax[0].plot(klist, qylist, label=f'Qy {model}')
+    ax[0].plot(klist, qxlist, label=f'Qx {model}', marker='.')
+    ax[0].plot(klist, qylist, label=f'Qy {model}', marker='.')
     
     k1val, k3val = 0, 0
     qxlist = []
     qylist = []
     klist = []
-    for k2val in np.linspace(-0.25, 0.25, 5):
+    for k2val in [-0.25, -0.125, -0.01, 0, 0.01, 0.125, 0.25]:
         df, scalar = load_twiss(f"twissresults/MD/twiss_{model}_{k1val:.2f}_{k2val:.2f}_{k3val:.2f}")
         klist.append(k2val)
         qxlist.append(scalar['qx'])
         qylist.append(scalar['qy'])
     
-    ax[1].plot(klist, qxlist, label=f'Qx {model}')
-    ax[1].plot(klist, qylist, label=f'Qy {model}')
+    ax[1].plot(klist, qxlist, label=f'Qx {model}', marker='.')
+    ax[1].plot(klist, qylist, label=f'Qy {model}', marker='.')
 
     k1val, k2val = 0, 0
     qxlist = []
     qylist = []
     klist = []
-    for k3val in np.linspace(-0.25, 0.25, 5):
+    for k3val in [-0.25, -0.125, -0.01, 0, 0.01, 0.125, 0.25]:
         df, scalar = load_twiss(f"twissresults/MD/twiss_{model}_{k1val:.2f}_{k2val:.2f}_{k3val:.2f}")
         klist.append(k3val)
         qxlist.append(scalar['qx'])
         qylist.append(scalar['qy'])
     
-    ax[2].plot(klist, qxlist, label=f'Qx {model}')
-    ax[2].plot(klist, qylist, label=f'Qy {model}')
+    ax[2].plot(klist, qxlist, label=f'Qx {model}', marker='.')
+    ax[2].plot(klist, qylist, label=f'Qy {model}', marker='.')
 
 ax[0].set_xlabel('k1, with k2=0, k3=0')
 ax[0].set_ylabel('Tunes')

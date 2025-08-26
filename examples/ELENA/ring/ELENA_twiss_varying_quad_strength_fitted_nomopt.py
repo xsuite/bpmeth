@@ -32,76 +32,75 @@ tw = line_mad.twiss4d()
 # tw.plot()
 
 ############################
-# Magnet design parameters #
+# Magnet fitted parameters #
 ############################
 
-phi = 60/180*np.pi
-rho = 0.927  # https://edms.cern.ch/ui/file/1311860/2.0/LNA-MBHEK-ER-0001-20-00.pdf
-dipole_h = 1/rho
-l_magn = rho*phi
-gap=0.076
-theta_E = 17/180*np.pi
-fint = 0.424
+theta_E = 16.4347/180*np.pi
+fint = 0.3918
 
-line_design = line_mad.copy()
+line_fitted = line_mad.copy()
 for dipole_number in ["0135", "0245", "0335", "0470", "0560", "0640"]:
-    line_design[f"lnr.mbhek.{dipole_number}.h1"].edge_entry_angle = theta_E
-    line_design[f"lnr.mbhek.{dipole_number}.h2"].edge_exit_angle = theta_E
-    line_design[f"lnr.mbhek.{dipole_number}.h1"].edge_entry_fint = fint
-    line_design[f"lnr.mbhek.{dipole_number}.h2"].edge_exit_fint = fint
+    line_fitted[f"lnr.mbhek.{dipole_number}.h1"].edge_entry_angle = theta_E
+    line_fitted[f"lnr.mbhek.{dipole_number}.h2"].edge_exit_angle = theta_E
+    line_fitted[f"lnr.mbhek.{dipole_number}.h1"].edge_entry_fint = fint
+    line_fitted[f"lnr.mbhek.{dipole_number}.h2"].edge_exit_fint = fint
 
 ##################################
 # Vary k1, k2, k3 of quadrupoles #
 ##################################    
 
-k2val, k3val = 0, 0
-# for k1val in np.linspace(-0.25, 0.25, 5):
-for k1val in [-0.01, 0.01]:
+k1nom, k2nom, k3nom = 2.7423, -1.9514, 0.6381
+k2val, k3val = k2nom, k3nom
+# for deltak1 in np.linspace(-0.25, 0.25, 5):
+for deltak1 in [-0.01, 0.01]:
+    k1val = k1nom + deltak1
     try:
         print(k1val, k2val, k3val)
-        line_design.vars["lnr_kq1"] = k1val
-        line_design.vars["lnr_kq2"] = k2val
-        line_design.vars["lnr_kq3"] = k3val
+        line_fitted.vars["lnr_kq1"] = k1val
+        line_fitted.vars["lnr_kq2"] = k2val
+        line_fitted.vars["lnr_kq3"] = k3val
 
-        tw_design = line_design.twiss4d()
+        tw_fitted = line_fitted.twiss4d()
         
         # Save to not rerun it every time
-        save_twiss(tw_design, f"twissresults/MD/twiss_design_{k1val:.2f}_{k2val:.2f}_{k3val:.2f}")
+        save_twiss(tw_fitted, f"twissresults/MD/twiss_fitted_{k1val:.2f}_{k2val:.2f}_{k3val:.2f}")
     except ValueError:
         print(f"Computation failed for k1={k1val}, k2={k2val}, k3={k3val}")
         continue
     
-k1val, k3val = 0, 0
-# for k2val in np.linspace(-0.25, 0.25, 5):
-for k2val in [-0.01, 0.01]:
+k1val, k3val = k1nom, k3nom
+# for deltak2 in np.linspace(-0.25, 0.25, 5):
+for deltak2 in [-0.01, 0.01]:
+    k2val = k2nom + deltak2
     try:
         print(k1val, k2val, k3val)
-        line_design.vars["lnr_kq1"] = k1val
-        line_design.vars["lnr_kq2"] = k2val
-        line_design.vars["lnr_kq3"] = k3val
+        line_fitted.vars["lnr_kq1"] = k1val
+        line_fitted.vars["lnr_kq2"] = k2val
+        line_fitted.vars["lnr_kq3"] = k3val
 
-        tw_design = line_design.twiss4d()
+        tw_fitted = line_fitted.twiss4d()
 
         # Save to not rerun it every time
-        save_twiss(tw_design, f"twissresults/MD/twiss_design_{k1val:.2f}_{k2val:.2f}_{k3val:.2f}")
+        save_twiss(tw_fitted, f"twissresults/MD/twiss_fitted_{k1val:.2f}_{k2val:.2f}_{k3val:.2f}")
     except ValueError:
         print(f"Computation failed for k1={k1val}, k2={k2val}, k3={k3val}")
         continue
     
 
-k1val, k2val = 0, 0
-# for k3val in np.linspace(-0.25, 0.25, 5):
-for k3val in [-0.01, 0.01]:
+k1val, k2val = k1nom, k2nom
+# for deltak3 in np.linspace(-0.25, 0.25, 5):
+for deltak3 in [-0.01, 0.01]:
+    k3val = k3nom + deltak3
     try:
         print(k1val, k2val, k3val)
-        line_design.vars["lnr_kq1"] = k1val
-        line_design.vars["lnr_kq2"] = k2val
-        line_design.vars["lnr_kq3"] = k3val
+        line_fitted.vars["lnr_kq1"] = k1val
+        line_fitted.vars["lnr_kq2"] = k2val
+        line_fitted.vars["lnr_kq3"] = k3val
 
-        tw_design = line_design.twiss4d()
+        tw_fitted = line_fitted.twiss4d()
 
         # Save to not rerun it every time
-        save_twiss(tw_design, f"twissresults/MD/twiss_design_{k1val:.2f}_{k2val:.2f}_{k3val:.2f}")
+        save_twiss(tw_fitted, f"twissresults/MD/twiss_fitted_{k1val:.2f}_{k2val:.2f}_{k3val:.2f}")
     except ValueError:
         print(f"Computation failed for k1={k1val}, k2={k2val}, k3={k3val}")
         continue

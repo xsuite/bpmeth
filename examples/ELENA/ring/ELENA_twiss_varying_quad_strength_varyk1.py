@@ -79,7 +79,8 @@ for dipole_number in ["0135", "0245", "0335", "0470", "0560", "0640"]:
 ##################################    
 
 k2val, k3val = 0, 0
-for k1val in np.linspace(-0.25, 0.25, 5):
+#for k1val in np.linspace(-0.25, 0.25, 5):
+for k1val in [-0.01, 0.01]:
     try:
         print(k1val, k2val, k3val)
         line_splines.vars["lnr_kq1"] = k1val
@@ -89,7 +90,7 @@ for k1val in np.linspace(-0.25, 0.25, 5):
         tw_splines = line_splines.twiss4d(include_collective=True, compute_chromatic_properties=True)
 
         # Save to not rerun it every time
-        save_twiss(tw_splines, f"twissresults/MD/twiss_num_{k1val:.2f}_{k2val:.2f}_{k3val:.2f}")
+        save_twiss(tw_splines, f"twissresults/MD/twiss_splines_{k1val:.2f}_{k2val:.2f}_{k3val:.2f}")
     except ValueError:
         print(f"Computation failed for k1={k1val}, k2={k2val}, k3={k3val}")
         continue
