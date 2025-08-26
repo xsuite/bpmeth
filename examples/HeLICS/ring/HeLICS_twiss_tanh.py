@@ -34,10 +34,6 @@ data = np.loadtxt("../dipole/HeLICS_fieldmap_tanh.csv", skiprows=1, delimiter=",
 # Rescale fieldmap to have zero closed orbit #
 ##############################################
 
-# Need to cut in s because there is just not enough space!
-smin = -l_magn/2 - 0.199
-smax = l_magn/2 + 0.199
-
 scalefactor = 0.9999001  # <1 because of quadrupole component
 dipole_tanh = bpmeth.MagnetFromFieldmap(data, 1/rho, l_magn, design_field=dipole_k0*scalefactor, order=3, 
                                         hgap=gap/2, nphi=3, plot=True, step=50, radius=0.0025, 

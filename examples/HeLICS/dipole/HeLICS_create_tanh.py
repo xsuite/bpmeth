@@ -49,6 +49,9 @@ data = np.column_stack((xx, yy, zz, Bxvals, Byvals, Bsvals))
 
 # Translate and rotate to the position of the edge
 b1_edge_fieldmap = bpmeth.Fieldmap(data)
+
+print("Fringe field integral: ", b1_edge_fieldmap.calc_Fint(gap, dipole_k0))
+
 b1_edge_fieldmap = b1_edge_fieldmap.rotate(phi/2-theta_E)
 b1_edge_fieldmap = b1_edge_fieldmap.translate(dx=rho*np.cos(-phi/2), dy=0, dz=rho*np.sin(-phi/2))  # Global frame of edge fieldmap
 
