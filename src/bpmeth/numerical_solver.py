@@ -4,6 +4,7 @@ from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 from .generate_expansion import FieldExpansion
 from .frames import Frame, BendFrame
+import numba as nb
 
 
 class Hamiltonian:
@@ -57,7 +58,10 @@ class Hamiltonian:
         if lambdify:
             qp = (x, y, tau, px, py, ptau)
             s = coords.s
-            return sp.lambdify((s, qp, beta0), qpdot, modules="numpy")
+            f = sp.lambdify((s, qp, beta0), qpdot, modules="numpy")
+
+            f_numba = nb.njit(f)
+            return f_numba
         return qpdot
 
     def solve(self, qp0, s_span=None, ivp_opt={}, backtrack=False, beta0=1):
@@ -77,7 +81,7 @@ class Hamiltonian:
             ivp_opt["atol"] = 1e-8
 
         f = self.vectorfield
-        sol = solve_ivp(f, s_span, qp0, args=(beta0,), **ivp_opt)
+        sol = solve_ivp(f.py_func, s_span, qp0, args=(beta0,), **ivp_opt)
         return sol
 
     def track(self, particle, s_span=None, return_sol=False, ivp_opt={}, backtrack=False):
