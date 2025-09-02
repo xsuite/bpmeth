@@ -26,7 +26,7 @@ madx.use("elena")
 line_mad = xt.Line.from_madx_sequence(madx.sequence.elena)
 start_elem = "lnr.vvgbf.0114"
 line_mad.cycle(name_first_element=start_elem, inplace=True)  # Such that dipole is not spanning over end-beginning of lattice
-line_mad.particle_ref = xt.Particles(p0c=0.1, mass0=0.938272, q0=1)
+line_mad.particle_ref = xt.Particles(p0c=0.1e6, mass0=0.938272e6, q0=1)
 line_mad.configure_bend_model(core='adaptive', edge='full')
 tw = line_mad.twiss4d()
 tw.plot()
