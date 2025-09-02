@@ -110,7 +110,8 @@ class Fieldmap:
         """
         Determine a dataframe consisting of a straight piece up to -l_magn/2, then a bent piece up to l_magn/2, 
         then again a straight piece.
-        (0,0,0) is center of curvature???
+        (0,0,0) is center of curvature
+        !!! This does not work for negative bending radius !!!
 
         :param XFS: Array of X positions in Frenet-Serrat coordinates.
         :param YFS: Array of Y positions in Frenet-Serrat coordinates.

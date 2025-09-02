@@ -279,7 +279,7 @@ class DipoleFromFieldmap:
                   
 class MagnetFromFieldmap:
     isthick=True
-    def __init__(self, data, h, l_magn, design_field, order=3, hgap=0.05, apt=0.05, radius=0.05, nphi=4, plot=False, step=50, in_FS_coord=False, symmetric=False,
+    def __init__(self, data, h, l_magn, design_field=None, order=3, hgap=0.05, apt=0.05, radius=0.05, nphi=3, plot=False, step=50, in_FS_coord=False, symmetric=False,
                  smin=None, smax=None):
         """
         :param data: Fieldmap points as columns x, y, z, Bx, By, Bz. Data in Tesla
@@ -364,8 +364,9 @@ class MagnetFromFieldmap:
         if symmetric:
             self.fieldmap = self.fieldmap.symmetrize(radius=radius)
 
-        scalefactor = self.design_field / (self.fieldmap.integratedfield(3)[0] / self.l_magn)
-        self.fieldmap.rescale(scalefactor)
+        if self.design_field is not None:
+            scalefactor = self.design_field / (self.fieldmap.integratedfield(3)[0] / self.l_magn)
+            self.fieldmap.rescale(scalefactor)
             
         self.create_Hamiltonian(plot=plot)
         

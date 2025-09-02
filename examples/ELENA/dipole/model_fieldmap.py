@@ -34,6 +34,16 @@ central_field_from_enge_fit = 4.28304565e-01  # Determined from directly fitting
 dipole_edge.rescale(dipole_h /central_field_from_enge_fit)
 dipole_edge = dipole_edge.calc_edge_frame(xarr, yarr, zarr, theta_E, rho, phi, radius=0.005)
 
+fig, ax = plt.subplots()
+zvals, mult, multstd = dipole_edge.z_multipoles(2, ax=ax)
+plt.savefig("figures/ELENA_edge_multipoles.png", dpi=500)
+plt.close()
+
+b3til = 1/2 * (mult[:-2,2] + 1/4 * np.diff(mult[:,0],2)/np.diff(zvals)[:-1]**2)
+
+
+
+
 # Fit enge function
 fig, ax = plt.subplots()
 guess = [dipole_h,  5.45050869e+02, -1.34905910e+02, 2.84624272e+01,  5.49796478e-01]
