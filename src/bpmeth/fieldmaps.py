@@ -4,6 +4,7 @@ import sympy as sp
 import math
 import scipy as sc
 import matplotlib.pyplot as plt
+from .poly_fit import fit_segment, plot_fit
 
 
 def Enge(x, *params):
@@ -12,7 +13,9 @@ def Enge(x, *params):
 def spEnge(s, *params):
     return params[0] / (1+sp.exp(sp.Poly(params[1:], s).as_expr()))
 
-    
+def spTanh(s, *params):
+    return params[0] * (sp.tanh(s/params[1]) + 1)/2
+
 
     
 def get_derivative(deriv_order, nparams, func, lambdify=True):
@@ -36,6 +39,26 @@ def get_derivative(deriv_order, nparams, func, lambdify=True):
 def spTanh(s, *params):
     return 1/2*params[0]*(sp.tanh(s/params[1])+1)
 
+    
+def moving_average(arr, N):
+    # Step 1: Compute trimmed moving average (shorter result)
+    result = []
+    for i in range(len(arr) - N + 1):
+        window = arr[i:i+N]
+        if N >= 3:
+            trimmed = np.sort(window)[1:-1]  # remove min and max
+            result.append(np.mean(trimmed))
+        else:
+            result.append(np.mean(window))
+    result = np.array(result)
+
+    # Step 2: Pad the result to match the original length
+    pad_width = (N - 1) // 2
+    result_padded = np.pad(result, pad_width, mode='edge')  # replicate edges
+
+    return result_padded
+
+
 
 
 
@@ -50,8 +73,26 @@ class Fieldmap:
         self.src['y'] = self.data.T[1].T
         self.src['z'] = self.data.T[2].T
 
-    def plot(self):
-        self.src.plot(scalars="By")
+    def __add__(self, other):
+        # Needs to have fieldmaps defined in the same points
+        if self.src.n_points != other.src.n_points:
+            raise ValueError("Fieldmaps have different number of points.")
+        if not np.allclose(self.src.points, other.src.points):
+            raise ValueError("Fieldmaps have different point coordinates.")
+
+        x = self.src["x"]
+        y = self.src["y"]
+        z = self.src["z"]
+        Bx = self.src["Bx"] + other.src["Bx"]
+        By = self.src["By"] + other.src["By"]
+        Bz = self.src["Bz"] + other.src["Bz"]
+        
+        data = np.array([x, y, z, Bx, By, Bz]).T
+
+        return Fieldmap(data)
+    
+    def plot(self, field="By"):
+        self.src.plot(scalars=field)
         
     def interpolate_points(self, X, Y, Z, radius=0.01):
         """
@@ -61,18 +102,16 @@ class Fieldmap:
         XYZ = np.array([X.flatten(), Y.flatten(), Z.flatten()]).T
         dst = pv.PolyData(XYZ).interpolate(self.src, radius=radius)
         
-        #dst.plot(scalars=field)
-        
-        dst['x'] = X.flatten()
-        dst['y'] = Y.flatten()
-        dst['z'] = Z.flatten()
-        
-        return dst
+        data = np.array([X.flatten(), Y.flatten(), Z.flatten(), dst['Bx'], dst['By'], dst['Bz']]).T
+
+        return Fieldmap(data)
 
     def calc_FS_coords(self, XFS, YFS, SFS, rho, phi, radius=0.01):
         """
         Determine a dataframe consisting of a straight piece up to -l_magn/2, then a bent piece up to l_magn/2, 
         then again a straight piece.
+        (0,0,0) is center of curvature
+        !!! This does not work for negative bending radius !!!
 
         :param XFS: Array of X positions in Frenet-Serrat coordinates.
         :param YFS: Array of Y positions in Frenet-Serrat coordinates.
@@ -189,6 +228,112 @@ class Fieldmap:
 
         return Fieldmap(data)
 
+    def get_data(self):
+        data = np.array([self.src['x'], self.src['y'], self.src['z'],
+                         self.src['Bx'], self.src['By'], self.src['Bz']]).T
+        return data
+    
+    def rotate(self, theta):
+        """
+        Rotate the frame around the y-axis by theta radians counterclockwise
+        """
+        
+        x = self.src['x']
+        y = self.src['y']
+        z = self.src['z']
+        
+        Bx = self.src['Bx']
+        By = self.src['By']
+        Bz = self.src['Bz']
+        
+        x_rotated = x * np.cos(theta) + z * np.sin(theta)
+        z_rotated = -x * np.sin(theta) + z * np.cos(theta)
+        
+        Bx_rotated = Bx * np.cos(theta) + Bz * np.sin(theta)
+        Bz_rotated = -Bx * np.sin(theta) + Bz * np.cos(theta)
+        
+        # Create new dataframe to update geometry and not only the coordinates of the points, 
+        # needed for interpolation later on, easier than updating it in place.        
+        data = np.array([x_rotated, y, z_rotated, Bx_rotated, By, Bz_rotated]).T
+
+        return Fieldmap(data)
+        
+    def translate(self, dx, dy, dz): 
+        """
+        Translate the frame by dx, dy, dz in the x, y, z directions respectively
+        """
+        
+        x = self.src['x']
+        y = self.src['y']
+        z = self.src['z']
+
+        Bx = self.src['Bx']
+        By = self.src['By']
+        Bz = self.src['Bz']
+
+        x_translated = x + dx 
+        y_translated = y + dy 
+        z_translated = z + dz 
+
+        # Create new dataframe to update geometry and not only the coordinates of the points, 
+        # needed for interpolation later on, easier than updating it in place.        
+        data = np.array([x_translated, y_translated, z_translated, Bx, By, Bz]).T
+    
+        return Fieldmap(data)
+
+    def symmetrize(self, radius=0.01):
+        sarr = np.unique(self.src['z'])
+        xarr = np.unique(self.src['x'])
+        yarr = np.unique(self.src['y'])
+
+        s, x, y = np.meshgrid(sarr, xarr, yarr)
+        xys1 = np.array([x.flatten(), y.flatten(), s.flatten()]).T
+        dst1 = pv.PolyData(xys1).interpolate(self.src, radius=radius)
+
+        xys2 = np.array([x.flatten(), y.flatten(), -s.flatten()]).T
+        dst2 = pv.PolyData(xys2).interpolate(self.src, radius=radius)
+
+        Bx = (dst1["Bx"] + dst2["Bx"])/2
+        By = (dst1["By"] + dst2["By"])/2
+        Bs = (dst1["Bz"] - dst2["Bz"])/2
+
+        data = np.array([x.flatten(), y.flatten(), s.flatten(), Bx, By, Bs]).T
+
+        return Fieldmap(data)
+            
+    def mirror(self, left=True):
+        """
+        Mirror the frame
+        :param left: If True, take left side and mirror, otherwise right side.
+        """
+        
+        z = self.src['z']
+        if left:
+            mask = z < 0
+        else:
+            mask = z > 0
+
+        x = self.src['x'][mask]
+        y = self.src['y'][mask]
+        z = self.src['z'][mask]
+
+        Bx = self.src['Bx'][mask]
+        By = self.src['By'][mask]
+        Bz = self.src['Bz'][mask]
+
+        xx = np.concatenate((x, x))
+        yy = np.concatenate((y, y))
+        zz = np.concatenate((z, -z))
+        
+        Bxx = np.concatenate((Bx, Bx))
+        Byy = np.concatenate((By, By))
+        Bzz = np.concatenate((Bz, -Bz))
+
+        # Create new dataframe to update geometry and not only the coordinates of the points, 
+        # needed for interpolation later on, easier than updating it in place.        
+        data = np.array([xx, yy, zz, Bxx, Byy, Bzz]).T
+    
+        return Fieldmap(data)
     
     def rescale(self, scalefactor):
         self.src["Bx"] = self.src["Bx"] * scalefactor
@@ -250,7 +395,7 @@ class Fieldmap:
             
         return coeffs, coeffsstd
 
-    def z_multipoles(self, order, xmax=None, ax=None):
+    def z_multipoles(self, order, xmax=None, ax=None, mov_av=1):
         """
         So far only normal multipoles
         """
@@ -260,9 +405,13 @@ class Fieldmap:
         coeffsstd = np.zeros((len(zvals), order+1))
         for i, zpos in enumerate(zvals):
             coeffs[i], coeffsstd[i] = self.fit_xprofile(0, zpos, "By", order, xmax=xmax)
-
+        
+        for i in range(order + 1):
+            coeffs[:, i] = moving_average(coeffs[:, i], N=mov_av)
+            coeffsstd[:, i] = moving_average(coeffsstd[:, i], N=mov_av)            
+        
         if ax is not None:
-            for i in range(order):
+            for i in range(order + 1):
                 print(coeffs[:, i].shape)
                 ax.errorbar(zvals, coeffs[:,i], yerr=coeffsstd[:,i], label=f"b{i}", ls='', capsize=1, marker='.')
         return zvals, coeffs, coeffsstd
@@ -320,7 +469,7 @@ class Fieldmap:
         return K0
                
                
-    def fit_multipoles(self, shape, components=[1,2], design=1, nparams=5, xmax=None, zmin=-9999, zmax=9999, zedge=0, guess=None, ax=None):
+    def fit_multipoles(self, shape, components=[1,2], design=1, nparams=5, xmax=None, zmin=-9999, zmax=9999, zedge=0, guess=None, ax=None, padding=False, entrance=False, design_field=None):
         """
         Fit appropriate functions to the multipoles in the fieldmap, taking into account the design of the magnet.
 
@@ -351,18 +500,31 @@ class Fieldmap:
         params_list = np.zeros((len(components), nparams))
         cov_list = np.zeros((len(components), nparams, nparams))
         
+        if design_field is None:
+            design_field = b[np.argmax(np.abs(b))]  # Does not work
 
-        for i, component in enumerate(components):
+        for i, component in enumerate(components):        
             print(f"fitting b{component}...")
             b = coeffs[:, component-1]
             berr = coeffsstd[:, component-1]
 
             b = b[mask]
             berr = berr[mask]
+            
+            if padding:
+                if entrance:
+                    b = np.pad(b, (0, 50), mode='linear_ramp', end_values=design_field)
+                    b = np.pad(b, (50, 0), mode='constant', constant_values=0)
+                else:
+                    b = np.pad(b, (50, 0), mode='linear_ramp', end_values=design_field)
+                    b = np.pad(b, (0, 50), mode='constant', constant_values=0)
+                berr = np.pad(berr, (50, 50), mode='constant', constant_values=np.mean(berr)/2)
+                zvals = np.pad(zvals, (50, 0), mode='linear_ramp', end_values=np.min(zvals)-0.75)
+                zvals = np.pad(zvals, (0, 50), mode='linear_ramp', end_values=np.max(zvals)+0.75)
 
             if guess is None:
                 guess = np.zeros(nparams)
-                guess[0] = b[np.argmax(np.abs(b))]
+                guess[0] = design_field
 
             shape_derivative = get_derivative(component-design, nparams, shape)
             params, cov = sc.optimize.curve_fit(shape_derivative, zvals-zedge, b, sigma=berr, p0=guess, maxfev=10000)
@@ -380,3 +542,56 @@ class Fieldmap:
             plt.legend()
         
         return params_list, cov_list 
+    
+    
+    def fit_spline_multipoles(self, components=[1,2], step=50, ax=None, smin=-9999, smax=9999):
+        """
+        Fit splines to the multipoles in the fieldmap, taking into account the design of the magnet.
+
+        :param components: List of components to fit, counting starts at one like the multipole coefficients.
+        :param ax: If given, plot the fit in these axis.
+        """        
+        
+        order = max(components) - 1
+        zvals, coeffs, coeffsstd = self.z_multipoles(order, mov_av = 5)
+
+        mask = (zvals>=smin) & (zvals<=smax)
+        zvals = zvals[mask]
+        coeffs = coeffs[mask]
+        coeffsstd = coeffsstd[mask]
+
+        all_pols = []
+        ii=np.arange(0,len(zvals)-step,step)
+        segments = []
+
+        for component in components:
+            pols = []
+            index = component-1
+            b = coeffs[:, index]
+            dz = np.diff(zvals, prepend=zvals[0])
+            bp = np.nan_to_num(np.diff(b,prepend=b[0])/dz, copy=True)
+            # bpp = np.nan_to_num(np.diff(bp,prepend=bp[0])/dz, copy=True)            
+
+            for ia,ib in zip(ii,ii+step):
+                pol=fit_segment(ia,ib,zvals,b,bp)
+                if ax is not None:
+                    plot_fit(ia,ib,zvals,b,pol, ax=ax, data=True)
+                pols.append(pol)
+            all_pols.append(pols)
+
+        for ia,ib in zip(ii,ii+step):
+            segments.append([zvals[ia], zvals[ib]])
+        
+        return segments, all_pols
+                
+                
+                
+                
+            
+            
+            
+
+                
+        
+        
+        

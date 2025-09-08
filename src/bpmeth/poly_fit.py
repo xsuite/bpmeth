@@ -62,6 +62,32 @@ def poly_fit(N, xdata, ydata, x0=[], y0=[], xp0=[], yp0=[], xpp0=[], ypp0=[]):
     p = solveconst(A, b, C, d)
     return p
 
+def fit_segment(ia,ib,x,y,yp,ypp=None,order=3):
+    x0=[x[ia],x[ib]]
+    y0=[y[ia],y[ib]]
+    yp0=[yp[ia],yp[ib]]
+    xd=x[ia:ib+1]
+    yd=y[ia:ib+1]
+    if ypp is not None:
+        assert order > 5, "Second derivative fitting should be done for at least order five"
+        ypp0=[ypp[ia],ypp[ib]]
+        pol=poly_fit(order,xd,yd,x0,y0,x0,yp0,x0,ypp0)
+    else:
+        pol=poly_fit(order,xd,yd,x0,y0,x0,yp0)
+    return pol
+
+def plot_fit(ia,ib,x,y,pol,data=False, ax=None):
+    xd=x[ia:ib+1]
+    yd=y[ia:ib+1]
+    yf=poly_val(pol,xd)
+    if ax is None:
+        fig, ax = plt.subplots()
+    if data:
+       ax.plot(xd,yd,label='data', ls='', marker='o', color='black')
+    ax.plot(xd,yf,label=poly_print(pol))
+
+    
+
 
 if __name__ == "__main__":
     from matplotlib.pyplot import *

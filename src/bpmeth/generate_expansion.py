@@ -30,8 +30,10 @@ class FieldExpansion:
 
 
     def subs(self, func, coord_subs={}):
-        return func.subs({**{sym.subs(coord_subs):val for sym, val in zip(self.afun,self.a)}, **{sym.subs(coord_subs):val for sym, val in zip(self.bfun,self.b)}, self.bsfun.subs(coord_subs):self.bs}).doit()
-
+        func = func.subs({**{sym.subs(coord_subs):val for sym, val in zip(self.afun,self.a)}, 
+                          **{sym.subs(coord_subs):val for sym, val in zip(self.bfun,self.b)}, 
+                          self.bsfun.subs(coord_subs):self.bs}).doit()
+        return func
 
     def get_phi(self, tolerance=1e-4, apperture=0.05, subs=True):
         """
@@ -128,11 +130,17 @@ class FieldExpansion:
     # TO BE OPTIMISED FROM HERE             #
     #########################################
 
+    def translate(self, ds):
+        self.a = tuple(sp.sympify(an).subs(self.s, self.s - ds) for an in self.a)
+        self.b = tuple(sp.sympify(bn).subs(self.s, self.s - ds) for bn in self.b)
+        self.bs = sp.sympify(self.bs).subs(self.s, self.s - ds)
     
     def transform(self, theta_E=0, rho=np.inf, maxpow=None):
         """
         So far only implemented for the entrance of the element. Some signs will differ for the exit!
-        
+        Formulas taken from Hwang/Lee.
+        Dipole edge is at s=0
+
         param theta_E (float): Rotation angle in radians.
         param rho (float): Bending radius of the frame. If rho=np.inf, the frame is straight.
         param maxpow (int): Maximum power of the series expansion to keep.
@@ -160,14 +168,14 @@ class FieldExpansion:
             st = ss*sp.cos(theta_E) - xx*sp.sin(theta_E)
             print(f"Rotating over angle {theta_E} to new straight frame...")
 
-        else:  # Curved frame
+        else:  # Curved frame, not working in general
             xt = (rho+xx)*(sp.cos(theta_E-ss/rho)) - rho*sp.cos(theta_E)
             st = rho*sp.sin(theta_E) - (rho+xx)*(sp.sin(theta_E-ss/rho))
             print(f"Rotating over angle {theta_E} to new curved frame with bending radius {rho}...")
 
         phi0 = phi0.subs({x:xt, s:st}).subs({xx:x, ss:s})
         phi1 = phi1.subs({x:xt, s:st}).subs({xx:x, ss:s})
-
+        
         phi0 = phi0.series(x, 0, maxpow).removeO().as_poly(x)
         phi1 = phi1.series(x, 0, maxpow).removeO().as_poly(x)
         
@@ -176,14 +184,13 @@ class FieldExpansion:
         degree0 = 0 if phi0==0 else phi0.degree(x)
         for i in range(degree0+1):
             a.append(phi0.coeff_monomial(x**(i+1)) * sp.factorial(i+1))
-            
         bs = phi0.coeff_monomial(x**0).diff(s)
 
         b = []
         degree1 = 0 if phi1==0 else phi1.degree(x)
         for i in range(degree1+1):
             b.append(phi1.coeff_monomial(x**i) * sp.factorial(i))
-            
+                    
         return FieldExpansion(a=a, b=b, bs=bs, nphi=nphi)
             
             
@@ -210,7 +217,7 @@ class FieldExpansion:
         
         phi0 = phi0.subs([(s,st)])
         phi1 = phi1.subs([(s,st)])
-
+        
         phi0 = phi0.series(x, 0, maxpow).removeO().as_poly(x)
         phi1 = phi1.series(x, 0, maxpow).removeO().as_poly(x)        
         
@@ -229,19 +236,19 @@ class FieldExpansion:
             
         return FieldExpansion(a=a, b=b, bs=bs, nphi=nphi)
     
-    def plot_components(self, ax=None, smin=-2, smax=2, ns=100, plot_b=True, plot_a=True, plot_bs=True):
+    def plot_components(self, ax=None, smin=-2, smax=2, ns=100, s_shift=0, plot_b=True, plot_a=True, plot_bs=True):
         ss = np.linspace(smin, smax, ns)
         if ax is None:
             fig, ax = plt.subplots()
         
         if plot_a:
             for i, aa in enumerate(self.a):
-                ax.plot(ss, [sp.sympify(aa).subs(self.s, sval).evalf() for sval in ss], label=f"a_{i+1}")
+                ax.plot(ss+s_shift, [sp.sympify(aa).subs(self.s, sval).evalf() for sval in ss], label=f"a_{i+1}")
         if plot_b:
             for i, bb in enumerate(self.b):
-                ax.plot(ss, [sp.sympify(bb).subs(self.s, sval).evalf() for sval in ss], label=f"b_{i+1}")
+                ax.plot(ss+s_shift, [sp.sympify(bb).subs(self.s, sval).evalf() for sval in ss], label=f"b_{i+1}")
         if plot_bs:
-            ax.plot(ss, [sp.sympify(self.bs).subs(self.s, sval).evalf() for sval in ss], label=f"bs")
+            ax.plot(ss+s_shift, [sp.sympify(self.bs).subs(self.s, sval).evalf() for sval in ss], label=f"bs")
         ax.legend()
     
     def integrate_components(self, smin, smax):
