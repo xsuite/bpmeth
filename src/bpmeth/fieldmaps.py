@@ -395,7 +395,7 @@ class Fieldmap:
             
         return coeffs, coeffsstd
 
-    def z_multipoles(self, order, xmax=None, ax=None, mov_av=1):
+    def z_multipoles(self, order, xmax=None, ax=None, mov_av=1, colors=None, ls='', marker='.', ms=6, elinewidth=0.5, capsize=1, labels=None):
         """
         So far only normal multipoles
         """
@@ -411,9 +411,12 @@ class Fieldmap:
             coeffsstd[:, i] = moving_average(coeffsstd[:, i], N=mov_av)            
         
         if ax is not None:
+            if labels is None:
+                labels = [f"b{i+1}" for i in range(order+1)]
             for i in range(order + 1):
-                print(coeffs[:, i].shape)
-                ax.errorbar(zvals, coeffs[:,i], yerr=coeffsstd[:,i], label=f"b{i}", ls='', capsize=1, marker='.')
+                color=colors[i] if colors is not None else None
+                ax.errorbar(zvals, coeffs[:,i], yerr=coeffsstd[:,i], label=labels[i], ls=ls, 
+                        capsize=capsize, marker=marker, color=color, elinewidth=elinewidth, ms=ms)
         return zvals, coeffs, coeffsstd
 
 
