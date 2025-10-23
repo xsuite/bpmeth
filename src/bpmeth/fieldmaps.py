@@ -516,14 +516,14 @@ class Fieldmap:
             
             if padding:
                 if entrance:
-                    b = np.pad(b, (0, 50), mode='linear_ramp', end_values=design_field)
-                    b = np.pad(b, (50, 0), mode='constant', constant_values=0)
+                    b = np.pad(b, (0, 10), mode='linear_ramp', end_values=design_field)
+                    b = np.pad(b, (10, 0), mode='linear_ramp', end_values=0)
                 else:
-                    b = np.pad(b, (50, 0), mode='linear_ramp', end_values=design_field)
-                    b = np.pad(b, (0, 50), mode='constant', constant_values=0)
-                berr = np.pad(berr, (50, 50), mode='constant', constant_values=np.mean(berr)/2)
-                zvals = np.pad(zvals, (50, 0), mode='linear_ramp', end_values=np.min(zvals)-0.75)
-                zvals = np.pad(zvals, (0, 50), mode='linear_ramp', end_values=np.max(zvals)+0.75)
+                    b = np.pad(b, (10, 0), mode='linear_ramp', end_values=design_field)
+                    b = np.pad(b, (0, 10), mode='linear_ramp', end_values=0)
+                berr = np.pad(berr, (10, 10), mode='constant', constant_values=np.mean(berr)*10)
+                zvals = np.pad(zvals, (10, 0), mode='linear_ramp', end_values=np.min(zvals)-1)
+                zvals = np.pad(zvals, (0, 10), mode='linear_ramp', end_values=np.max(zvals)+1)
 
             if guess is None:
                 guess = np.zeros(nparams)
