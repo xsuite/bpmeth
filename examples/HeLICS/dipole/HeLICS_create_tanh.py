@@ -61,6 +61,8 @@ sFS = np.arange(-l_magn, 0, 0.001)
 
 # Read in FS coordinates
 FS_b1_edge_fieldmap = b1_edge_fieldmap.calc_FS_coords(xFS, yFS, sFS, rho, phi, radius=0.01)
+print(FS_b1_edge_fieldmap.integratedfield(1)[0]*2)
+print(l_magn * dipole_k0)
 
 fig, ax = plt.subplots()
 FS_b1_edge_fieldmap.z_multipoles(2, ax=ax, marker='.')
@@ -117,6 +119,8 @@ Bsvals = np.concatenate((Bsvals_neg, Bsvals_pos))
 data = np.column_stack((xx, yy, zz, Bxvals, Byvals, Bsvals))
 
 FS_b2_edge_fieldmap = bpmeth.Fieldmap(data)
+print(FS_b2_edge_fieldmap.integratedfield(2)[1]*2)
+print(l_magn * dipole_k1)
 
 fig, ax = plt.subplots()
 FS_b2_edge_fieldmap.z_multipoles(2, ax=ax, marker='.')

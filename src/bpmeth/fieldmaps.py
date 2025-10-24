@@ -372,11 +372,24 @@ class Fieldmap:
             ax.legend(bbox_to_anchor=(1, 1), loc='upper left')
         
         return z, fieldvals
-
         
-    def fit_xprofile(self, ypos, zpos, field, order, ax=None, xmax=None):
-        assert ypos in self.src['y'] and zpos in self.src['z'], "These values are not present in the data"
-        x, fieldvals = self.xprofile(ypos, zpos, field, ax=ax, xmax=xmax)
+    def fit_xprofile(self, ypos, zpos, field, order, ax=None, xmax=None, radius=0.01):
+        """
+            :param ypos: vertical position at which to fit the horizontal profile
+            :param zpos: longitudinal position at which to fit the horizontal profile
+            :param field: which vectorfield to fit, typically By for normal multipoles
+            :param order: max order to be deterimed in the fit
+            :param ax: if given, plot profile and fit with error region
+            :param xmax: maximal x value to take into account in fit, best to exclude any region outside of GFR
+            :param radius: radius for interpolation if the asked position is not present in the data
+        """
+        if ypos in self.src['y'] and zpos in self.src['z']:
+            x, fieldvals = self.xprofile(ypos, zpos, field, ax=ax, xmax=xmax)
+        else:
+            xvals = np.linspace(-xmax, xmax, 51)
+            X, Y, Z = np.meshgrid(xvals, ypos, zpos)
+            fm = self.interpolate_points(X, Y, Z, radius=radius)
+            x, fieldvals = fm.xprofile(ypos, zpos, field, ax=ax, xmax=xmax)
 
         paramslist = np.array([np.polyfit(x, fieldvals, order+j)[j:] for j in range(5)])
         params = np.mean(paramslist, axis=0)

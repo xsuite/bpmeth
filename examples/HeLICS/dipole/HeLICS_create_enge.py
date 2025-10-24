@@ -37,7 +37,7 @@ b2_engeparams = [dipole_k1, *b1_engeparams[1:]]
 
 # Created orthogonal to the edge
 s = sp.symbols('s')
-b1_enge = bpmeth.spEnge(-s, *b1_engeparams)
+b1_enge = bpmeth.spEnge(-(s+0.00707465219), *b1_engeparams)  # Shift edge to match integrated field 
 b1_edge = bpmeth.GeneralVectorPotential(b=(b1_enge,))
 
 Bx, By, Bs = b1_edge.get_Bfield()
@@ -67,6 +67,8 @@ sFS = np.arange(-l_magn, 0, 0.001)
 
 # Read in FS coordinates
 FS_b1_edge_fieldmap = b1_edge_fieldmap.calc_FS_coords(xFS, yFS, sFS, rho, phi, radius=0.01)
+print(FS_b1_edge_fieldmap.integratedfield(1)[0]*2)
+print(l_magn * dipole_k0)
 
 fig, ax = plt.subplots()
 FS_b1_edge_fieldmap.z_multipoles(2, ax=ax, marker='.')
@@ -81,7 +83,7 @@ plt.close()
 
 # Create immediately in FS coordinates: half straight, half curved frame
 s = sp.symbols('s')
-b2_enge = bpmeth.spEnge(-s, *b2_engeparams)
+b2_enge = bpmeth.spEnge(-(s+0.00725905843), *b2_engeparams)  # Shift edge to match integrated field 
 b2_edge = bpmeth.GeneralVectorPotential(b=("0", b2_enge,), nphi=3)
 b2_edge = b2_edge.cut_at_angle(theta_E, maxpow=3)
 
@@ -123,6 +125,8 @@ Bsvals = np.concatenate((Bsvals_neg, Bsvals_pos))
 data = np.column_stack((xx, yy, zz, Bxvals, Byvals, Bsvals))
 
 FS_b2_edge_fieldmap = bpmeth.Fieldmap(data)
+print(FS_b2_edge_fieldmap.integratedfield(2)[1]*2)
+print(l_magn * dipole_k1)
 
 fig, ax = plt.subplots()
 FS_b2_edge_fieldmap.z_multipoles(2, ax=ax, marker='.')
