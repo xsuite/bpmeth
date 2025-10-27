@@ -476,6 +476,7 @@ class Fieldmap:
 
         zvals, coeffs, coeffsstd = self.z_multipoles(2)
         b1 = coeffs[:, 0]
+        plt.plot(zvals, b1)
 
         if entrance is False:
             b1 = b1[::-1]
