@@ -97,7 +97,7 @@ class Hamiltonian:
             results = []
             out = []
             for i in range(len(particle.x)):
-                # adjust vector potential for each particle
+                # Adjust vector potential for each particle at the beginning of the segment
                 ax, ay, _ = self.get_A(particle.x[i], particle.y[i], s_span[0])
                 kin_px= particle.px[i] - particle.ax[i]
                 kin_py= particle.py[i] - particle.ay[i]
@@ -136,18 +136,24 @@ class Hamiltonian:
                 particle.s -= self.length
             else:
                 particle.s += self.length
-            # manage vector potential for each particle
-            ax, ay, _ = self.get_A(particle.x, particle.y, s_span[0])
-            # if we want to keep the vector potential in the particle
+            # Manage vector potential for each particle at the exit of the segment
+            ax, ay, _ = self.get_A(particle.x, particle.y, s_span[1])
+            # If we want to keep the vector potential in the particle
             particle.ax = ax 
             particle.ay = ay
-            # we could remove it, but the operation is not symplectic 
+
+            # We could remove it, but the operation is not symplectic 
             # particle.ax = np.zeros_like(ax)
             # particle.ay = np.zeros_like(ay)
             # particle.px -= ax
             # particle.py -= ay
 
         else:
+            ax, ay, _ = self.get_A(particle.x, particle.y, s_span[0])
+            kin_px= particle.px - particle.ax
+            kin_py= particle.py - particle.ay
+            particle.px = kin_px + ax
+            particle.py = kin_py + ay
             qp0 = [
                 particle.x,
                 particle.y,
@@ -165,6 +171,10 @@ class Hamiltonian:
             particle.px = px[-1]
             particle.py = py[-1]
             particle.ptau = ptau[-1]
+            ax, ay, _ = self.get_A(particle.x, particle.y, s_span[1])
+            # If we want to keep the vector potential in the particle
+            particle.ax = ax 
+            particle.ay = ay
             if backtrack:
                 particle.s -= self.length
             else:
