@@ -16,27 +16,33 @@ gap = 0.07
 dipole_k0 = 1/rho
 dipole_k1 = -0.11
 
-############################################################
-# Estimate parameters for HeLICS based on ELENA            #
-# See ELENA_create_tanh.py for the fitting to the fieldmap #
-############################################################
+###################################################################
+# Estimate parameters for HeLICS based on ELENA                   #
+# See ELENA_edge_models.py for fit of enge orthogonal to the edge #
+###################################################################
 
-b1_tanhparams = [dipole_k0, -0.9*gap]
-b2_tanhparams = [dipole_k1, -0.9*gap]
+# elena_engeparams = [1.07874854, 545.05297078, -134.90628896, 28.46243753, 0.54979632]  # Melvin
+elena_engeparams = [0.44378056, 66.41477208, -58.12780624, 30.6935168, 0.44352517]  # Vittorio: more clean!
+nparams_elena = len(elena_engeparams)
+elena_gap = 0.076
+
+# Rescale s with gap difference to keep same value of fringe field integral
+b1_engeparams = [dipole_k0, *[val*(elena_gap/gap)**(nparams_elena-2-i) for i, val in enumerate(elena_engeparams[1:])]]
+b2_engeparams = [dipole_k1, *b1_engeparams[1:]]
 
 ####################################
-# Create half a magnet tanh dipole # 
+# Create half a magnet enge dipole #
 # Inspired by my model for ELENA   #
 ####################################
 
 # Created orthogonal to the edge
 s = sp.symbols('s')
-b1model_tanh = bpmeth.spTanh(-s, *b1_tanhparams)
-b1_edge_tanh = bpmeth.GeneralVectorPotential(b=(b1model_tanh,))
+b1_enge = bpmeth.spEnge(-(s+0.00707465219), *b1_engeparams)  # Shift edge to match integrated field 
+b1_edge = bpmeth.GeneralVectorPotential(b=(b1_enge,))
 
-Bx, By, Bs = b1_edge_tanh.get_Bfield()
+Bx, By, Bs = b1_edge.get_Bfield()
 
-xx, yy, zz = np.meshgrid(np.linspace(-0.6, 0.6, 500), [0], np.linspace(-0.5, 2.5, 500))
+xx, yy, zz = np.meshgrid(np.linspace(-0.5, 0.5, 500), [0], np.linspace(-0.5, 2.5, 500))
 xx = xx.flatten()
 yy = yy.flatten()
 zz = zz.flatten()
@@ -68,26 +74,26 @@ fig, ax = plt.subplots()
 FS_b1_edge_fieldmap.z_multipoles(2, ax=ax, marker='.')
 ax.set_xlabel("s [m]")
 plt.legend()
-plt.savefig("figures/HeLICS_fieldmap_tanh_dipole.png", dpi=500)
+plt.savefig("figures/HeLICS_fieldmap_enge_dipole.png", dpi=500)
 plt.close()
 
 #################################################
-# Create half a magnet tanh quadrupole with cut #
+# Create half a magnet enge quadrupole with cut #
 #################################################
 
 # Create immediately in FS coordinates: half straight, half curved frame
 s = sp.symbols('s')
-b2model_tanh = bpmeth.spTanh(-s, *b2_tanhparams)
-b2_edge_tanh = bpmeth.GeneralVectorPotential(b=("0", b2model_tanh,))
-b2_edge_tanh = b2_edge_tanh.cut_at_angle(theta_E)
+b2_enge = bpmeth.spEnge(-(s+0.00725905843), *b2_engeparams)  # Shift edge to match integrated field 
+b2_edge = bpmeth.GeneralVectorPotential(b=("0", b2_enge,), nphi=3)
+b2_edge = b2_edge.cut_at_angle(theta_E, maxpow=3)
 
-b2_enge_tanh_curved = bpmeth.GeneralVectorPotential(b=b2_edge_tanh.b, hs=f"{1/rho}")
+b2_edge_curved = bpmeth.GeneralVectorPotential(b=b2_edge.b, hs=f"{1/rho}", nphi=3)
 
-b2_edge_tanh.translate(ds=-l_magn/2)
-b2_enge_tanh_curved.translate(ds=-l_magn/2)
+b2_edge.translate(ds=-l_magn/2)
+b2_edge_curved.translate(ds=-l_magn/2)
 
-Bx_neg, By_neg, Bs_neg = b2_edge_tanh.get_Bfield()
-Bx_pos, By_pos, Bs_pos = b2_enge_tanh_curved.get_Bfield()
+Bx_neg, By_neg, Bs_neg = b2_edge.get_Bfield()
+Bx_pos, By_pos, Bs_pos = b2_edge_curved.get_Bfield()
 
 xx = FS_b1_edge_fieldmap.src['x']
 yy = FS_b1_edge_fieldmap.src['y']
@@ -126,7 +132,7 @@ fig, ax = plt.subplots()
 FS_b2_edge_fieldmap.z_multipoles(2, ax=ax, marker='.')
 ax.set_xlabel("s [m]")
 plt.legend()
-plt.savefig("figures/HeLICS_fieldmap_tanh_quadrupole.png", dpi=500)
+plt.savefig("figures/HeLICS_fieldmap_enge_quadrupole.png", dpi=500)
 plt.close()
 
 #######################################
@@ -135,24 +141,15 @@ plt.close()
 
 FS_edge_fieldmap = FS_b1_edge_fieldmap + FS_b2_edge_fieldmap
 
-fig, ax = plt.subplots()
-FS_edge_fieldmap.z_multipoles(2, ax=ax, marker='.')
-ax.set_xlabel("s [m]")
-ax.set_xlim(-2, 0)
-plt.legend()
-plt.title("HeLICS dipole based on tanh-shaped dipole fringe")
-plt.savefig("figures/HeLICS_fieldmap_tanh.png", dpi=500)
-plt.close()
-
 fieldmap = FS_edge_fieldmap.mirror()
 
 fig, ax = plt.subplots()
 fieldmap.z_multipoles(2, ax=ax, marker='.')
 ax.set_xlabel("s [m]")
 plt.legend()
-plt.savefig("figures/HeLICS_fieldmap_tanh.png", dpi=500)
+plt.savefig("figures/HeLICS_fieldmap_enge.png", dpi=500)
 plt.close()
 
 data = fieldmap.get_data()
-np.savetxt("HeLICS_fieldmap_tanh.csv", data, delimiter=",", header="x,y,z,Bx,By,Bs", comments='')
+np.savetxt("HeLICS_fieldmap_enge.csv", data, delimiter=",", header="x,y,z,Bx,By,Bs", comments='')
 

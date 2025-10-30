@@ -372,11 +372,24 @@ class Fieldmap:
             ax.legend(bbox_to_anchor=(1, 1), loc='upper left')
         
         return z, fieldvals
-
         
-    def fit_xprofile(self, ypos, zpos, field, order, ax=None, xmax=None):
-        assert ypos in self.src['y'] and zpos in self.src['z'], "These values are not present in the data"
-        x, fieldvals = self.xprofile(ypos, zpos, field, ax=ax, xmax=xmax)
+    def fit_xprofile(self, ypos, zpos, field, order, ax=None, xmax=None, radius=0.01):
+        """
+            :param ypos: vertical position at which to fit the horizontal profile
+            :param zpos: longitudinal position at which to fit the horizontal profile
+            :param field: which vectorfield to fit, typically By for normal multipoles
+            :param order: max order to be deterimed in the fit
+            :param ax: if given, plot profile and fit with error region
+            :param xmax: maximal x value to take into account in fit, best to exclude any region outside of GFR
+            :param radius: radius for interpolation if the asked position is not present in the data
+        """
+        if ypos in self.src['y'] and zpos in self.src['z']:
+            x, fieldvals = self.xprofile(ypos, zpos, field, ax=ax, xmax=xmax)
+        else:
+            xvals = np.linspace(-xmax, xmax, 51)
+            X, Y, Z = np.meshgrid(xvals, ypos, zpos)
+            fm = self.interpolate_points(X, Y, Z, radius=radius)
+            x, fieldvals = fm.xprofile(ypos, zpos, field, ax=ax, xmax=xmax)
 
         paramslist = np.array([np.polyfit(x, fieldvals, order+j)[j:] for j in range(5)])
         params = np.mean(paramslist, axis=0)
@@ -395,7 +408,7 @@ class Fieldmap:
             
         return coeffs, coeffsstd
 
-    def z_multipoles(self, order, xmax=None, ax=None, mov_av=1):
+    def z_multipoles(self, order, xmax=None, ax=None, mov_av=1, colors=None, ls='', marker='.', ms=6, elinewidth=0.5, capsize=1, labels=None):
         """
         So far only normal multipoles
         """
@@ -411,9 +424,12 @@ class Fieldmap:
             coeffsstd[:, i] = moving_average(coeffsstd[:, i], N=mov_av)            
         
         if ax is not None:
+            if labels is None:
+                labels = [f"b{i+1}" for i in range(order+1)]
             for i in range(order + 1):
-                print(coeffs[:, i].shape)
-                ax.errorbar(zvals, coeffs[:,i], yerr=coeffsstd[:,i], label=f"b{i}", ls='', capsize=1, marker='.')
+                color=colors[i] if colors is not None else None
+                ax.errorbar(zvals, coeffs[:,i], yerr=coeffsstd[:,i], label=labels[i], ls=ls, 
+                        capsize=capsize, marker=marker, color=color, elinewidth=elinewidth, ms=ms)
         return zvals, coeffs, coeffsstd
 
 
@@ -460,6 +476,7 @@ class Fieldmap:
 
         zvals, coeffs, coeffsstd = self.z_multipoles(2)
         b1 = coeffs[:, 0]
+        plt.plot(zvals, b1)
 
         if entrance is False:
             b1 = b1[::-1]
@@ -513,14 +530,14 @@ class Fieldmap:
             
             if padding:
                 if entrance:
-                    b = np.pad(b, (0, 50), mode='linear_ramp', end_values=design_field)
-                    b = np.pad(b, (50, 0), mode='constant', constant_values=0)
+                    b = np.pad(b, (0, 10), mode='linear_ramp', end_values=design_field)
+                    b = np.pad(b, (10, 0), mode='linear_ramp', end_values=0)
                 else:
-                    b = np.pad(b, (50, 0), mode='linear_ramp', end_values=design_field)
-                    b = np.pad(b, (0, 50), mode='constant', constant_values=0)
-                berr = np.pad(berr, (50, 50), mode='constant', constant_values=np.mean(berr)/2)
-                zvals = np.pad(zvals, (50, 0), mode='linear_ramp', end_values=np.min(zvals)-0.75)
-                zvals = np.pad(zvals, (0, 50), mode='linear_ramp', end_values=np.max(zvals)+0.75)
+                    b = np.pad(b, (10, 0), mode='linear_ramp', end_values=design_field)
+                    b = np.pad(b, (0, 10), mode='linear_ramp', end_values=0)
+                berr = np.pad(berr, (10, 10), mode='constant', constant_values=np.mean(berr)*10)
+                zvals = np.pad(zvals, (10, 0), mode='linear_ramp', end_values=np.min(zvals)-1)
+                zvals = np.pad(zvals, (0, 10), mode='linear_ramp', end_values=np.max(zvals)+1)
 
             if guess is None:
                 guess = np.zeros(nparams)
