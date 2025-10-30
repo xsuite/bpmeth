@@ -391,23 +391,23 @@ class FieldExpansion:
         pysubs = - 1/(2*sp.sqrt(bety))*((alphy + 1j)*hyp + (alphy - 1j)*hym)
         
         # H = -(1+hx) As
-        H_As = -((1+hs*x) * As).series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)])
+        H_As = -((1+hs*x) * As).series(x,0,n+1).removeO().subs([(x, xsubs), (y, ysubs)])
         H_As_poly = H_As.as_poly(hxp, hxm, hyp, hym)
         
         # H = -(1+hx) px Ax
-        H_pxAx = -((1+hs*x) * pxsubs * Ax).cancel().series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
+        H_pxAx = -((1+hs*x) * pxsubs * Ax).cancel().series(x,0,n+1).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
         H_pxAx_poly = H_pxAx.as_poly(hxp, hxm, hyp, hym)
         
         # H = (1+hx) 1/2 Ax^2
-        H_Ax2 = ((1+hs*x) * 1/2 * Ax**2).cancel().series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
+        H_Ax2 = ((1+hs*x) * 1/2 * Ax**2).cancel().series(x,0,n+1).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
         H_Ax2_poly = H_Ax2.as_poly(hxp, hxm, hyp, hym)
 
         # H = -(1+hx) py Ay
-        H_pyAy = -((1+hs*x) * pysubs * Ay).cancel().series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
+        H_pyAy = -((1+hs*x) * pysubs * Ay).cancel().series(x,0,n+1).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
         H_pyAy_poly = H_pyAy.as_poly(hxp, hxm, hyp, hym)
         
         # H = (1+hx) 1/2 Ay^2
-        H_Ay2 = ((1+hs*x) * 1/2 * Ay**2).cancel().series(x,0,n).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
+        H_Ay2 = ((1+hs*x) * 1/2 * Ay**2).cancel().series(x,0,n+1).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
         H_Ay2_poly = H_Ay2.as_poly(hxp, hxm, hyp, hym)
         
         h = sp.MutableDenseNDimArray(np.zeros((n+1, n+1, n+1, n+1), dtype=object))
