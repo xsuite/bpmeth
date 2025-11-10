@@ -342,7 +342,11 @@ class Fieldmap:
         xarr = np.unique(self.src['x'])
         yarr = np.unique(self.src['y'])
 
-        s, x, y = np.meshgrid(sarr, xarr, yarr)
+        # Build a new symmetrix s grid
+        smax = max(abs(sarr.min()), abs(sarr.max()))
+        s_sym = np.linspace(-smax, smax, len(sarr))
+
+        s, x, y = np.meshgrid(s_sym, xarr, yarr)
         xys1 = np.array([x.flatten(), y.flatten(), s.flatten()]).T
         dst1 = pv.PolyData(xys1).interpolate(self.src, radius=radius)
 

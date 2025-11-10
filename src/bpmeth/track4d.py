@@ -393,6 +393,7 @@ class Output4d:
                 
             if plot_phase:
                 ax_phase.plot(ff,hfplusangle, label=f"Phase h+ {label}", color=color, linestyle='--')
+                ax_phase.legend()
                 
         plt.legend()
 
@@ -443,9 +444,9 @@ class Output4d:
                 
             if plot_phase:
                 ax_phase.plot(ff,hfplusangle, label=f"Phase h+ {label}", color=color, linestyle='--')
+                ax_phase.legend()
                 
         ax.legend()
-        ax_phase.legend()
 
 
 class NormalForms4d:
