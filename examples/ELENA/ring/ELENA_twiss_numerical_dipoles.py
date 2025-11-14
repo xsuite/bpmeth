@@ -57,7 +57,7 @@ plt.savefig("figures/ELENA_dipole_splines.png", dpi=500)
 plt.close()
 
 # Plot trajectory of particle on the closed orbit
-p = xt.Particles()
+p = xt.Particles(x=np.linspace(-0.01, 0.01, 11))
 dipole_splines.track(p, plot=True)
 plt.savefig("figures/ELENA_orbit.png", dpi=500)
 plt.close()
