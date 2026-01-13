@@ -6,6 +6,7 @@ import bpmeth
 """
 Analysis of a ring with a map coming from H = a x
 Delta px = :-H: px - px = -a [x, px] = -a
+RDTs H = a x = a * sqrt(beta_x)/2 * (hx+ + hx-) => h1000 = h0100 = -a * sqrt(beta_x)/2
 """
 
 npart = 1
@@ -35,7 +36,7 @@ h = np.zeros((4, 4, 4, 4), dtype=complex)
 h[1,0,0,0] = -a * np.sqrt(betax)/2 
 h[0,1,0,0] = -a * np.sqrt(betax)/2 
 
-ff = bpmeth.NormalForms4d(h, 0., 0., Qx, Qy, nturns)  # observation after element 1 => No phase advance between source and observation
+ff = bpmeth.NormalForms4d(h, 2*np.pi*Qx, 2*np.pi*Qy, Qx, Qy, nturns)  # observation after element 1, \Delta \mu_x = source - obs = -eps + 2 pi*Qx
 o_norm = ff.calc_coords(part)
 o_norm.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
 
@@ -60,6 +61,7 @@ ax.plot(-a * betax/2 * np.cos(np.pi*Qx)/np.sin(np.pi*Qx), -a/2 * (1-alphax * np.
 """
 Analysis of a ring with a map coming from H = a px
 Induced shift Delta x = :-H: x - x = -a [px, x] = a
+RDTs: 
 """
 
 class Shift_x:
@@ -84,7 +86,7 @@ h = np.zeros((4, 4, 4, 4), dtype=complex)
 h[1,0,0,0] = a / (2*np.sqrt(betax)) * (alphax + 1j)
 h[0,1,0,0] = a / (2*np.sqrt(betax)) * (alphax - 1j)
 
-ff = bpmeth.NormalForms4d(h, 0., 0., Qx, Qy, nturns)  # observation after element 1 => No phase advance between source and observation
+ff = bpmeth.NormalForms4d(h, 2*np.pi*Qx, 2*np.pi*Qy, Qx, Qy, nturns)  # observation after element 1 => No phase advance between source and observation
 o_norm = ff.calc_coords(part)
 o_norm.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
 

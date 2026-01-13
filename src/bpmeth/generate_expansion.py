@@ -416,11 +416,11 @@ class FieldExpansion:
             for q in range(n+1-p):
                 for r in range(n+1-p-q):
                     for t in range(n+1-p-q-r):
-                        h[p,q,r,t] += H_As_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
-                        h[p,q,r,t] += H_pxAx_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
-                        h[p,q,r,t] += H_Ax2_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
-                        h[p,q,r,t] += H_pyAy_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
-                        h[p,q,r,t] += H_Ay2_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
+                        h[p,q,r,t] -= H_As_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
+                        h[p,q,r,t] -= H_pxAx_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
+                        h[p,q,r,t] -= H_Ax2_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
+                        h[p,q,r,t] -= H_pyAy_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
+                        h[p,q,r,t] -= H_Ay2_poly.coeff_monomial(hxp**p*hxm**q*hyp**r*hym**t)
 
         return h
         
