@@ -520,8 +520,8 @@ class NormalForms4d:
                         for t in range(len(h[p, q, r])):
                             if h[p, q, r, t] != 0:
                                 print(h[p,q,r,t])
-                                f[p, q, r, t] = (h[p, q, r, t] * np.exp(-1j*(p-q)*phi_x - 1j*(r-t)*phi_y) /
-                                                (1 - np.exp(-2*np.pi*1j * ((p-q)*Qx+(r-t)*Qy))))
+                                f[p, q, r, t] = (h[p, q, r, t] * np.exp(1j*(p-q)*phi_x + 1j*(r-t)*phi_y) /
+                                                (1 - np.exp(2*np.pi*1j * ((p-q)*Qx+(r-t)*Qy))))
         else:
             assert(isinstance(phi_x, np.ndarray) and phi_x.shape[0] == h.shape[4])
             assert(isinstance(phi_y, np.ndarray) and phi_y.shape[0] == h.shape[4])
@@ -530,8 +530,8 @@ class NormalForms4d:
                     for r in range(len(h[p, q])):
                         for t in range(len(h[p, q, r])):
                             if p!=q or r!=t:  # Drop the detuning terms
-                                f[p, q, r, t] = np.nansum(h[p, q, r, t] * np.exp(-1j*(p-q)*phi_x - 1j*(r-t)*phi_y) /
-                                                    (1 - np.exp(-2*np.pi*1j * ((p-q)*Qx+(r-t)*Qy))), axis=0)            
+                                f[p, q, r, t] = np.nansum(h[p, q, r, t] * np.exp(1j*(p-q)*phi_x - 1j*(r-t)*phi_y) /
+                                                    (1 - np.exp(2*np.pi*1j * ((p-q)*Qx+(r-t)*Qy))), axis=0)            
         return f
     
     def calc_deltaQ(self, Jx, Jy):
@@ -572,7 +572,7 @@ class NormalForms4d:
                 for r in range(len(f[p,q])):
                     for t in range(len(f[p,q,r])):
                         if f[p,q,r,t] != 0:
-                            corr = np.array([-2j * q*f[p,q,r,t] * (2*Ix)**((p+q-1)/2) * (2*Iy)**((r+t)/2) 
+                            corr = np.array([2j * q*f[p,q,r,t] * (2*Ix)**((p+q-1)/2) * (2*Iy)**((r+t)/2) 
                                             * np.exp(1j*(q-p-1)*(2*np.pi*Qx*N + psi0x) + 1j*(t-r)*(2*np.pi*Qy*N + psi0y)) 
                                             for N in range(self.num_turns)])
                             hxplus += corr 
@@ -583,7 +583,7 @@ class NormalForms4d:
                 for r in range(len(f[p,q])):
                     for t in range(len(f[p,q,r])):
                         if f[p,q,r,t] != 0:
-                            corr = np.array([2j * p*f[p,q,r,t] * (2*Ix)**((p+q-1)/2) * (2*Iy)**((r+t)/2) 
+                            corr = np.array([-2j * p*f[p,q,r,t] * (2*Ix)**((p+q-1)/2) * (2*Iy)**((r+t)/2) 
                                             * np.exp(1j*(q-p+1)*(2*np.pi*Qx*N + psi0x) + 1j*(t-r)*(2*np.pi*Qy*N + psi0y))
                                             for N in range(self.num_turns)])  
 
@@ -596,7 +596,7 @@ class NormalForms4d:
                 for r in range(len(f[p,q])):
                     for t in range(len(f[p,q,r])):
                         if f[p,q,r,t] != 0:
-                            corr = np.array([-2j * t*f[p,q,r,t] * (2*Ix)**((p+q)/2) * (2*Iy)**((r+t-1)/2) 
+                            corr = np.array([2j * t*f[p,q,r,t] * (2*Ix)**((p+q)/2) * (2*Iy)**((r+t-1)/2) 
                                             * np.exp(1j*(q-p)*(2*np.pi*Qx*N + psi0x) + 1j*(t-r-1)*(2*np.pi*Qy*N + psi0y))
                                             for N in range(self.num_turns)])
                             hyplus += corr
@@ -607,7 +607,7 @@ class NormalForms4d:
                 for r in range(len(f[p,q])):
                     for t in range(len(f[p,q,r])):
                         if f[p,q,r,t] != 0:
-                            corr = np.array([2j * r*f[p,q,r,t] * (2*Ix)**((p+q)/2) * (2*Iy)**((r+t-1)/2) 
+                            corr = np.array([-2j * r*f[p,q,r,t] * (2*Ix)**((p+q)/2) * (2*Iy)**((r+t-1)/2) 
                                             * np.exp(1j*(q-p)*(2*np.pi*Qx*N + psi0x) + 1j*(t-r+1)*(2*np.pi*Qy*N + psi0y))
                                             for N in range(self.num_turns)])
                             hymin += corr

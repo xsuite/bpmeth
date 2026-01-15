@@ -23,10 +23,13 @@ ylims=[-0.1,0.1]
 fig, ax = plt.subplots()
 a = 0.01
 
+
+phix = 0.01
+phiy = 0.
 # Solution with tracking
-line_shift = bpmeth.Line4d([bpmeth.Phase4d(Qx, Qy), bpmeth.Kick_x(-a, order=0)])
+line_shift = bpmeth.Line4d([bpmeth.Phase4d(Qx-phix, Qy-phiy), bpmeth.Kick_x(-a, order=0), bpmeth.Phase4d(phix, phiy)])
 o_track = line_shift.track(part, num_turns=nturns)
-o_track.plot_xpx(xlims=xlims, ylims=ylims, elem=1, ax=ax) # observation after element 1
+o_track.plot_xpx(xlims=xlims, ylims=ylims, elem=2, ax=ax) # observation at end of the line
 
 
 # Solution with normal forms
@@ -36,7 +39,7 @@ h = np.zeros((4, 4, 4, 4), dtype=complex)
 h[1,0,0,0] = -a * np.sqrt(betax)/2 
 h[0,1,0,0] = -a * np.sqrt(betax)/2 
 
-ff = bpmeth.NormalForms4d(h, 2*np.pi*Qx, 2*np.pi*Qy, Qx, Qy, nturns)  # observation after element 1, \Delta \mu_x = source - obs = -eps + 2 pi*Qx
+ff = bpmeth.NormalForms4d(h, 2*np.pi*(-phix) if -phix > 0 else 2*np.pi*(-phix+Qx), 2*np.pi*(-phiy) if -phiy > 0 else 2*np.pi*(-phix+Qy), Qx, Qy, nturns)  # source - observation (+2piQ)
 o_norm = ff.calc_coords(part)
 o_norm.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
 
@@ -75,9 +78,9 @@ fig, ax = plt.subplots()
 a = 0.01
 
 # Solution with tracking
-line_shift = bpmeth.Line4d([bpmeth.Phase4d(Qx, Qy), Shift_x(a)])
+line_shift = bpmeth.Line4d([bpmeth.Phase4d(Qx-phix, Qy-phiy), Shift_x(a), bpmeth.Phase4d(phix, phiy)])
 o_track = line_shift.track(part, num_turns=nturns)
-o_track.plot_xpx(xlims=xlims, ylims=ylims, ax=ax, elem=1)  # observation after element 1
+o_track.plot_xpx(xlims=xlims, ylims=ylims, ax=ax, elem=2)  # observation end of line
 
 # Solution with normal forms
 betax=1
@@ -86,7 +89,7 @@ h = np.zeros((4, 4, 4, 4), dtype=complex)
 h[1,0,0,0] = a / (2*np.sqrt(betax)) * (alphax + 1j)
 h[0,1,0,0] = a / (2*np.sqrt(betax)) * (alphax - 1j)
 
-ff = bpmeth.NormalForms4d(h, 2*np.pi*Qx, 2*np.pi*Qy, Qx, Qy, nturns)  # observation after element 1 => No phase advance between source and observation
+ff = bpmeth.NormalForms4d(h, 2*np.pi*phix, 2*np.pi*phiy, Qx, Qy, nturns)  # observation end of line
 o_norm = ff.calc_coords(part)
 o_norm.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
 
