@@ -24,7 +24,7 @@ fig, ax = plt.subplots()
 a = 0.01
 
 
-phix = 0.01
+phix = 0.
 phiy = 0.
 # Solution with tracking
 line_shift = bpmeth.Line4d([bpmeth.Phase4d(Qx-phix, Qy-phiy), bpmeth.Kick_x(-a, order=0), bpmeth.Phase4d(phix, phiy)])
@@ -39,7 +39,7 @@ h = np.zeros((4, 4, 4, 4), dtype=complex)
 h[1,0,0,0] = -a * np.sqrt(betax)/2 
 h[0,1,0,0] = -a * np.sqrt(betax)/2 
 
-ff = bpmeth.NormalForms4d(h, 2*np.pi*(-phix) if -phix > 0 else 2*np.pi*(-phix+Qx), 2*np.pi*(-phiy) if -phiy > 0 else 2*np.pi*(-phix+Qy), Qx, Qy, nturns)  # source - observation (+2piQ)
+ff = bpmeth.NormalForms4d(h, 2*np.pi*(phix) if phix >= 0 else 2*np.pi*(phix + Qx), 2*np.pi*(phiy) if phiy >= 0 else 2*np.pi*(phiy + Qy), Qx, Qy, nturns)  # observation - source (+2piQ)
 o_norm = ff.calc_coords(part)
 o_norm.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
 
@@ -77,6 +77,8 @@ class Shift_x:
 fig, ax = plt.subplots()
 a = 0.01
 
+phix = 0.
+phiy = 0.
 # Solution with tracking
 line_shift = bpmeth.Line4d([bpmeth.Phase4d(Qx-phix, Qy-phiy), Shift_x(a), bpmeth.Phase4d(phix, phiy)])
 o_track = line_shift.track(part, num_turns=nturns)
@@ -89,7 +91,7 @@ h = np.zeros((4, 4, 4, 4), dtype=complex)
 h[1,0,0,0] = a / (2*np.sqrt(betax)) * (alphax + 1j)
 h[0,1,0,0] = a / (2*np.sqrt(betax)) * (alphax - 1j)
 
-ff = bpmeth.NormalForms4d(h, 2*np.pi*phix, 2*np.pi*phiy, Qx, Qy, nturns)  # observation end of line
+ff = bpmeth.NormalForms4d(h, 2*np.pi*(phix) if phix >= 0 else 2*np.pi*(phix + Qx), 2*np.pi*(phiy) if phiy >= 0 else 2*np.pi*(phiy + Qy), Qx, Qy, nturns)  # Observation - source (+2piQ)
 o_norm = ff.calc_coords(part)
 o_norm.plot_xpx(xlims=xlims, ylims=ylims, ax=ax)
 
