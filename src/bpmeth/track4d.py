@@ -35,6 +35,35 @@ class Phase4d:
     def __repr__(self):
         return f"Phase4d({self.phase_x}, {self.phase_y})"
 
+class OneTurnMap:
+    def __init__(self, Qx, Qy, betx, bety, alphx, alphy):
+        self.Qx = Qx
+        self.Qy = Qy
+        self.betx = betx
+        self.bety = bety
+        self.alphx = alphx
+        self.alphy = alphy
+        
+    def track(self, part):
+        x, px, y, py = part.x, part.px, part.y, part.py
+        
+        arg_x = 2*np.pi*self.Qx
+        cx = np.cos(arg_x)
+        sx = np.sin(arg_x)
+        gamma_x = (1 + self.alphx**2) / self.betx
+        x1 = x*(cx + self.alphx*sx) + px*(self.betx*sx)
+        px1 = -x*(gamma_x*sx) + px*(cx - self.alphx*sx)
+        
+        arg_y = 2*np.pi*self.Qy
+        cy = np.cos(arg_y)
+        sy = np.sin(arg_y)
+        gamma_y = (1 + self.alphy**2) / self.bety
+        y1 = y*(cy + self.alphy*sy) + py*(self.bety*sy)
+        py1 = -y*(gamma_y*sy) + py*(cy - self.alphy*sy)
+        
+        part.x, part.px, part.y, part.py = x1, px1, y1, py1      
+        
+
 class Kick_x:
     def __init__(self, kick, order=1):
         self.kick = kick
@@ -393,6 +422,7 @@ class Output4d:
                 
             if plot_phase:
                 ax_phase.plot(ff,hfplusangle, label=f"Phase h+ {label}", color=color, linestyle='--')
+                ax_phase.legend()
                 
         plt.legend()
 
@@ -443,9 +473,9 @@ class Output4d:
                 
             if plot_phase:
                 ax_phase.plot(ff,hfplusangle, label=f"Phase h+ {label}", color=color, linestyle='--')
+                ax_phase.legend()
                 
         ax.legend()
-        ax_phase.legend()
 
 
 class NormalForms4d:
@@ -455,6 +485,7 @@ class NormalForms4d:
             complex number or a numpy array of complex numbers corresponding to different locations.
             Make sure to include the ds in this contribution if you want to perform an integral!
         :param phi_x: horizontal phase advance of the perturbation, either a float or a numpy array of floats
+            source - observation (+ 2 pi Q)
         :param phi_y: vertical phase advance of the perturbation, either a float or a numpy array of floats
         :param Qx: horizontal tune
         :param Qy: vertical tune
@@ -488,6 +519,7 @@ class NormalForms4d:
                     for r in range(len(h[p, q])):
                         for t in range(len(h[p, q, r])):
                             if h[p, q, r, t] != 0:
+                                print(h[p,q,r,t])
                                 f[p, q, r, t] = (h[p, q, r, t] * np.exp(1j*(p-q)*phi_x + 1j*(r-t)*phi_y) /
                                                 (1 - np.exp(2*np.pi*1j * ((p-q)*Qx+(r-t)*Qy))))
         else:
@@ -498,7 +530,7 @@ class NormalForms4d:
                     for r in range(len(h[p, q])):
                         for t in range(len(h[p, q, r])):
                             if p!=q or r!=t:  # Drop the detuning terms
-                                f[p, q, r, t] = np.nansum(h[p, q, r, t] * np.exp(1j*(p-q)*phi_x + 1j*(r-t)*phi_y) /
+                                f[p, q, r, t] = np.nansum(h[p, q, r, t] * np.exp(1j*(p-q)*phi_x - 1j*(r-t)*phi_y) /
                                                     (1 - np.exp(2*np.pi*1j * ((p-q)*Qx+(r-t)*Qy))), axis=0)            
         return f
     
@@ -544,9 +576,7 @@ class NormalForms4d:
                                             * np.exp(1j*(q-p-1)*(2*np.pi*Qx*N + psi0x) + 1j*(t-r)*(2*np.pi*Qy*N + psi0y)) 
                                             for N in range(self.num_turns)])
                             hxplus += corr 
-        
-     
-
+                            
         hxmin = np.array([np.sqrt(2*Ix) * np.exp(1j*(2*np.pi*Qx*N + psi0x)) for N in range(self.num_turns)])
         for p in range(len(f)):
             for q in range(len(f[p])):
@@ -582,7 +612,8 @@ class NormalForms4d:
                                             for N in range(self.num_turns)])
                             hymin += corr
 
-
+        print("h_{x,+} = ", hxplus)
+        print("h_{x,-} = ", hxmin)
         x = (hxplus + hxmin) / 2
         if any(abs(pp.imag) > 1e-10 for tt in x for pp in tt):
             warnings.warn("x is not real, are you sure you gave a physical Hamiltonian?")

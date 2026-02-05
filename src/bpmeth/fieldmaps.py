@@ -197,6 +197,62 @@ class Fieldmap:
 
         return Fieldmap(data)
 
+    def calc_global_coords(self, rho, phi):
+        """
+        Transform a fieldmap from Frenet–Serret coordinates back to global coordinates.
+        Inverse of calc_FS_coords.
+    
+        :param rho: Bending radius of the magnet.
+        :param phi: Deflection angle (in radians).
+        :return: Fieldmap object in global coordinates.
+        """
+
+        l_magn = rho * phi
+    
+        x = self.src["x"]
+        y = self.src["y"]
+        s = self.src["z"]
+        Bx = self.src["Bx"]
+        By = self.src["By"]
+        Bs = self.src["Bz"]
+
+        # Masks per region
+        mask_ns = s < -l_magn / 2
+        mask_b  = np.abs(s) < l_magn / 2
+        mask_ps = s >  l_magn / 2
+
+        # Allocate output
+        X, Y, Z = np.zeros_like(x), np.zeros_like(y), np.zeros_like(s)
+        Bx_g, By_g, Bz_g = np.zeros_like(Bx), np.zeros_like(By), np.zeros_like(Bs)
+
+        # Negative straight
+        s_ns = s[mask_ns] + l_magn/2
+        X[mask_ns] = (rho + x[mask_ns]) * np.cos(phi/2) + s_ns * np.sin(phi/2)
+        Y[mask_ns] = y[mask_ns]
+        Z[mask_ns] = -(rho + x[mask_ns]) * np.sin(phi/2) + s_ns * np.cos(phi/2)
+        Bx_g[mask_ns] = Bx[mask_ns]*np.cos(phi/2) - Bs[mask_ns]*np.sin(phi/2)
+        By_g[mask_ns] = By[mask_ns]
+        Bz_g[mask_ns] = Bx[mask_ns]*np.sin(phi/2) + Bs[mask_ns]*np.cos(phi/2)
+
+        # Bent
+        X[mask_b] = np.cos(s[mask_b]/rho) * (rho + x[mask_b])
+        Y[mask_b] = y[mask_b]
+        Z[mask_b] = np.sin(s[mask_b]/rho) * (rho + x[mask_b])
+        Bx_g[mask_b] = Bx[mask_b]*np.cos(s[mask_b]/rho) + Bs[mask_b]*np.sin(s[mask_b]/rho)
+        By_g[mask_b] = By[mask_b]
+        Bz_g[mask_b] = -Bx[mask_b]*np.sin(s[mask_b]/rho) + Bs[mask_b]*np.cos(s[mask_b]/rho)
+
+        # Positive straight
+        s_ps = s[mask_ps] - l_magn/2
+        X[mask_ps] = (rho + x[mask_ps]) * np.cos(phi/2) - s_ps * np.sin(phi/2)
+        Y[mask_ps] = y[mask_ps]
+        Z[mask_ps] = (rho + x[mask_ps]) * np.sin(phi/2) + s_ps * np.cos(phi/2)
+        Bx_g[mask_ps] = Bx[mask_ps]*np.cos(phi/2) + Bs[mask_ps]*np.sin(phi/2)
+        By_g[mask_ps] = By[mask_ps]
+        Bz_g[mask_ps] = -Bx[mask_ps]*np.sin(phi/2) + Bs[mask_ps]*np.cos(phi/2)
+
+        data = np.array([X, Y, Z, Bx_g, By_g, Bz_g]).T
+        return Fieldmap(data)
 
     def calc_edge_frame(self, Xedge, Yedge, Zedge, edge_angle, rho, phi, radius=0.01):
         """
@@ -286,7 +342,11 @@ class Fieldmap:
         xarr = np.unique(self.src['x'])
         yarr = np.unique(self.src['y'])
 
-        s, x, y = np.meshgrid(sarr, xarr, yarr)
+        # Build a new symmetrix s grid
+        smax = max(abs(sarr.min()), abs(sarr.max()))
+        s_sym = np.linspace(-smax, smax, len(sarr))
+
+        s, x, y = np.meshgrid(s_sym, xarr, yarr)
         xys1 = np.array([x.flatten(), y.flatten(), s.flatten()]).T
         dst1 = pv.PolyData(xys1).interpolate(self.src, radius=radius)
 
