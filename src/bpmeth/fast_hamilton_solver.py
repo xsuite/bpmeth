@@ -1,4 +1,4 @@
-from .polyhamiltonian_3_3_h import vectorfield, afield
+from .polyhamiltonian_4_3_h import vectorfield, afield
 import numpy as np
 from numba import njit
 import matplotlib.pyplot as plt
