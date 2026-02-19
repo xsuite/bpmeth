@@ -470,7 +470,7 @@ class Fieldmap:
 
     def z_multipoles(self, order, xmax=None, ax=None, mov_av=1, colors=None, ls='', marker='.', ms=6, elinewidth=0.5, capsize=1, labels=None):
         """
-        So far only normal multipoles
+        normal multipoles
         """
 
         zvals = np.unique(self.src['z'])
@@ -492,6 +492,29 @@ class Fieldmap:
                         capsize=capsize, marker=marker, color=color, elinewidth=elinewidth, ms=ms)
         return zvals, coeffs, coeffsstd
 
+    def skew_z_multipoles(self, order, xmax=None, ax=None, mov_av=1, colors=None, ls='', marker='.', ms=6, elinewidth=0.5, capsize=1, labels=None):
+        """
+        skew multipoles
+        """
+
+        zvals = np.unique(self.src['z'])
+        coeffs = np.zeros((len(zvals), order+1))
+        coeffsstd = np.zeros((len(zvals), order+1))
+        for i, zpos in enumerate(zvals):
+            coeffs[i], coeffsstd[i] = self.fit_xprofile(0, zpos, "Bx", order, xmax=xmax)
+        
+        for i in range(order + 1):
+            coeffs[:, i] = moving_average(coeffs[:, i], N=mov_av)
+            coeffsstd[:, i] = moving_average(coeffsstd[:, i], N=mov_av)            
+        
+        if ax is not None:
+            if labels is None:
+                labels = [f"a{i+1}" for i in range(order+1)]
+            for i in range(order + 1):
+                color=colors[i] if colors is not None else None
+                ax.errorbar(zvals, coeffs[:,i], yerr=coeffsstd[:,i], label=labels[i], ls=ls, 
+                        capsize=capsize, marker=marker, color=color, elinewidth=elinewidth, ms=ms)
+        return zvals, coeffs, coeffsstd
 
     def integratedfield(self, order, xmax=None, zmin=-9999, zmax=9999):
         zvals, coeffs, coeffsstd = self.z_multipoles(order, xmax=xmax)
