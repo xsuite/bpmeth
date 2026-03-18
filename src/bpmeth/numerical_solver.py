@@ -8,19 +8,35 @@ import numba as nb
 
 
 class Hamiltonian:
+    isthick = True  # To be able to work with Xsuite tracking
 
-    isthick = True
+    def __init__(self, length, h, vectp, s_start=0):
+        """
+        :param length (float): Length of the element.
+        :param h (float): Curvature of the reference frame.
+        :param vectp (FieldExpansion): Field expansion of the element.
+        :param s_start (float): Starting position of the element where the particle will enter.
+        Important in case of s-dependent fields.
+        """
 
-    def __init__(self, length, curv, vectp, s_start=0):
+        assert vectp.h == h, "Curvature of the vector potential must match the curvature of the Hamiltonian"
+
         self.length = length
         self.s_start = s_start
-        self.curv = curv
+        self.curv = h
         self.vectp = vectp
-        self.angle = curv * length
+        self.angle = h * length
 
         self.vectorfield = self.get_vectorfield()
 
+
     def get_H(self, coords):
+        """
+        Get the Hamiltonian of the system. This can be replaced with a custom Hamiltonian.
+        :param coords: Particle object to evaluate the Hamiltonian on, must have attributes x, y, s, px, py, ptau, beta0.
+        :return: Hamiltonian expression in the given coordinates.
+        """
+
         x, y, s = coords.x, coords.y, coords.s
         px, py, ptau = coords.px, coords.py, coords.ptau
         beta0 = coords.beta0
@@ -36,16 +52,31 @@ class Hamiltonian:
 
         return H
 
+
     def get_A(self, x,y,s):
+        """
+        Get the vector potential at a given position.
+        :param x: x coordinate.
+        :param y: y coordinate.
+        :param s: s coordinate.
+        :return: Ax, Ay, As at the given position.
+        """
+
         Ax, Ay, As = self.vectp.get_A(lambdify=True)
         return Ax(x, y, s), Ay(x, y, s), As(x, y, s)
 
-    def get_vectorfield(self, coords=None, lambdify=True):
-        if coords is None:
-            beta0 = sp.symbols("beta0", real=True, positive=True)
-            coords = SympyParticle(beta0=beta0)
+
+    def get_vectorfield(self, lambdify=True):
+        """
+        Determine the flow of the system from hamilton equations. Not the vector potential!
+        :param lambdify (bool): Whether to return a numerical function or the symbolic expression of the vector field.
+        :return: Vector field of the system, either as a numerical function or as a symbolic expression.
+        """
+
+        coords = SympyParticle()
         x, y, tau = coords.x, coords.y, coords.tau
         px, py, ptau = coords.px, coords.py, coords.ptau
+        beta0 = coords.beta0
         H = self.get_H(coords)
         fx = H.diff(px)
         fy = H.diff(py)
@@ -64,14 +95,30 @@ class Hamiltonian:
             return f_numba
         return qpdot
 
+
     def solve(self, qp0, s_span=None, ivp_opt={}, backtrack=False, beta0=1):
-        ivp_opt = ivp_opt.copy()
-        if s_span is None and not backtrack:
-             s_span = [self.s_start, self.length+ self.s_start]
+        """
+        Solve the Hamilton equations for the given initial conditions
+        :param qp0: Initial conditions for the integration, must be a list of 6 elements [x, y, tau, px, py, ptau].
+        :param s_span: Span of integration in s, must be a list of 2 elements [s_start, s_end]. If None, it will be set
+        based on the start of the element and its length.
+        :param ivp_opt: Options for the IVP solver, such as tolerance.
+        :param backtrack: Whether to integrate backwards in s.
+        :param beta0: Reference beta of the particle, used for the Hamiltonian. Default is 1 (ultrarelativistic).
+        :return: Solution of the IVP solver, containing the trajectory of the particle through the element. 
+        The solution will have attributes t (s values) and y (trajectory in phase space). The trajectory will be a 
+        list of 6 elements [x, y, tau, px, py, ptau] for each s value.
+        """
+
+        if s_span is None:
+            if backtrack:
+                s_span = [self.length + self.s_start, self.s_start]
+            else:
+                s_span = [self.s_start, self.length + self.s_start]
+                
         if backtrack:
-            if s_span is None:
-                s_span = [self.length+self.s_start, self.s_start]
             assert s_span[0] > s_span[1], "s_span not compatible with backtracking"
+
 
         if "t_eval" not in ivp_opt:
             ivp_opt["t_eval"] = np.linspace(s_span[0], s_span[1], 500)
@@ -83,118 +130,108 @@ class Hamiltonian:
         f = self.vectorfield
         sol = solve_ivp(f.py_func, s_span, qp0, args=(beta0,), **ivp_opt)
         return sol
+    
 
     def track(self, particle, s_span=None, return_sol=False, ivp_opt={}, backtrack=False):
-        if s_span is None and not backtrack:
-             s_span = [self.s_start, self.length + self.s_start]
-        if backtrack:
-            if s_span is None:
+        """
+        Track a particle through the element by solving the Hamilton equations. Works with NumpyParticle or Xsuite particles.
+        :param particle: Particle to track, must have attributes x, y, zeta, px, py, ptau, beta0, s.
+        :param s_span: Span of integration in s, must be a list of 2 elements [s_start, s_end]. If None, it will be set
+        based on the start of the element and its length.
+        :parma return_sol: Whether to return the solution of the IVP solver, in this case the function will return a list of solutions for each particle.
+        :param ivp_opt: Options for the IVP solver, such as tolerance.
+        :param backtrack: Whether to integrate backwards in s.
+        :return: If return_sol=True, return solution of the IVP solver, containing the trajectory of the particle through the element. 
+        The solution will have attributes t (s values) and y (trajectory in phase space). The trajectory will be a 
+        list of 6 elements [x, y, tau, px, py, ptau] for each s value.
+        """
+
+        if s_span is None:
+            if backtrack:
                 s_span = [self.length + self.s_start, self.s_start]
+            else:
+                s_span = [self.s_start, self.length + self.s_start]
+
+        if backtrack:
             assert s_span[0] > s_span[1], "s_span not compatible with backtracking"
 
 
-        if isinstance(particle.x, np.ndarray) or isinstance(particle.x, list):
-            results = []
-            out = []
-            for i in range(len(particle.x)):
-                # Adjust vector potential for each particle at the beginning of the segment
-                ax, ay, _ = self.get_A(particle.x[i], particle.y[i], s_span[0])
-                kin_px= particle.px[i] - particle.ax[i]
-                kin_py= particle.py[i] - particle.ay[i]
-                particle.px[i] = kin_px + ax
-                particle.py[i] = kin_py + ay
-                qp0 = [
-                    particle.x[i],
-                    particle.y[i],
-                    particle.zeta[i]/ particle.beta0[i],
-                    particle.px[i],
-                    particle.py[i],
-                    particle.ptau[i],
-                ]
-                sol = self.solve(qp0, s_span=s_span, beta0=particle.beta0[i], ivp_opt=ivp_opt)
-                s = sol.t
-                x, y, tau, px, py, ptau = sol.y
-                results.append(
-                    {
-                        "x": x[-1],
-                        "y": y[-1],
-                        "zeta": tau[-1] * particle.beta0[i],
-                        "px": px[-1],
-                        "py": py[-1],
-                        "ptau": ptau[-1],
-                    }
-                )
-                if return_sol:
-                    out.append(sol)
-            particle.x = [res["x"] for res in results]
-            particle.y = [res["y"] for res in results]
-            particle.zeta = [res["zeta"] for res in results]
-            particle.px = [res["px"] for res in results]
-            particle.py = [res["py"] for res in results]
-            particle.ptau = [res["ptau"] for res in results]
-            if backtrack:
-                particle.s -= self.length
-            else:
-                particle.s += self.length
-            # Manage vector potential for each particle at the exit of the segment
-            ax, ay, _ = self.get_A(particle.x, particle.y, s_span[1])
-            # If we want to keep the vector potential in the particle
-            particle.ax = ax 
-            particle.ay = ay
+        is_array = isinstance(particle.x, (list, np.ndarray))
 
-            # We could remove it, but the operation is not symplectic 
-            # particle.ax = np.zeros_like(ax)
-            # particle.ay = np.zeros_like(ay)
-            # particle.px -= ax
-            # particle.py -= ay
+        def to_array(v):
+            return np.array(v) if isinstance(v, (list, np.ndarray)) else np.array([v])
 
-        else:
-            ax, ay, _ = self.get_A(particle.x, particle.y, s_span[0])
-            kin_px= particle.px - particle.ax
-            kin_py= particle.py - particle.ay
-            particle.px = kin_px + ax
-            particle.py = kin_py + ay
-            qp0 = [
-                particle.x,
-                particle.y,
-                particle.zeta/ particle.beta0,
-                particle.px,
-                particle.py,
-                particle.ptau,
-            ]
-            sol = self.solve(qp0, s_span=s_span, beta0=particle.beta0, ivp_opt=ivp_opt)
-            s = sol.t
-            x, y, tau, px, py, ptau = sol.y
-            particle.x = x[-1]
-            particle.y = y[-1]
-            particle.zeta = tau[-1] * particle.beta0
-            particle.px = px[-1]
-            particle.py = py[-1]
-            particle.ptau = ptau[-1]
-            ax, ay, _ = self.get_A(particle.x, particle.y, s_span[1])
-            # If we want to keep the vector potential in the particle
-            particle.ax = ax 
-            particle.ay = ay
-            if backtrack:
-                particle.s -= self.length
-            else:
-                particle.s += self.length
+        x     = to_array(particle.x)
+        y     = to_array(particle.y)
+        zeta  = to_array(particle.zeta)
+        px    = to_array(particle.px)
+        py    = to_array(particle.py)
+        ptau  = to_array(particle.ptau)
+        beta0 = to_array(particle.beta0)
+        ax_p  = to_array(particle.ax)
+        ay_p  = to_array(particle.ay)
+
+
+        out = []
+        n = len(x)
+        x_out, y_out, zeta_out = np.empty(n), np.empty(n), np.empty(n)
+        px_out, py_out, ptau_out = np.empty(n), np.empty(n), np.empty(n)
+        for i in range(len(x)):
+            # Adjust vector potential for each particle at the beginning of the segment
+            xi, yi, zetai, pxi, pyi, ptaui = x[i], y[i], zeta[i], px[i], py[i], ptau[i]
+            axi, ayi = ax_p[i], ay_p[i]
+            beta0i = beta0[i]
+
+            ax, ay, _ = self.get_A(xi, yi, s_span[0])
+            kin_px = pxi - axi
+            kin_py = pyi - ayi
+            pxi = kin_px + ax
+            pyi = kin_py + ay
+
+            qp0 = [xi, yi, zetai/beta0i, pxi, pyi, ptaui]
+            sol = self.solve(qp0, s_span=s_span, beta0=beta0i, ivp_opt=ivp_opt)
+
+            xf, yf, tauf, pxf, pyf, ptauf = sol.y
+            x_out[i]     = xf[-1]
+            y_out[i]     = yf[-1]
+            zeta_out[i]  = tauf[-1] * beta0[i]
+            px_out[i]    = pxf[-1]
+            py_out[i]    = pyf[-1]
+            ptau_out[i]  = ptauf[-1]
             if return_sol:
-                out = sol
+                out.append(sol)
+
+        particle.x    = x_out if is_array else x_out[0]
+        particle.y    = y_out if is_array else y_out[0]
+        particle.zeta = zeta_out if is_array else zeta_out[0]
+        particle.px   = px_out if is_array else px_out[0]
+        particle.py   = py_out if is_array else py_out[0]
+        particle.ptau = ptau_out if is_array else ptau_out[0]
+
+        particle.s += -self.length if backtrack else self.length
+
+        # Manage vector potential for each particle at the exit of the segment
+        ax, ay, _ = self.get_A(particle.x, particle.y, s_span[1])
+        particle.ax = ax 
+        particle.ay = ay
 
         if return_sol:
-            return out
+            return out if is_array else out[0]
 
-    def plotsol(
-        self,
-        qp0,
-        s_span=None,
-        ivp_opt=None,
-        figname_zx=None,
-        figname_zxy=None,
-        canvas_zx=None,
-        canvas_zxy=None,
-    ):
+
+    def plotsol(self, qp0, s_span=None, ivp_opt=None, figname_zx=None, figname_zxy=None, canvas_zx=None, canvas_zxy=None):
+        """
+        Plot the solution of the Hamilton equations for the given initial conditions
+        :param qp0: Initial conditions for the integration, must be a list of 6 elements [x, y, tau, px, py, ptau].
+        :param s_span: Span of integration in s, must be a list of 2 elements [s_start, s_end]. If None, it will be set
+        based on the start of the element and its length.
+        :param ivp_opt: Options for the IVP solver, such as tolerance.
+        :param figname_zx: Name of the figure for the zx plot. If None, the plot will not be saved.
+        :param figname_zxy: Name of the figure for the zxy plot. If None, the plot will not be saved.
+        :param canvas_zx: Canvas for the zx plot. If None, a new canvas will be created.
+        :param canvas_zxy: Canvas for the zxy plot. If None, a new canvas will be created.
+        """
+
         sol = self.solve(qp0, s_span, ivp_opt)
         s = sol.t
         x, y, tau, px, py, ptau = sol.y
@@ -203,7 +240,7 @@ class Hamiltonian:
         fb = BendFrame(fr, self.length, self.angle)
 
         fb.plot_trajectory_zx(s, x, y, figname=figname_zx, canvas=canvas_zx)
-        # fb.plot_trajectory_zxy(s, x, y, figname=figname_zxy, canvas=canvas_zxy)
+        fb.plot_trajectory_zxy(s, x, y, figname=figname_zxy, canvas=canvas_zxy)
 
     def __repr__(self):
         return f"Hamiltonian({self.length}, {self.curv}, {self.vectp})"
@@ -223,25 +260,21 @@ class DriftVectorPotential(FieldExpansion):
 
 
 class DipoleVectorPotential(FieldExpansion):
-    def __init__(self, curv, b1):
+    def __init__(self, h, b1):
         """
         Dipoles without s-dependence, in this case the vector potential is known analytically.
-        Can also be used to study dipoles without any field derivatives!
-
-        :param curv (float): Curvature of the reference frame.
+        :param h (float): Curvature of the reference frame.
         :param b1 (float): Dipole field strength.
         """
 
-        self.curv = curv
+        self.h = h
         self.b1 = b1
-        super().__init__(b=(b1,), hs=f"{curv}", nphi=0)
+        super().__init__(b=(b1,), h=h, nphi=0)
 
     def get_A(self, lambdify=False):
-        h = self.curv
+        h = self.h
         x, y, s = self.x, self.y, self.s
-        print(self.b[0])
         As = -(x + h / 2 * x**2) / (1 + h * x) * self.b[0]
-        print(As)
         if lambdify:
             return [
                 np.vectorize(sp.lambdify([x, y, s], 0, "numpy")),
@@ -256,7 +289,6 @@ class SolenoidVectorPotential(FieldExpansion):
         """
         Solenoids without s-dependence, in this case the vector potential is known analytically.
         Curvature of the reference frame is not implemented, use GeneralVectorPotential instead.
-
         :param bs (float): Solenoid field strength.
         """
 
@@ -273,7 +305,6 @@ class FringeVectorPotential(FieldExpansion):
     def __init__(self, b1, nphi=5):
         """
         Fringe fields in a straight coordinate frame.
-
         :param b1 (str): Fringe field b1 as a function of s.
         :param nphi (int): Number of terms in the expansion of the scalar potential.
         """
@@ -282,10 +313,9 @@ class FringeVectorPotential(FieldExpansion):
 
 
 class GeneralVectorPotential(FieldExpansion):
-    def __init__(self, a=("0*s",), b=("0*s",), bs="0", hs="0", nphi=5):
+    def __init__(self, a=(0,), b=(0,), bs=0, h=0):
         """
         General field expansion.
-
         :param a (tuple of str): a coefficients as a function of s.
         :param b (tuple of str): b coefficients as a function of s.
         :param bs (str): bs coefficient as a function of s.
@@ -293,19 +323,23 @@ class GeneralVectorPotential(FieldExpansion):
         :param nphi (int): Number of terms in the expansion of the scalar potential.
         """
 
-        super().__init__(a=a, b=b, bs=bs, hs=hs, nphi=nphi)
+        super().__init__(a=a, b=b, bs=bs, h=h, nphi=nphi)
 
+
+########################################
+# Particles that can be used to track. #
+# One can also use an Xsuite particle. #
+########################################
 
 class SympyParticle:
-    def __init__(self, beta0=1):
+    def __init__(self):
         self.x, self.y, self.tau = sp.symbols("x y tau")
         self.zeta = sp.symbols("zeta") ## to be checked
         self.s = sp.symbols("s")
         self.px, self.py, self.ptau = sp.symbols("px py ptau")
-        self.beta0 = beta0
+        self.beta0 = sp.symbols("beta0", real=True, positive=True)
         self._m = sp
         self.npart = 1
-
 
 class NumpyParticle:
     def __init__(self, qp0, s=0, beta0=1):
@@ -318,19 +352,19 @@ class NumpyParticle:
 
 class MultiParticle:
     def __init__(self, npart, x=0, y=0, tau=0, px=0, py=0, ptau=0, s=0, beta0=1):
-        if isinstance(x, int) or isinstance(x, float):
+        if isinstance(x, (int, float)):
             x = np.full(npart, x)
-        if isinstance(y, int) or isinstance(y, float):
+        if isinstance(y, (int, float)):
             y = np.full(npart, y)
-        if isinstance(tau, int) or isinstance(tau, float):
+        if isinstance(tau, (int, float)):
             tau = np.full(npart, tau)
-        if isinstance(px, int) or isinstance(px, float):
+        if isinstance(px, (int, float)):
             px = np.full(npart, px)
-        if isinstance(py, int) or isinstance(py, float):
+        if isinstance(py, (int, float)):
             py = np.full(npart, py)
-        if isinstance(ptau, int) or isinstance(ptau, float):
+        if isinstance(ptau, (int, float)):
             ptau = np.full(npart, ptau)
-        if isinstance(s, int) or isinstance(s, float):
+        if isinstance(s, (int, float)):
             s = np.full(npart, s)
 
         assert len(x) == npart, "Invalid x"
@@ -340,7 +374,7 @@ class MultiParticle:
         assert len(py) == npart, "Invalid py"
         assert len(ptau) == npart, "Invalid ptau"
         assert len(s) == npart, "Invalid s"
-        assert isinstance(beta0, int) or isinstance(beta0, float), "Invalid beta0"
+        assert isinstance(beta0, (int, float)), "Invalid beta0"
         
         self.beta0 = beta0
         self.npart = npart
