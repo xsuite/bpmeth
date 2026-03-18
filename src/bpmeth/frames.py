@@ -4,6 +4,12 @@ from mpl_toolkits.mplot3d import Axes3D
 
 class CanvasZX:
     def __init__(self, fig=None, ax=None):
+        """
+        Canvas on which trajectories can be drawn, in ZX plane.
+        :param fig: Optional matplotlib figure to use. If None, a new figure will be created.
+        :param ax: Optional matplotlib axes to use. If None, new axes will be created.
+        """
+        
         if fig is None:
             fig = plt.figure()
         if ax is None:
@@ -27,6 +33,12 @@ class CanvasZX:
 
 class CanvasZXY:
     def __init__(self, fig=None, ax=None):
+        """
+        Canvas on which trajectories can be drawn, in ZXY plane.
+        :param fig: Optional matplotlib figure to use. If None, a new figure will be created.
+        :param ax: Optional matplotlib axes to use. If None, new axes will be created.
+        """
+
         if fig is None:
             fig = plt.figure()
         if ax is None:
