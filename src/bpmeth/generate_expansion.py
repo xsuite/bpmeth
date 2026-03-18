@@ -190,7 +190,7 @@ class FieldExpansion:
         
         assert self.h==0, "Transform only implemented starting from straight frame!"        
         
-        x, y, s = self.x, self.y, self.s
+        x, s = self.x, self.s
         at = self.a
         bt = self.b
         bst = self.bs
@@ -244,7 +244,7 @@ class FieldExpansion:
         :return (FieldExpansion): New field expansion in the rotated frame. The edge is at s=0.
         """
         
-        x, y, s = self.x, self.y, self.s
+        x, s = self.x, self.s
         at = self.a
         bt = self.b
         bst = self.bs
@@ -304,7 +304,7 @@ class FieldExpansion:
             for i, bb in enumerate(self.b):
                 ax.plot(ss, [sp.sympify(bb).subs(self.s, sval).evalf() for sval in ss], label=f"b_{i+1}")
         if plot_bs:
-            ax.plot(ss, [sp.sympify(self.bs).subs(self.s, sval).evalf() for sval in ss], label=f"bs")
+            ax.plot(ss, [sp.sympify(self.bs).subs(self.s, sval).evalf() for sval in ss], label="bs")
         ax.legend()
     
 
@@ -436,7 +436,7 @@ class FieldExpansion:
         plt.imshow(bmagn, extent=(smin, smax, xmin, xmax), origin='lower', vmin=bmin, vmax=bmax)
         plt.colorbar()
         skip = 4
-        plt.quiver(Z[::skip, ::skip], X[::skip, ::skip], Bs[::skip, ::skip]/bmagn[::skip, ::skip], 
+        plt.quiver(S[::skip, ::skip], X[::skip, ::skip], Bs[::skip, ::skip]/bmagn[::skip, ::skip], 
                 Bx[::skip, ::skip]/bmagn[::skip, ::skip], scale=50, pivot='mid')
         
         plt.xlabel("s")
@@ -496,7 +496,7 @@ class FieldExpansion:
         to calculate the RDTs as a function of s.
         """
 
-        x, y, s = self.x, self.y, self.s
+        x, y = self.x, self.y
         h = self.h
         Ax, Ay, As = self.get_A()
         

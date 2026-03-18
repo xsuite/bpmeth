@@ -1,7 +1,6 @@
 import sympy as sp
 import numpy as np
 from scipy.integrate import solve_ivp
-import matplotlib.pyplot as plt
 from .generate_expansion import FieldExpansion
 from .frames import Frame, BendFrame
 import numba as nb
@@ -296,7 +295,7 @@ class SolenoidVectorPotential(FieldExpansion):
         super().__init__(bs=f"{bs}", nphi=0)
 
     def get_A(self, coords):
-        x, y, s = coords.x, coords.y, coords.s
+        x, y = coords.x, coords.y
         bs = self.bs
         return [-bs * y / 2, bs * x / 2, 0]
 
