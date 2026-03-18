@@ -313,13 +313,13 @@ class FringeVectorPotential(FieldExpansion):
 
 
 class GeneralVectorPotential(FieldExpansion):
-    def __init__(self, a=(0,), b=(0,), bs=0, h=0):
+    def __init__(self, a=(0,), b=(0,), bs=0, h=0, nphi=5):
         """
         General field expansion.
         :param a (tuple of str): a coefficients as a function of s.
         :param b (tuple of str): b coefficients as a function of s.
         :param bs (str): bs coefficient as a function of s.
-        :param hs (str): Curvature of the reference frame as a function of s. (to be tested for not constant hs)
+        :param h (str): Curvature of the reference frame as a function of s.  Has to be constant.
         :param nphi (int): Number of terms in the expansion of the scalar potential.
         """
 
