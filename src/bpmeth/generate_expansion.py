@@ -30,7 +30,7 @@ class FieldExpansion:
             if isinstance(aa, str) else aa.subs(sp.Symbol("s"), self.s) for aa in a) 
         self.b = tuple(bb if isinstance(bb, (float, int)) else eval(bb, sp.__dict__, {"s": self.s}) \
             if isinstance(bb, str) else bb.subs(sp.Symbol("s"), self.s) for bb in b) 
-        self.bs = bs if isinstance(bs, float) else eval(bs, sp.__dict__, {"s": self.s}) if isinstance(bs, str) else bs.subs(sp.Symbol("s"), self.s)
+        self.bs = bs if isinstance(bs, (float, int)) else eval(bs, sp.__dict__, {"s": self.s}) if isinstance(bs, str) else bs.subs(sp.Symbol("s"), self.s)
         self.h = float(h)
         self.nphi = nphi
 

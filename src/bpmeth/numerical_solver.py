@@ -95,7 +95,7 @@ class Hamiltonian:
         return qpdot
 
 
-    def solve(self, qp0, s_span=None, ivp_opt={}, backtrack=False, beta0=1):
+    def solve(self, qp0, s_span=None, ivp_opt=None, backtrack=False, beta0=1):
         """
         Solve the Hamilton equations for the given initial conditions
         :param qp0: Initial conditions for the integration, must be a list of 6 elements [x, y, tau, px, py, ptau].
@@ -118,8 +118,10 @@ class Hamiltonian:
         if backtrack:
             assert s_span[0] > s_span[1], "s_span not compatible with backtracking"
 
-
+        if ivp_opt is None:
+            ivp_opt = {}
         if "t_eval" not in ivp_opt:
+            print("setting t_eval")
             ivp_opt["t_eval"] = np.linspace(s_span[0], s_span[1], 500)
         if "rtol" not in ivp_opt:
             ivp_opt["rtol"] = 1e-5
@@ -131,7 +133,7 @@ class Hamiltonian:
         return sol
     
 
-    def track(self, particle, s_span=None, return_sol=False, ivp_opt={}, backtrack=False):
+    def track(self, particle, s_span=None, return_sol=False, ivp_opt=None, backtrack=False):
         """
         Track a particle through the element by solving the Hamilton equations. Works with NumpyParticle or Xsuite particles.
         :param particle: Particle to track, must have attributes x, y, zeta, px, py, ptau, beta0, s.
