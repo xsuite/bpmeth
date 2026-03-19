@@ -131,7 +131,6 @@ def test_slice_quad_track():
     line.track(p0, turn_by_turn_monitor="ONE_TURN_EBE")
     data = line.record_last_track
 
-
     # slicing in 3 parts
     H1 = bpmeth.Hamiltonian(
         length=length / 3, s_start=0, h=h, vectp=A_magnet_entry
@@ -154,4 +153,28 @@ def test_slice_quad_track():
     assert(np.isclose(data3.x[0,-1],0.09990009))
 
 
+def test_combined_function_track():
+    b1 = 0.1
+    b2 = 0.05
+    h = 0.15
+    length = 0.1
+    A_magnet = bpmeth.GeneralVectorPotential(h=h, b=(b1, b2))
+    H_magnet = bpmeth.Hamiltonian(length=length, h=h, vectp=A_magnet)
+    
+    line = xt.Line([xt.Bend(k0=b1, k1=b2, angle=h*length, length=length)])
+    line.reset_s_at_end_turn = False
+    
+    p0 = xt.Particles(x=0.1, px=0.01, y=0.2, py=0.03, delta=0.1, zeta=0.01)
+    p1 = p0.copy()
+    p2 = p0.copy()
+    
+    H_magnet.track(p1)
+    line.track(p2)
+    
+    assert np.isclose(p1.x, p2.x)
+    assert np.isclose(p1.px, p2.px)
+    assert np.isclose(p1.y, p2.y)
+    assert np.isclose(p1.py, p2.py)
+    assert np.isclose(p1.delta, p2.delta)
+    assert np.isclose(p1.zeta, p2.zeta)
 
