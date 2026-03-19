@@ -3,6 +3,7 @@ import numpy as np
 from numba import njit
 import matplotlib.pyplot as plt
 
+
 @njit(cache=True)
 def rk4_step(vectorfield, s, z, ds, beta0, h, comp):
     """
@@ -18,12 +19,10 @@ def rk4_step(vectorfield, s, z, ds, beta0, h, comp):
     
     x, y, tau, px, py, ptau = z
 
-    # --- k1 ---
     k1x, k1y, k1tau, k1px, k1py, k1ptau = vectorfield(
         s, x, y, tau, px, py, ptau, beta0, h, comp
     )
 
-    # --- k2 ---
     k2x, k2y, k2tau, k2px, k2py, k2ptau = vectorfield(
         s + 0.5*ds,
         x    + 0.5*ds*k1x,
@@ -35,7 +34,6 @@ def rk4_step(vectorfield, s, z, ds, beta0, h, comp):
         beta0, h, comp
     )
 
-    # --- k3 ---
     k3x, k3y, k3tau, k3px, k3py, k3ptau = vectorfield(
         s + 0.5*ds,
         x    + 0.5*ds*k2x,
@@ -47,7 +45,6 @@ def rk4_step(vectorfield, s, z, ds, beta0, h, comp):
         beta0, h, comp
     )
 
-    # --- k4 ---
     k4x, k4y, k4tau, k4px, k4py, k4ptau = vectorfield(
         s + ds,
         x    + ds*k3x,
@@ -59,7 +56,6 @@ def rk4_step(vectorfield, s, z, ds, beta0, h, comp):
         beta0, h, comp
     )
 
-    # --- final update ---
     xn    = x    + (ds/6.0)*(k1x + 2*k2x + 2*k3x + k4x)
     yn    = y    + (ds/6.0)*(k1y + 2*k2y + 2*k3y + k4y)
     taun  = tau  + (ds/6.0)*(k1tau + 2*k2tau + 2*k3tau + k4tau)
@@ -139,6 +135,7 @@ class PolySegment:
         :param h (float): Curvature of the reference trajectory
         :param comp (ndarray): Coefficients specifying the magnetic field
         :param s_start (float): Starting s position of the element, default 0
+        :param integrator (function): Integration method to use, default is RK4, can also use integrate_euler
         """
         
         self.length = length
@@ -153,6 +150,7 @@ class PolySegment:
         Track a particle through the element using RK4 integration.
         :param particle: Particle object like the one from xsuite, has x, px, y, py, zeta, ptau, beta0, s ...
             XSuite does not support tau, but this is important for us to have canonical conjugates.
+        :param ds: Step size for tracker.
         """
         
         n_steps = int(np.ceil(self.length / ds))
@@ -171,13 +169,13 @@ class PolySegment:
             particle.zeta[i] = tau * particle.beta0[i]
             particle.s[i] += self.length
        
-
     
     def track_step_by_step(self, particle, ds=0.01):
         """
         Track a particle through the element using RK4 integration and save every step on the way
         :param particle: Particle object like the one from xsuite, has x, px, y, py, zeta, ptau, beta0, s ...
             XSuite does not support tau, but this is important for us to have canonical conjugates.
+        :param ds: Step size for tracker.
         """
         
         tpart = particle.copy()
@@ -198,7 +196,15 @@ class PolySegment:
 
         return out
 
+
     def plot_x(self, part, ax=None, ds=0.01):
+        """
+        Plot x vs s for a particle tracked through the element.
+        :param part: Particle object to track and plot.
+        :param ax: Matplotlib axis to plot on, if None a new figure will be created.
+        :param ds: Step size for tracker.
+        """
+        
         out = self.track_step_by_step(part.copy(), ds=ds)
         s_vals = [p.s[0] for p in out]
         x_vals = [p.x[0] for p in out]
@@ -211,7 +217,15 @@ class PolySegment:
         plt.legend()
         plt.grid()
 
+
     def plot_y(self, part, ax=None, ds=0.01):
+        """
+        Plot y vs s for a particle tracked through the element.
+        :param part: Particle object to track and plot
+        :param ax: Matplotlib axis to plot on, if None a new figure will be created.
+        :param ds: Step size for tracker.
+        """
+        
         out = self.track_step_by_step(part.copy(), ds=ds)
         s_vals = [p.s[0] for p in out]
         y_vals = [p.y[0] for p in out]
