@@ -1,7 +1,8 @@
 import sympy as sp
 import numba
 import numpy as np 
-from .numerical_solver import GeneralVectorPotential, Hamiltonian   ## To fix
+from .numerical_solver import GeneralVectorPotential, Hamiltonian   
+
 
 """
 Write source code for field evaluations in fast hamiltonian solver using these functions
@@ -19,22 +20,47 @@ fieldder[7] -> b4
 fieldder[8] -> a4
 """
 
-comps = []
 
 def mk_s_poly(cpmidx, sorder):
+    """
+    Return a polynomial of given order in s with symbolic coefficients fieldder[cpmidx, ii] for ii in range(sorder + 1).
+    :param cpmidx: Index of the component (0 for bs, 1 for b1, 2 for a1, etc.).
+    :param sorder: Order of the polynomial in s.
+    :return: A sympy expression representing the polynomial in s with symbolic coefficients.
+    """
+    
     ss = [sp.Symbol(f"fieldder[{cpmidx},{ii}]", real=True) for ii in range(sorder + 1)]
     s = sp.var("s", real=True)
     return sum(ss[i] * s**i for i in range(len(ss)))
 
 
 def mk_fieldder_sp(sorder, ab_order):
-    comps = [mk_s_poly(0, sorder)]
+    """
+    Make list of sympy expressions for the field derivatives, where the first component is bs and 
+    the rest are b1, a1, b2, a2, etc. up to the specified ab_order.
+    :param sorder: Order of the polynomial in s for each component.
+    :param ab_order: Number of b/a pairs to generate (e.g., 4 for b1, a1, b2, a2, b3, a3, b4, a4).
+    :return: A list of sympy expressions for the field derivatives.
+    """
+    
+    comps = [mk_s_poly(0, sorder)]  # bs
     for ii in range(ab_order * 2):
-        comps.append(mk_s_poly(ii + 1, sorder))
+        comps.append(mk_s_poly(ii + 1, sorder))  # b1, a1, b2, a2, etc.
     return comps
 
 
 def mk_field(ab_order=4, sorder=3, h=True, nphi=5, out=None):
+    """
+    Generate source code for the magnetic field and vector potential evaluations, as well as the 
+    Hamiltonian vector field, based on symbolic expressions for the field derivatives. 
+    The generated source code will be written to the specified output file if provided.
+    :param ab_order: Number of b/a pairs to generate (e.g., 4 for b1, a1, b2, a2, b3, a3, b4, a4).
+    :param sorder: Order of the polynomial in s for each component.
+    :param h: Whether to include curvature h in the vector potential and Hamiltonian.
+    :param nphi: Number of terms to include in the scalar potential expansion.
+    :param out: Output file path to write the generated source code. If None, the source code will be returned
+    """
+    
     fd = mk_fieldder_sp(sorder, ab_order)
     if h:
         h = sp.var("h", real=True)
@@ -49,22 +75,25 @@ def mk_field(ab_order=4, sorder=3, h=True, nphi=5, out=None):
     HH = Hamiltonian(length=0, curv=h, vectp=vp)
     xdot, ydot, taudot, pxdot, pydot, ptaudot = HH.get_vectorfield(lambdify=False)
     
+    src = ["import numba"]
+    src.append("import numpy as np")
+    src.append("")
+    src.append("@numba.njit(cache=True)")
+    src.append(f"def bfield(x,y,s,h,fieldder):")
+    src.append(f"  return {Bx_sp},{By_sp},{Bs_sp}")
+    src.append("")
+    src.append("@numba.njit(cache=True)")
+    src.append(f"def afield(x,y,s,h,fieldder):")
+    src.append(f"  return {Ax_sp},{Ay_sp},{As_sp}")
+    src.append("")
+    src.append("@numba.njit(cache=True)")
+    src.append(f"def vectorfield(s,x,y,tau,px,py,ptau,beta0,h,fieldder):")
+    src.append(f"  return {xdot}, {ydot}, {taudot}, {pxdot}, {pydot}, {ptaudot}".replace("sqrt(", "np.sqrt("))
+    src = "\n".join(src)
+
     if out is not None:
-        src = ["import numba"]
-        src.append("import numpy as np")
-        src.append("")
-        src.append("@numba.njit(cache=True)")
-        src.append(f"def bfield(x,y,s,h,fieldder):")
-        src.append(f"  return {Bx_sp},{By_sp},{Bs_sp}")
-        src.append("")
-        src.append("@numba.njit(cache=True)")
-        src.append(f"def afield(x,y,s,h,fieldder):")
-        src.append(f"  return {Ax_sp},{Ay_sp},{As_sp}")
-        src.append("")
-        src.append("@numba.njit(cache=True)")
-        src.append(f"def vectorfield(s,x,y,tau,px,py,ptau,beta0,h,fieldder):")
-        src.append(f"  return {xdot}, {ydot}, {taudot}, {pxdot}, {pydot}, {ptaudot}".replace("sqrt(", "np.sqrt("))
-        src = "\n".join(src)
         open(out, "w").write(src)
+    return src
+    
 
 
