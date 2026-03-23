@@ -578,7 +578,7 @@ class Fieldmap:
         return coeffs, coeffsstd
 
 
-    def s_multipoles(self, order, xmax=None, ax=None, mov_av=1, **params):
+    def s_multipoles(self, order, xmax=None, ax=None, mov_av=1, **kwargs):
         """
         Normal multipoles as a function of s, by fitting the horizontal profile at each s position and taking the coefficients of the fit.
         :param order: Maximal order of the multipoles to be determined. Order = 1 must fit b1 only, so a polynomial of degree = order - 1.
@@ -586,7 +586,7 @@ class Fieldmap:
         :param ax: If given, plot the multipoles as a function of s on the given matplotlib axis, with error bars corresponding to 
         the standard deviation of the coefficients estimated from fits with different polynomial orders.
         :param mov_av: If greater than 1, apply a moving average with the given width to the multipole coefficients as a function of s, to smooth out noise.
-        :param **params: Additional parameters to pass to the ax.errorbar function when plotting, such as color or label.
+        :param **kwargs: Additional parameters to pass to the ax.errorbar function when plotting, such as color or label.
         :return: Tuple of (svals, coeffs, coeffsstd), where svals is the array of s coordinates at which the multipoles were determined.        
         """
 
@@ -606,11 +606,11 @@ class Fieldmap:
                 labels = [f"b{i+1}" for i in range(order+1)]
             for i in range(order + 1):
                 color=colors[i] if colors is not None else None
-                ax.errorbar(svals, coeffs[:,i], yerr=coeffsstd[:,i], **params)
+                ax.errorbar(svals, coeffs[:,i], yerr=coeffsstd[:,i], **kwargs)
         return svals, coeffs, coeffsstd
 
 
-    def skew_s_multipoles(self, order, xmax=None, ax=None, mov_av=1, **params):
+    def skew_s_multipoles(self, order, xmax=None, ax=None, mov_av=1, **kwargs):
         """
         Skew multipoles as a function of s, by fitting the horizontal profile at each s position and taking the coefficients of the fit.
         :param order: Maximal order of the multipoles to be determined. Order = 1 must fit a1 only, so a polynomial of degree = order - 1.
@@ -618,7 +618,7 @@ class Fieldmap:
         :param ax: If given, plot the multipoles as a function of s on the given matplotlib axis, with error bars corresponding to
         the standard deviation of the coefficients estimated from fits with different polynomial orders.
         :param mov_av: If greater than 1, apply a moving average with the given width to the multipole coefficients as a function of s, to smooth out noise.
-        :param **params: Additional parameters to pass to the ax.errorbar function when plotting, such as color or label.
+        :param **kwargs: Additional parameters to pass to the ax.errorbar function when plotting, such as color or label.
         :return: Tuple of (svals, coeffs, coeffsstd), where svals is the array of s coordinates at which the multipoles were determined.
         """
 
@@ -637,7 +637,7 @@ class Fieldmap:
                 labels = [f"a{i+1}" for i in range(order+1)]
             for i in range(order + 1):
                 color=colors[i] if colors is not None else None
-                ax.errorbar(svals, coeffs[:,i], yerr=coeffsstd[:,i], **params)
+                ax.errorbar(svals, coeffs[:,i], yerr=coeffsstd[:,i], **kwargs)
         return svals, coeffs, coeffsstd
 
 
