@@ -2,9 +2,9 @@ import bpmeth
 import numpy as np
 import matplotlib.pyplot as plt
 
-"""
-Plot the analytical solution for a drift using bpmeth
-"""
+############################################################
+# Plot the analytical solution for a drift in curved frame #
+############################################################
 
 # Parameters
 length = 10
@@ -31,8 +31,8 @@ theta0 = np.arcsin(px0 / np.sqrt((1+delta)**2 - py0**2))
 s = np.linspace(0,10,100)
 x = (1/h + x0) * (np.cos(theta0) / np.cos(theta0+s*h)) - 1/h 
 y = py0 / (h * np.sqrt((1+delta)**2 - py0**2)) * (1+h*x0) * np.cos(theta0) * np.tan(theta0+h*s) + y0
-fb.plot_trajectory_zx(s,x,y, figname="figures/curved_drift.png")
-fb.plot_trajectory_zxy(s,x,y, figname="figures/curved_drift_3D.png")
+fb.plot_trajectory_zx(s,x,y)
+fb.plot_trajectory_zxy(s,x,y)
 
 plt.show()
 
