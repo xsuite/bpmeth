@@ -4,9 +4,9 @@ import xtrack as xt
 import bpmeth
 from bpmeth import poly_fit
 
-#########################################################
-# How to use smoothly varying quadrupole field to track #
-#########################################################
+############################################################
+# How to use s-dependent varying quadrupole field to track #
+############################################################
 
 # peak gradient
 k1 = 0.01  # m^-1
