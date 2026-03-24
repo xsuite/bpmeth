@@ -82,24 +82,20 @@ B_dip_T = 0.42881  # Design dipole field in Tesla
 # bpmeth dipole fieldmap model with splines #
 #############################################
 
-data = np.loadtxt("../dipole/ELENA_fieldmap.csv", skiprows=1, delimiter=",")[:, [0,1,2,7,8,9]]  # Fieldmap in Tesla
+data = np.loadtxt("ELENA_fieldmap.csv", skiprows=1, delimiter=",")[:, [0,1,2,7,8,9]]  # Fieldmap in Tesla
 Brho = B_dip_T * rho  # T.m
 dipole = bpmeth.Fieldmap(data)
 dipole.rescale(1/Brho)
 
 radius=0.0025
-dipole_FS = dipole.calc_FS_coords(XFS=np.linspace(-0.025, 0.025, 51), YFS=[0], SFS=np.arange(-l_magn, l_magn, 0.001), rho=rho, phi=phi, radius=radius)
+dipole_FS = dipole.calc_FS_coords(xFS=np.linspace(-0.025, 0.025, 51), yFS=[0], sFS=np.arange(-l_magn, l_magn, 0.001), rho=rho, phi=phi, radius=radius)
 dipole_FS = dipole_FS.symmetrize(radius=radius)
 fig, ax = plt.subplots(figsize=(15, 3))
-zvals, coeffs, coeffsstd = dipole_FS.z_multipoles(3, ax=ax)  # Fitted only normal multipoles! 
+zvals, coeffs, coeffsstd = dipole_FS.s_multipoles(4, ax=ax, marker='.', ms=4, elinewidth=0.2, capsize=0.3)  # Fitted only normal multipoles! 
 ax.set_ylim(-15, 20)
-
-
-plt.scatter(dipole.src['z'], dipole.src["x"], label="Fieldmap")
-plt.xlim(-1, 1)
-plt.ylim(0, 1)
-plt.xlabel("z")
-plt.ylabel('x')
+ax.legend()
+ax.set_xlabel('s')
+ax.set_ylabel(r'multipole component [$m^{-n}$]')
 
 
 
@@ -207,99 +203,7 @@ for index in range(max_multipole):
         bpmeth.plot_fit(ia,ib,zvals,b,pol,ax=ax,data=True)
 
 
-def pol_to_comp(pols):
-    """
-    :param part: xt.Particles
-    :param pols: Polynomial coefficients from the fit for this segment, 
-        first index is the multipole order (only normal components) b1, b2, b3..., 
-        second index is the order of the term in the cubic polynomial (zero = constant)
-    :return: comp, the input needed for the segment tracker
-    """
-
-    # comp has bs, b1, a1, b2, a2, ... as first index, and the order of the term in the cubic polynomial as second index (zero = constant)
-    comp = np.zeros((9, 4), dtype=np.float64) 
-
-    for mult in range(len(pols)):
-        comp[2*mult+1] = pols[mult]
-
-    return comp
-
-
-class Magnet:
-    isthick=True
-    def __init__(self, segments, all_pols, z_edge, rho, ds=0.01):
-        """
-        :param segments: List of (a,b) tuples defining the segments along z, entrance half of the magnet.
-        :param all_pols: For each multipole, list of lists of polynomials for each segment, entrance half 
-            of the magnet. The order of the multipoles is len(all_pols).
-        :param z_edge: Longitudinal position of the edge of the magnet, to determine curvature.
-        :param rho: Bending radius of the magnet.
-        """
-        self.segments = segments
-        self.all_pols = all_pols
-
-        self.z_edge = z_edge
-        self.rho = rho
-
-        self.order = len(all_pols)  
-
-        self.length = segments[-1][1] - segments[0][0]
-        self.build_tracker()
-        self.ds = ds
-
-    def build_tracker(self):
-        self.polysegments = []
-        for i, segment in enumerate(self.segments):
-            comp = pol_to_comp(self.all_pols[:, i])
-
-            if segment[0] < -self.z_edge:
-                h = 0.  # Magic, this has to be a float otherwise it is extremely slow
-                s_start = segment[0]
-                s_end = np.min([segment[1], -self.z_edge])
-                self.polysegments.append(bpmeth.PolySegment(length=s_end - s_start, h=h, comp=comp, s_start = s_start))
-            if segment[1] > -self.z_edge and segment[0] < self.z_edge:
-                h = 1/self.rho
-                s_start = np.max([segment[0], -self.z_edge])
-                s_end = np.min([segment[1], self.z_edge])
-                self.polysegments.append(bpmeth.PolySegment(length=s_end - s_start, h=h, comp=comp, s_start = s_start))
-            if segment[1] > self.z_edge:
-                h = 0.
-                s_start = np.max([segment[0], self.z_edge])
-                s_end = segment[1]
-                self.polysegments.append(bpmeth.PolySegment(length=s_end - s_start, h=h, comp=comp, s_start = s_start))
-
-    def rescale(self, scalefactor):
-        self.all_pols = np.array([[pol*scalefactor for pol in pols] for pols in self.all_pols])
-        self.build_tracker()
-        return self
-
-    def copy(self):
-        return Magnet(self.segments, self.all_pols, self.z_edge, self.rho)
-
-    def track(self, particles):
-        for i, polysegment in enumerate(self.polysegments):
-            polysegment.track(particles, ds=self.ds)
-
-    def track_step_by_step(self, particles):
-        out = []
-        for polysegment in self.polysegments:
-            seg_out = polysegment.track_step_by_step(particles, ds=self.ds)
-            out.extend(seg_out)
-        return out
-
-    def track_segment_by_segment(self, particles):
-        out = [particles.copy()]
-        for polysegment in self.polysegments:
-            polysegment.track(particles, ds=self.ds)
-            out.append(particles.copy())
-        return out
-
-    def to_dict(self):
-        out = {"segments": self.segments, "all_pols": self.all_pols, "z_edge": self.z_edge, "rho": self.rho}
-        return out
-
-
-Melvin = Magnet(segments, all_pols, l_magn/2, rho, 0.001)
+Melvin = bpmeth.RK4_Magnet(segments, all_pols, l_magn/2, rho, 0.001)
 
 
 ###################################################

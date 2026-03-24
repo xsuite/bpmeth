@@ -74,7 +74,7 @@ class RK4_Magnet:
         return self
         
     def copy(self):
-        return Magnet(self.segments, self.all_pols, self.z_edge, self.rho)
+        return RK4_Magnet(self.segments, self.all_pols, self.z_edge, self.rho)
     
     def track(self, particles):
         for i, polysegment in enumerate(self.polysegments):
