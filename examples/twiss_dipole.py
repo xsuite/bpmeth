@@ -3,6 +3,10 @@ import matplotlib.pyplot as plt
 import xtrack as xt
 import bpmeth
 
+#################################################
+# Example on Xsuite twiss using bpmeth elements #
+#################################################
+
 b1 = 0.1
 h = 0.1
 length = 1

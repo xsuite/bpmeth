@@ -2,6 +2,9 @@ import bpmeth
 import numpy as np
 import matplotlib.pyplot as plt
 
+######################################################
+# Example on how to use frames and plot trajectories #
+######################################################
 
 # Frame in the origin
 fr = bpmeth.Frame().plot_zx()
