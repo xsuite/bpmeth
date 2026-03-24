@@ -560,10 +560,10 @@ class Fieldmap:
             fm = self.interpolate_points(X, Y, S, radius=radius)
             x, fieldvals = fm.xprofile(ypos, spos, field, ax=ax, xmax=xmax)
 
-        paramslist = np.array([np.polyfit(x, fieldvals, order-1+j)[j-1:] for j in range(5)])
+        paramslist = np.array([np.polyfit(x, fieldvals, order-1+j)[j:] for j in range(5)])
         param = np.mean(paramslist, axis=0)
         paramsstd = np.std(paramslist, axis=0)
-        coeffslist = [paramslist[:, order-i] * math.factorial(i) for i in range(order+1)]
+        coeffslist = [paramslist[:, order-1-i] * math.factorial(i+1) for i in range(order)]
         coeffs = np.mean(coeffslist, axis=1)
         coeffsstd = np.std(coeffslist, axis=1)
         
@@ -592,21 +592,18 @@ class Fieldmap:
 
         svals = np.unique(self.src['s'])
         
-        coeffs = np.zeros((len(svals), order+1))
-        coeffsstd = np.zeros((len(svals), order+1))
+        coeffs = np.zeros((len(svals), order))
+        coeffsstd = np.zeros((len(svals), order))
         for i, spos in enumerate(svals):
             coeffs[i], coeffsstd[i] = self.fit_xprofile(0, spos, "By", order, xmax=xmax)
         
-        for i in range(order + 1):
+        for i in range(order):
             coeffs[:, i] = moving_average(coeffs[:, i], N=mov_av)
             coeffsstd[:, i] = moving_average(coeffsstd[:, i], N=mov_av)            
         
         if ax is not None:
-            if labels is None:
-                labels = [f"b{i+1}" for i in range(order+1)]
-            for i in range(order + 1):
-                color=colors[i] if colors is not None else None
-                ax.errorbar(svals, coeffs[:,i], yerr=coeffsstd[:,i], **kwargs)
+            for i in range(order):
+                ax.errorbar(svals, coeffs[:,i], yerr=coeffsstd[:,i], label=f"b{i+1}", **kwargs)
         return svals, coeffs, coeffsstd
 
 
