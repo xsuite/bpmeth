@@ -2,9 +2,9 @@ import bpmeth
 import numpy as np
 import matplotlib.pyplot as plt
 
-"""
-Plot the analytical solution for a solenoid using bpmeth
-"""
+###############################################
+# Plot the analytical solution for a solenoid #
+###############################################
 
 # Parameters
 length = 5
@@ -37,7 +37,7 @@ ss = np.sin(omega*s)
 x = 1/2*(cc+1)*x0 + 1/BBs*ss*px0 + 1/2*ss*y0 - 1/BBs*(cc-1)*py0
 y = -1/2*ss*x0 + 1/BBs*(cc-1)*px0 + 1/2*(cc+1)*y0 + 1/BBs*ss*py0
 
-fb.plot_trajectory_zx(s,x,y, figname="figures/solenoid.png")
-fb.plot_trajectory_zxy(s,x,y, figname="figures/solenoid_3D.png")
+fb.plot_trajectory_zx(s,x,y)
+fb.plot_trajectory_zxy(s,x,y)
 
 plt.show()
