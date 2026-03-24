@@ -169,7 +169,7 @@ class Fieldmap:
         l_magn = rho*phi
         
         # ----- Straight part at negative s -----
-        xarr = sFS
+        xarr = xFS
         yarr = yFS
         sarr = sFS[sFS<-l_magn/2] + l_magn/2
         
@@ -563,7 +563,8 @@ class Fieldmap:
         paramslist = np.array([np.polyfit(x, fieldvals, order-1+j)[j:] for j in range(5)])
         param = np.mean(paramslist, axis=0)
         paramsstd = np.std(paramslist, axis=0)
-        coeffslist = [paramslist[:, order-1-i] * math.factorial(i+1) for i in range(order)]
+        # Parameters from fit are given starting by highest order, ex. if order = 2, we have [b2, b1] and we want to return [b1, b2/2]
+        coeffslist = [paramslist[:, order-1-i] * math.factorial(i) for i in range(order)]
         coeffs = np.mean(coeffslist, axis=1)
         coeffsstd = np.std(coeffslist, axis=1)
         
