@@ -22,7 +22,7 @@ class Hamiltonian:
 
         self.length = length
         self.s_start = s_start
-        self.curv = h
+        self.h = h
         self.vectp = vectp
         self.angle = h * length
 
@@ -39,7 +39,7 @@ class Hamiltonian:
         x, y, s = coords.x, coords.y, coords.s
         px, py, ptau = coords.px, coords.py, coords.ptau
         beta0 = coords.beta0
-        h = self.curv
+        h = self.h
         A = self.vectp.get_A()
         A = [Ai.subs({self.vectp.x: x, self.vectp.y: y, self.vectp.s: s}) for Ai in A]
 
@@ -243,7 +243,7 @@ class Hamiltonian:
         fb.plot_trajectory_zxy(s, x, y, figname=figname_zxy, canvas=canvas_zxy)
 
     def __repr__(self):
-        return f"Hamiltonian({self.length}, {self.curv}, {self.vectp})"
+        return f"Hamiltonian({self.length}, {self.h}, {self.vectp})"
 
 
 ###########################################
