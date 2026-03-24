@@ -135,6 +135,8 @@ class Frame:
         canvas.plot(self.origin, linestyle="none", marker="o", color="black")
         canvas.arrow(self.origin, self.xdir*arrowsize, color="red")
         canvas.arrow(self.origin, self.zdir*arrowsize, color="blue")
+
+        return self
     
     
     def plot_zxy(self, canvas=None, arrowsize=0.05):
@@ -153,6 +155,8 @@ class Frame:
         canvas.arrow(self.origin, self.xdir*arrowsize, color="red")
         canvas.arrow(self.origin, self.ydir*arrowsize, color="orange")
         canvas.arrow(self.origin, self.zdir*arrowsize, color="blue")
+
+        return self
 
 
     def move_to(self, origin):
@@ -348,6 +352,8 @@ class BendFrame:
         self.start.plot_zx(canvas, arrowsize=self.length/10)
         self.end.plot_zx(canvas, arrowsize=self.length/10)
         canvas.plot(self.ref_trajectory(), color="green")
+        
+        return self
 
 
     def plot_zxy(self, canvas=None):
@@ -361,6 +367,8 @@ class BendFrame:
         self.start.plot_zxy(canvas, arrowsize=self.length/10)
         self.end.plot_zxy(canvas, arrowsize=self.length/10)
         canvas.plot(self.ref_trajectory(), color="green")
+        
+        return self
         
 
     def plot_trajectory_zx(self, s,x,y, canvas=None, figname=None, **kwargs):
@@ -380,6 +388,8 @@ class BendFrame:
 
         if figname:
             canvas.fig.savefig(figname, dpi=500)
+            
+        return self
             
 
     def plot_trajectory_zxy(self, s,x,y, canvas=None, figname=None, **kwargs):
@@ -408,6 +418,8 @@ class BendFrame:
         
         if figname:
             canvas.fig.savefig(figname, dpi=500)
+            
+        return self
 
 
 
