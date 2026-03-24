@@ -293,12 +293,18 @@ class SolenoidVectorPotential(FieldExpansion):
         """
 
         self.bs = bs
-        super().__init__(bs=f"{bs}", nphi=0)
+        super().__init__(bs=bs, nphi=0)
 
-    def get_A(self, coords):
-        x, y = coords.x, coords.y
+    def get_A(self, lambdify=False):
+        x, y, s = self.x, self.y, self.s
         bs = self.bs
-        return [-bs * y / 2, bs * x / 2, 0]
+        if lambdify:
+            return [
+                np.vectorize(sp.lambdify([x, y, s], -bs * y / 2, "numpy")),
+                np.vectorize(sp.lambdify([x, y, s], bs * x / 2, "numpy")),
+                np.vectorize(sp.lambdify([x, y, s], 0, "numpy")),
+            ]
+        return [-bs * y / 2, bs * x / 2, sp.Integer(0)]
 
 
 class FringeVectorPotential(FieldExpansion):

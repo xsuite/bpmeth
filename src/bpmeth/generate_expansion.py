@@ -15,7 +15,7 @@ def phinplus2(phi, x, s, h):
 
 
 class FieldExpansion:
-    def __init__(self, a=(), b=(), bs=0, h=0, nphi=5):
+    def __init__(self, a=(0,), b=(0,), bs=0, h=0, nphi=5):
         """
         Multipole coefficients can be given as a float, a sympy expression or a string to be evaluated as a function of s.
         :param a: Tuple of skew multipole coefficients (a1, a2, a3, ...) in curved frame. 
