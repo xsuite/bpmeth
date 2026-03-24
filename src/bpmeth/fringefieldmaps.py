@@ -50,7 +50,7 @@ class ThinDipoleFringe:
     
     def track(self, part, return_trajectories=False):
         """
-        :param part: Particles with part.x, part.px etc the coordinates for all part.npart particles.
+        :param part: Particles with part.x, part.px etc the coordinates for all particles.
         :return: A list of trajectory elements for all particles.
         """
         
@@ -85,7 +85,7 @@ class ThinDipoleFringe:
 class MADXQuadFringe:
     def __init__(self, b2, angle=0):
         """
-        MADX quadrupole fringe field (Hard edge)
+        MADX quadrupole fringe field (Hard edge). Allows also sympy particles.
         :param b2: Quadrupole design value
         """
         
@@ -161,7 +161,7 @@ class ThinQuadFringe:
     
     def track(self, part):
         """
-        :param part: Particles with part.x, part.px etc the coordinates for all part.npart particles.
+        :param part: Particles with part.x, part.px etc the coordinates for all particles.
         :return: A list of trajectory elements for all particles.
         """
         

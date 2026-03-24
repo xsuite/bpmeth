@@ -1,7 +1,7 @@
 import sympy as sp
 import numba
 import numpy as np 
-from .numerical_solver import GeneralVectorPotential, Hamiltonian   
+from .numerical_solver import GeneralVectorPotential, Hamiltonian
 
 
 """
@@ -59,6 +59,7 @@ def mk_field(ab_order=4, sorder=3, h=True, nphi=5, out=None):
     :param h: Whether to include curvature h in the vector potential and Hamiltonian.
     :param nphi: Number of terms to include in the scalar potential expansion.
     :param out: Output file path to write the generated source code. If None, the source code will be returned
+    :return: Source code if out is None
     """
     
     fd = mk_fieldder_sp(sorder, ab_order)
