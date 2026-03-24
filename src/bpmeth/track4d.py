@@ -12,10 +12,16 @@ def get_rainbow_colors(n):
 
 class Phase4d:
     def __init__(self, phase_x, phase_y):
+        """ 
+        Linear map with horizontal phase advance phase_x and vertical phase advance phase_y. 
+        Equivalent to one turn map if tunes are given, with betx=1, bety=1, alphx=0, alphy=0.
+        Tracks particles with coordinate change in place
+        """
+        
         self.phase_x = phase_x
         self.phase_y = phase_y
 
-    def track(self, part):
+    def track(self, part):      
         x, px, y, py = part.x, part.px, part.y, part.py
 
         arg_x = 2*np.pi*self.phase_x
@@ -35,8 +41,19 @@ class Phase4d:
     def __repr__(self):
         return f"Phase4d({self.phase_x}, {self.phase_y})"
 
+
 class OneTurnMap:
     def __init__(self, Qx, Qy, betx, bety, alphx, alphy):
+        """ 
+        Linear one turn map. Tracks particles with coordinate change in place.
+        :param Qx: Horizontal tune, to be multiplied with 2 pi to get phase.
+        :param Qy: Vertical tune, to be multiplied with 2 pi to get phase.
+        :param betx: Horizontal beta function at the observation point.
+        :param bety: Vertical beta function at the observation point.
+        :param alphx: Horizontal alpha function at the observation point.
+        :param alphy: Vertical alpha function at the observation point.
+        """
+        
         self.Qx = Qx
         self.Qy = Qy
         self.betx = betx
@@ -66,6 +83,12 @@ class OneTurnMap:
 
 class Kick_x:
     def __init__(self, kick, order=1):
+        """ 
+        Kick in horizontal plane. Tracks particles with coordinate change in place.
+        :param kick: Strength of the kick, to be multiplied with x**order / order! to get the change in px.
+        :param order: Order of the kick, 0 for dipole, 1 for quadrupole, 2 for sextupole, etc.
+        """
+        
         self.kick = kick
         self.order = order
 
@@ -75,9 +98,16 @@ class Kick_x:
 
     def __repr__(self):
         return f"Kick_x({self.kick})"
-
+    
+    
 class Kick_y:
     def __init__(self, kick, order=1):
+        """ 
+        Kick in vertical plane. Tracks particles with coordinate change in place.
+        :param kick: Strength of the kick, to be multiplied with y**order / order! to get the change in py.
+        :param order: Order of the kick, 0 for (skew) dipole, 1 for quadrupole, 2 for sextupole, etc.
+        """
+        
         self.kick = kick
         self.order = order
 
@@ -91,17 +121,28 @@ class Kick_y:
 
 class Sextupole:
     def __init__(self, b3):
+        """ 
+        Thin sextupole. Tracks particles with coordinate change in place.
+        :param b3: Strength of the sextupole.
+        """
+        
         self.b3 = b3
 
     def track(self, part):
         x, px, y, py = part.x, part.px, part.y, part.py
 
-        part.px += self.b3/2 * x**2
-        part.py += self.b3/2 * x*y
+        part.px += self.b3 * (x**2 - y**2) / 2
+        part.py += self.b3 * x*y
 
 
 class NumericalSextupole:
     def __init__(self, b3, length):
+        """ 
+        Sextupole using bpmeth built-in tracker. Tracks particles with coordinate change in place.
+        :param b3: Strength of the sextupole.
+        :param length: Length of the sextupole.
+        """
+        
         self.b3 = b3
         self.length = length
         
@@ -110,7 +151,7 @@ class NumericalSextupole:
 
     def track(self, part):
         x, px, y, py, tau, ptau = part.x, part.px, part.y, part.py, part.tau, part.ptau
-        npart = part.npart
+        npart = len(part.x)
         
         for i in range(npart):
             sol = self.H_sextupole.solve([x[i], y[i], tau[i], px[i], py[i], ptau[i]], s_span=[0, self.length])
@@ -118,10 +159,17 @@ class NumericalSextupole:
             part.x[i], part.y[i], part.tau[i], part.px[i], part.py[i], part.ptau[i] = sol.y[:,-1]
 
 
-        
-
 class Trajectory:
     def __init__(self, s, x, px, y, py):
+        """
+        Class to save the trajectory of particle.
+        :param s: 1D array of s positions along the trajectory.
+        :param x: 1D array of x coordinates along the trajectory.
+        :param px: 1D array of px coordinates along the trajectory.
+        :param y: 1D array of y coordinates along the trajectory.
+        :param py: 1D array of py coordinates along the trajectory.
+        """
+        
         self.s = s
         self.x = x
         self.px = px
@@ -139,37 +187,49 @@ class Trajectory:
         plt.legend()
         return ax
     
-    def plot_x(self, ax=None, label=None, marker='.', ls='-', color="red", markeredgecolor=None):
+    def plot_x(self, ax=None, **kwargs):
+        """
+        Plot x vs s for the trajectory. 
+        """
         if ax is None:
             fig, ax = plt.subplots()
-        ax.plot(self.s, self.x, label=label, ls=ls, marker=marker, color=color, markeredgecolor=markeredgecolor)
+        ax.plot(self.s, self.x, **kwargs)
         ax.set_xlabel('s')
         ax.set_ylabel('x')
         plt.legend()
         return ax
     
-    def plot_y(self, ax=None, label=None, marker='.', ls='-', color="red", markeredgecolor=None):
+    def plot_y(self, ax=None, **kwargs):
+        """ 
+        Plot y vs s for the trajectory.
+        """
         if ax is None:
             fig, ax = plt.subplots()
-        ax.plot(self.s, self.y, label=label, ls=ls, marker=marker, color=color, markeredgecolor=markeredgecolor)
+        ax.plot(self.s, self.y, **kwargs)
         ax.set_xlabel('s')
         ax.set_ylabel('y')
         plt.legend()
         return ax
     
-    def plot_px(self, ax=None, label=None, marker='.', ls='-', color="red", markeredgecolor=None):
+    def plot_px(self, ax=None, **kwargs):
+        """
+        Plot px vs s for the trajectory. 
+        """
         if ax is None:
             fig, ax = plt.subplots()
-        ax.plot(self.s, self.px, label=label, ls=ls, marker=marker, color=color, markeredgecolor=markeredgecolor)
+        ax.plot(self.s, self.px, **kwargs)
         ax.set_xlabel('s')
         ax.set_ylabel('px')
         plt.legend()
         return ax
     
-    def plot_py(self, ax=None, label=None, marker='.', ls='-', color="red", markeredgecolor=None):
+    def plot_py(self, ax=None, **kwargs):
+        """
+        Plot py vs s for the trajectory. 
+        """
         if ax is None:
             fig, ax = plt.subplots()
-        ax.plot(self.s, self.py, label=label, ls=ls, marker=marker, color=color, markeredgecolor=markeredgecolor)
+        ax.plot(self.s, self.py, **kwargs)
         ax.set_xlabel('s')
         ax.set_ylabel('py')
         plt.legend()
@@ -179,6 +239,7 @@ class Trajectory:
 class MultiTrajectory:
     def __init__(self, trajectories=[]):
         """
+        Class to keep trajectories of many particles.
         :param trajectories: a list of Trajectory objects for all particles
         """
         
@@ -232,7 +293,7 @@ class MultiTrajectory:
     def plot_final(self, ax=None, label=None):
         """
         Plot trends in final coordinates to compare different maps.
-        They will simply be plotted against the coordinate index.
+        They will simply be plotted against the coordinate index so choose initial conditions wisely!
         """
         
         if ax is None:
@@ -257,13 +318,19 @@ class MultiTrajectory:
     
 class Line4d:
     def __init__(self,elements):
+        """
+        Line keeping multiple elements to track through 
+        """
         self.elements = elements
 
     def track(self, part, num_turns=1):
+        """
+        Track particles through the line, but do not change coordinates in place. Return Output4d object to analyse. 
+        """
         tpart = part.copy()
         init_part = np.array([tpart.x, tpart.px, tpart.y, tpart.py])
         
-        ncoord, npart = 4, part.npart
+        ncoord, npart = 4, len(part.x)
         nelem=len(self.elements)
         
         output=np.zeros((num_turns,nelem,ncoord,npart))
@@ -281,10 +348,9 @@ class Output4d:
     def __init__(self, init, output, cut=None):
         """
         Class to handle output of tracking of a 4d line.
-        
         :param init: Initial coordinates of the particles.
         :param output: Full trajectories of the particles, shape (num_turns, num_elements, num_coordinates, num_particles)
-            with for the coordinates x, px, y, py.
+        with for the coordinates x, px, y, py.
         :param cut: only particles with coordinates smaller than the cut will be plotted.
         """
         
@@ -293,6 +359,9 @@ class Output4d:
         self.cut = cut
 
     def tbt(self):
+        """
+        Return turn by turn data.
+        """
         return np.r_[self.init,self.output[:,-1,:,:]]
 
     def x(self,part=0,elem=-1):
@@ -307,27 +376,30 @@ class Output4d:
     def py(self,part=0,elem=-1):
         return self.output[:,elem,3,part]
 
-    def hxp(self,part=0,elem=-1):
+    def hxp(self,part=0,elem=-1):  # hx+
         x=self.x(part,elem)
         px=self.px(part,elem)
         return x+1j*px
     
-    def hxm(self,part=0,elem=-1):
+    def hxm(self,part=0,elem=-1):  # hx-
         x=self.x(part,elem)
         px=self.px(part,elem)
         return x-1j*px
     
-    def hyp(self,part=0,elem=-1):
+    def hyp(self,part=0,elem=-1):  # hy+
         y=self.y(part,elem)
         py=self.py(part,elem)
         return y+1j*py
     
-    def hym(self,part=0,elem=-1):
+    def hym(self,part=0,elem=-1):  # hy-
         y=self.y(part,elem)
         py=self.py(part,elem)
         return y-1j*py
 
     def plot_xpx(self,elem=0,ax=None,xlims=None,ylims=None,savepath=None):
+        """ 
+        Plot horizontal phase space.
+        """
         if ax is None:
             fig = plt.figure()
             ax=fig.add_subplot(aspect='equal')
@@ -349,6 +421,9 @@ class Output4d:
             plt.close()
 
     def plot_ypy(self,elem=0,ax=None,xlims=None,ylims=None,savepath=None):
+        """
+        Plot vertical phase space. 
+        """
         if ax is None:
             fig = plt.figure()
             ax=fig.add_subplot(aspect='equal')
@@ -371,6 +446,9 @@ class Output4d:
 
 
     def plot_loss(self,elem=0):
+        """
+        Plot only particles at large amplitude. 
+        """
         x=self.output[:,elem,0,:]
         cut=np.any((abs(x)>self.cut),axis=0)
         plt.plot(self.init[0],cut,'.')
@@ -482,10 +560,10 @@ class NormalForms4d:
     def __init__(self, h, phi_x, phi_y, Qx, Qy, num_turns=100):
         """
         :param h: four or five dimensional array with the Hamiltonian coefficients. Each h[p,q,r,t] is either a 
-            complex number or a numpy array of complex numbers corresponding to different locations.
-            Make sure to include the ds in this contribution if you want to perform an integral!
+        complex number or a numpy array of complex numbers corresponding to different locations.
+        Make sure to include the ds in this contribution if you want to perform an integral!
         :param phi_x: horizontal phase advance of the perturbation, either a float or a numpy array of floats
-            source - observation (+ 2 pi Q)
+        source - observation (+ 2 pi Q)
         :param phi_y: vertical phase advance of the perturbation, either a float or a numpy array of floats
         :param Qx: horizontal tune
         :param Qy: vertical tune
@@ -631,7 +709,7 @@ class NormalForms4d:
             warnings.warn("py is not real, are you sure you gave a physical Hamiltonian?")
 
         
-        output = np.zeros((self.num_turns, 1, 4, part.npart), dtype=complex)
+        output = np.zeros((self.num_turns, 1, 4, len(part.x)), dtype=complex)
         
         for nturn in range(self.num_turns):
             output[nturn, 0] = np.array([x[nturn], px[nturn], y[nturn], py[nturn]])
