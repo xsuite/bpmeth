@@ -49,8 +49,6 @@ def test_hardedge_bend_track():
 
     p0=xt.Particles(energy0=10e9, mass0=xt.PROTON_MASS_EV,
             x=1e-2, px=1e-3, y=1e-2, py=1e-3)
-    p0=xt.Particles(energy0=1e9, mass0=xt.PROTON_MASS_EV,
-            x=0, px=0, y=0, py=0, zeta=0.1,delta=0.001)
     p1=p0.copy()
     p2=p0.copy()
 
@@ -65,8 +63,8 @@ def test_hardedge_bend_track():
     assert np.isclose(p1.y,p2.y)
     assert np.isclose(p1.py,p2.py)
     assert np.isclose(p1.zeta,p2.zeta)
-    assert np.isclose(p1.s,[1])
-    assert np.isclose(p2.s,[1])
+    assert np.isclose(p1.s,[length])
+    assert np.isclose(p2.s,[length])
 
 
 def test_hardedge_drift_track():
