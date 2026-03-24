@@ -28,10 +28,7 @@ class ThinDipoleFringe:
         self.b1fringe = f"{b1}*{shape}"
         self.len = length  # Renamed because this is not the actual lenght of the element, the element is thin
         self.nphi = nphi
-        if ivp_opt is None:
-            ivp_opt = {}
-        else:
-            self.ivp_opt = ivp_opt
+        self.ivp_opt = ivp_opt
         
         # First a backwards drift
         self.drift = DriftVectorPotential()
@@ -127,7 +124,7 @@ class MADXQuadFringe:
        
 
 class ThinQuadFringe:   
-    def __init__(self, b2, b2amp, b3, length=1, nphi=5, ivp_opt={}):
+    def __init__(self, b2, b2amp, b3, length=1, nphi=5, ivp_opt=None):
         """    
         Thin numerical quadrupole fringe field at the edge of the magnet. 
         It consists of a backwards drift, a fringe field map and a backwards quad.
