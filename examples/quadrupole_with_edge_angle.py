@@ -2,6 +2,10 @@ import bpmeth
 import numpy as np
 import matplotlib.pyplot as plt
 
+############################################################
+# Compare different models for quadrupole with edge angles #
+############################################################
+
 quadfringe = bpmeth.FieldExpansion(b=("0", "0.1*(tanh(s)+1)/2",))
 
 rot_quadfringe = quadfringe.transform(30/180*np.pi)
@@ -31,6 +35,3 @@ for i in range(len(rot_quadfringe.b)):
     print(f"- Integral for cut fringe: \t {np.trapezoid([cut_quadfringe.b[i].subs({quadfringe.s:sval}).evalf() for sval in ss], ss)}")
     print(f"- Integral for rotated fringe: \t {np.trapezoid([rot_quadfringe.b[i].subs({quadfringe.s:sval}).evalf() for sval in ss], ss)}")
 ax.legend()
-
-# Make a continuous differentiable b1 that goes to zero on both sides
-symmetricfringe = bpmeth.FieldExpansion(b=(-sp.sign(rot_quadfringe.s)*rot_quadfringe.b[0].subs({rot_quadfringe.s:-abs(rot_quadfringe.s)}), *rot_quadfringe.b[1:]))
