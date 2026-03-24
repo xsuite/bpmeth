@@ -699,3 +699,41 @@ class Fieldmap:
         return K0
                
          
+    def fit_spline_multipoles(self, components=[1,2], step=50, ax=None, smin=-9999, smax=9999):
+        """
+        Fit splines to the multipoles in the fieldmap, taking into account the design of the magnet.
+        :param components: List of components to fit, counting starts at one like the multipole coefficients.
+        :param ax: If given, plot the fit in these axis.
+        """        
+        
+        order = max(components)
+        zvals, coeffs, coeffsstd = self.s_multipoles(order, mov_av = 5)
+
+        mask = (zvals>=smin) & (zvals<=smax)
+        zvals = zvals[mask]
+        coeffs = coeffs[mask]
+        coeffsstd = coeffsstd[mask]
+
+        all_pols = []
+        ii=np.arange(0,len(zvals)-step,step)
+        segments = []
+
+        for component in components:
+            pols = []
+            index = component-1
+            b = coeffs[:, index]
+            dz = np.diff(zvals, prepend=zvals[0])
+            bp = np.nan_to_num(np.diff(b,prepend=b[0])/dz, copy=True)
+            # bpp = np.nan_to_num(np.diff(bp,prepend=bp[0])/dz, copy=True)            
+
+            for ia,ib in zip(ii,ii+step):
+                pol=fit_segment(ia,ib,zvals,b,bp)
+                if ax is not None:
+                    plot_fit(ia,ib,zvals,b,pol, ax=ax, data=True)
+                pols.append(pol)
+            all_pols.append(pols)
+
+        for ia,ib in zip(ii,ii+step):
+            segments.append([zvals[ia], zvals[ib]])
+        
+        return segments, all_pols
