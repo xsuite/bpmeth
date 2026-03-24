@@ -73,7 +73,7 @@ class ThinDipoleFringe:
             
             # Update particle position
             xi, yi, taui, pxi, pyi, ptaui = sol_dipole.y[:, -1]
-            part.x[i], part.y[i], part.zeta[i], part.px[i], part.py[i], part.ptau[i] = xi, yi, taui*beta0[i], pxi, pyi, ptaui
+            part.x[i], part.y[i], part.zeta[i], part.px[i], part.py[i], part.ptau[i] = xi, yi, taui*beta0, pxi, pyi, ptaui
             
         if return_trajectories:
             return trajectories
