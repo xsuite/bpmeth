@@ -2,9 +2,9 @@ import bpmeth
 import numpy as np
 import matplotlib.pyplot as plt
 
-"""
-Plot the analytical solution for a curved dipole using bpmeth
-"""
+####################################################################
+# Plot the analytical solution for a curved dipole in curved frame #
+####################################################################
 
 # Parameters
 length = 1
@@ -35,7 +35,7 @@ pxder = -px0*h*np.sin(s*h) + ( np.sqrt((1+delta)**2-px0**2-py0**2) - (1/h + x0)*
 x = 1/h * 1/BB * ( h*np.sqrt((1+delta)**2-px**2-py0**2) - pxder - BB)
 y = h*py0/BB*s - py0/BB * ( np.arcsin(px/np.sqrt((1+delta)**2)) - np.arcsin(px0/np.sqrt((1+delta)**2)) ) + y0
 
-fb.plot_trajectory_zx(s,x,y, figname="figures/curved_dipole.png")
-fb.plot_trajectory_zxy(s,x,y, figname="figures/curved_dipole_3D.png")
+fb.plot_trajectory_zx(s,x,y)
+fb.plot_trajectory_zxy(s,x,y)
 
 plt.show()

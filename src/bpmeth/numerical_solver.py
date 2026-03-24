@@ -121,7 +121,6 @@ class Hamiltonian:
         if ivp_opt is None:
             ivp_opt = {}
         if "t_eval" not in ivp_opt:
-            print("setting t_eval")
             ivp_opt["t_eval"] = np.linspace(s_span[0], s_span[1], 500)
         if "rtol" not in ivp_opt:
             ivp_opt["rtol"] = 1e-5

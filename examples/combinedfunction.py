@@ -5,6 +5,10 @@ import sympy
 import numpy as np
 import matplotlib.pyplot as plt
 
+####################################################################################
+# Track a combined function dipole using the built-in tracker, compare with Xsuite #
+####################################################################################
+
 b1 = 0.4
 b2 = 0.1
 b3 = 0.05

@@ -1,9 +1,12 @@
 import bpmeth
 import xtrack as xt
 import sympy
-
 import numpy as np
 import matplotlib.pyplot as plt
+
+###################################################################################
+# Track a combined function dipole with expanded Hamiltonian, compare with Xsuite #
+###################################################################################
 
 b1 = 0.4
 b2 = 0.1

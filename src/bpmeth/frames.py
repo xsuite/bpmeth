@@ -162,6 +162,8 @@ class Frame:
         """
         
         self.origin = origin
+        
+        return self
 
 
     def move_by(self, offset):
@@ -171,6 +173,8 @@ class Frame:
         """
         
         self.origin += offset
+        
+        return self
 
 
     def rotate_x(self, angle):
@@ -184,6 +188,8 @@ class Frame:
         rot = np.array([[1, 0, 0], [0, c, -s], [0, s, c]])
         self.rotation = np.matmul(rot, self.rotation)
 
+        return self
+
 
     def rotate_y(self, angle):
         """ 
@@ -195,6 +201,8 @@ class Frame:
         s = np.sin(angle)
         rot = np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]])
         self.rotation = np.matmul(rot, self.rotation)
+        
+        return self
 
 
     def rotate_z(self, angle):
@@ -207,6 +215,8 @@ class Frame:
         s = np.sin(angle)
         rot = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
         self.rotation = np.matmul(rot, self.rotation)
+        
+        return self
 
 
     def arc_by(self, length, angle):
@@ -222,6 +232,8 @@ class Frame:
         self.origin -= rho * self.xdir
         self.rotate_y(-angle)
         self.origin += rho * self.xdir
+        
+        return self
 
 
     def copy(self):
