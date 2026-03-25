@@ -148,6 +148,105 @@ class Fieldmap:
         data = np.array([x.flatten(), y.flatten(), s.flatten(), dst['Bx'], dst['By'], dst['Bs']]).T
 
         return Fieldmap(data)
+
+
+    def FS_frame_plot(self, rho, phi, field, radius=0.01, xmax=0.01, ymax=0.01, nx=51, ny=10, ns=101, smax=1):
+        """
+        Plot the fieldmap in Frenet-Serret coordinates, but represented in global frame.
+        :param rho: Bending radius of the magnet.
+        :param phi: Angle of the magnet in radians. Related to the magnetic length by l_magn = rho * phi.
+        :param field: Which field component to plot, can be "Bx", "By", or "Bs".
+        :param radius: Interpolation radius, default 0.01. See interpolate_points for its function.
+        :param xmax: Maximal x value to take into account in the plot, best to exclude any region outside of GFR.
+        :param ymax: Maximal y value to take into account in the plot, best to exclude any region outside of GFR.
+        :param nx: Number of points in the x direction for the plot.
+        :param ny: Number of points in the y direction for the plot.
+        :param ns: Number of points in the s direction for the plot.
+        :param smax: Maximal s value to take into account in the plot, best to exclude any region outside of GFR. 
+        Given as fraction of l_magn
+        :return: The fieldmap objects interpolated at FS points.
+        """
+        
+        l_magn = rho*phi
+
+        # ----- Straight part at negative s -----
+        s, x, y = np.meshgrid(np.linspace(-l_magn*smax, -l_magn/2, ns//4), 
+                              np.linspace(-xmax, xmax, nx), 
+                              np.linspace(-ymax, ymax, ny))
+        X_ns = (rho + x) * np.cos(phi/2) + (s+l_magn/2) * np.sin(phi/2) 
+        Y_ns = y
+        Z_ns = -(rho + x) * np.sin(phi/2) + (s+l_magn/2) * np.cos(phi/2)
+
+        # ----- Bent part -----
+        s, x, y = np.meshgrid(np.linspace(-l_magn/2, l_magn/2, ns//2), 
+                              np.linspace(-xmax, xmax, nx), 
+                              np.linspace(-ymax, ymax, ny))
+        X_b = np.cos(s/rho) * (rho + x) 
+        Y_b = y
+        Z_b = np.sin(s/rho) * (rho + x)
+        
+        # ----- Straight part at positive s -----
+        s, x, y = np.meshgrid(np.linspace(l_magn/2, l_magn*smax, ns//4), 
+                              np.linspace(-xmax, xmax, nx), 
+                              np.linspace(-ymax, ymax, ny))
+        X_ps = (rho + x) * np.cos(phi/2) - (s-l_magn/2) * np.sin(phi/2)
+        Y_ps = y
+        Z_ps = (rho + x) * np.sin(phi/2) + (s-l_magn/2) * np.cos(phi/2)
+        
+        X = np.concatenate((X_ns.flatten(), X_b.flatten(), X_ps.flatten()))
+        Y = np.concatenate((Y_ns.flatten(), Y_b.flatten(), Y_ps.flatten()))
+        Z = np.concatenate((Z_ns.flatten(), Z_b.flatten(), Z_ps.flatten()))
+        fm = self.interpolate_points(X, Y, Z, radius=radius)
+        fm.plot(field)
+        return fm
+
+    
+    def FS_frame_plot_cilindrical(self, rho, phi, field, radius=0.01, rmax=0.01, ntheta=32, nr=5, ns=101):
+        """
+        Plot the fieldmap in Frenet-Serret coordinates, but represented in global frame, using cylindrical coordinates.
+        :param rho: Bending radius of the magnet.
+        :param phi: Angle of the magnet in radians. Related to the magnetic length by l_magn = rho * phi.
+        :param field: Which field component to plot, can be "Bx", "By", or "Bs".
+        :param radius: Interpolation radius, default 0.01. See interpolate_points for its function.
+        :param rmax: Maximal radial distance from the reference trajectory to take into account in the plot, best to exclude any region outside of GFR.
+        :param ntheta: Number of points in the angular direction for the plot.
+        :param nr: Number of points in the radial direction for the plot.
+        :param ns: Number of points in the s direction for the plot.
+        :return: The fieldmap objects interpolated at FS points. 
+        """
+        
+        l_magn = rho*phi
+
+        # ----- Straight part at negative s -----
+        s, theta, r = np.meshgrid(np.linspace(-l_magn, -l_magn/2, ns//4), 
+                                np.linspace(0, 2*np.pi, ntheta+1)[:-1], 
+                                np.linspace(0, rmax, nr))
+        X_ns = (rho + r*np.cos(theta)) * np.cos(phi/2) + (s+l_magn/2) * np.sin(phi/2) 
+        Y_ns = r*np.sin(theta)
+        Z_ns = -(rho + r*np.cos(theta)) * np.sin(phi/2) + (s+l_magn/2) * np.cos(phi/2)
+
+        # ----- Bent part -----
+        s, theta, r = np.meshgrid(np.linspace(-l_magn/2, l_magn/2, ns//2), 
+                                np.linspace(0, 2*np.pi, ntheta), 
+                                np.linspace(0, rmax, nr))
+        X_b = np.cos(s/rho) * (rho + r*np.cos(theta)) 
+        Y_b = r*np.sin(theta)
+        Z_b = np.sin(s/rho) * (rho + r*np.cos(theta))
+        
+        # ----- Straight part at positive s -----
+        s, theta, r = np.meshgrid(np.linspace(l_magn/2, l_magn, ns//4),
+                                np.linspace(0, 2*np.pi, ntheta), 
+                                np.linspace(0, rmax, nr))
+        X_ps = (rho + r*np.cos(theta)) * np.cos(phi/2) - (s-l_magn/2) * np.sin(phi/2)
+        Y_ps = r*np.sin(theta)
+        Z_ps = (rho + r*np.cos(theta)) * np.sin(phi/2) + (s-l_magn/2) * np.cos(phi/2)
+        
+        X = np.concatenate((X_ns.flatten(), X_b.flatten(), X_ps.flatten()))
+        Y = np.concatenate((Y_ns.flatten(), Y_b.flatten(), Y_ps.flatten()))
+        Z = np.concatenate((Z_ns.flatten(), Z_b.flatten(), Z_ps.flatten()))
+        fm = self.interpolate_points(X, Y, Z, radius=radius)
+        fm.plot(field)
+        return fm
     
 
     def calc_FS_coords(self, xFS, yFS, sFS, rho, phi, radius=0.01):
