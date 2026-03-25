@@ -652,15 +652,15 @@ class Fieldmap:
         """
         
         if ypos in self.src['y'] and spos in self.src['s']:
-            x, fieldvals = self.xprofile(ypos, spos, field, ax=ax, xmax=xmax)
+            x, fieldvals = self.xprofile(ypos, spos, field, ax=ax, xmax=xmax*2)
         else:
-            xvals = np.linspace(-xmax, xmax, 51)
-            X, Y, S = np.meshgrid(xvals, ypos, zpos)
+            xvals = np.linspace(-xmax*2, xmax*2, 101)
+            X, Y, S = np.meshgrid(xvals, ypos, spos)
             fm = self.interpolate_points(X, Y, S, radius=radius)
-            x, fieldvals = fm.xprofile(ypos, spos, field, ax=ax, xmax=xmax)
+            x, fieldvals = fm.xprofile(ypos, spos, field, ax=ax, xmax=xmax*2)
 
-        paramslist = np.array([np.polyfit(x, fieldvals, order-1+j)[j:] for j in range(5)])
-        param = np.mean(paramslist, axis=0)
+        paramslist = np.array([np.polyfit(x[26:76], fieldvals[26:76], order-1+j)[j:] for j in range(5)])
+        params = np.mean(paramslist, axis=0)
         paramsstd = np.std(paramslist, axis=0)
         # Parameters from fit are given starting by highest order, ex. if order = 2, we have [b2, b1] and we want to return [b1, b2/2]
         coeffslist = [paramslist[:, order-1-i] * math.factorial(i) for i in range(order)]
@@ -669,11 +669,15 @@ class Fieldmap:
         
         if ax:
             ax.scatter(x, fieldvals, label="data")
-            xx = np.linspace(x.min(), x.max(), 100)
-            ax.plot(xx, np.polyval(params+paramsstd, xx), label="fit+std", color="gray")
-            ax.plot(xx, np.polyval(params-paramsstd, xx), label="fit-std", color="gray")
-            ax.plot(xx, np.polyval(params, xx), label="fit", color="black")
+            xx = np.linspace(-xmax, xmax, 100)
+            ax.plot(xx, np.polyval(params, xx), color="orange", label="polynomial fit")
+            yymin = np.polyval(params - paramsstd, xx)
+            yymax = np.polyval(params + paramsstd, xx)
+            ax.fill_between(xx, yymin, yymax, color="orange", alpha=0.5)
             ax.legend()
+            ymin, ymax = fieldvals.min(), fieldvals.max()
+            yrange = ymax - ymin
+            ax.set_ylim(ymin - 0.1*yrange, ymax + 0.1*yrange)
             
         return coeffs, coeffsstd
 
