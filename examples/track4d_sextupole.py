@@ -1,12 +1,11 @@
-
 import numpy as np
 import matplotlib.pyplot as plt
 import math
 import bpmeth
 
-"""
-Analysis of a ring with a single sextupole
-"""
+##############################################
+# Analysis of a ring with a single sextupole #
+##############################################
 
 npart = 50
 yvals = np.linspace(0, 0.9, npart)
