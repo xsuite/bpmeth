@@ -34,7 +34,7 @@ for i,tune in enumerate(np.arange(0.332,0.334,0.0001)):
    
    line_sext = bpmeth.Line4d([bpmeth.Phase4d(tune, Qy), bpmeth.Sextupole(b3)])
    o_kick = line_sext.track(part, num_turns=nturns)
-   o_kick.plot_xpx(xlims=xlims, ylims=ylims, savepath=f"tune_{i}.png")
+   o_kick.plot_xpx(xlims=xlims, ylims=ylims)
 
 # Solution with normal forms
 h = np.zeros((4,4,4,4))
