@@ -652,14 +652,14 @@ class Fieldmap:
         """
         
         if ypos in self.src['y'] and spos in self.src['s']:
-            x, fieldvals = self.xprofile(ypos, spos, field, ax=ax, xmax=xmax*2)
+            x, fieldvals = self.xprofile(ypos, spos, field, ax=ax, xmax=xmax)
         else:
-            xvals = np.linspace(-xmax*2, xmax*2, 101)
+            xvals = np.linspace(-xmax, xmax, 101)
             X, Y, S = np.meshgrid(xvals, ypos, spos)
             fm = self.interpolate_points(X, Y, S, radius=radius)
-            x, fieldvals = fm.xprofile(ypos, spos, field, ax=ax, xmax=xmax*2)
+            x, fieldvals = fm.xprofile(ypos, spos, field, ax=ax, xmax=xmax)
 
-        paramslist = np.array([np.polyfit(x[26:76], fieldvals[26:76], order-1+j)[j:] for j in range(5)])
+        paramslist = np.array([np.polyfit(x, fieldvals, order-1+j)[j:] for j in range(5)])
         params = np.mean(paramslist, axis=0)
         paramsstd = np.std(paramslist, axis=0)
         # Parameters from fit are given starting by highest order, ex. if order = 2, we have [b2, b1] and we want to return [b1, b2/2]

@@ -24,7 +24,7 @@ cctmagnet_FS = cctmagnet.calc_FS_coords(xFS, yFS, sFS, rho, phi, radius=0.005)
 # plt.legend()
 
 fig, ax = plt.subplots()
-cctmagnet_FS.fit_xprofile(0, 0.1, "Bx", 3, ax=ax, xmax=apt/2, radius=0.005)
+coeffs, coeffsstd = cctmagnet_FS.fit_xprofile(0, 0.1, "By", 3, ax=ax, xmax=apt/2, radius=0.005)
 x1, y1 = 0, 2
 dx, dy = 0.04, 0
 ax.arrow(x1, y1, dx, dy, color="gray", head_width=0.04, length_includes_head=True, head_length=0.004)
