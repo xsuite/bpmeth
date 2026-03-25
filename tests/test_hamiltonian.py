@@ -5,13 +5,13 @@ from bpmeth import poly_fit
 
 
 def test_hardedge_quad_solve():
-    b1 = "0.0"
-    b2 = "1.0"
-    b3 = "0.0"
-    h = "0.0"
+    b1 = 0.0
+    b2 = 1.0
+    b3 = 0.0
+    h = 0.0
     length = 1
-    A_magnet = bpmeth.GeneralVectorPotential(hs=h, b=(b1, b2, b3))
-    H_magnet = bpmeth.Hamiltonian(length=length, curv=float(h), vectp=A_magnet)
+    A_magnet = bpmeth.GeneralVectorPotential(h=h, b=(b1, b2, b3))
+    H_magnet = bpmeth.Hamiltonian(length=length, h=h, vectp=A_magnet)
     x0=1e-2
     sol= H_magnet.solve([x0,0,0,0,0,0])
     b2=float(b2)
@@ -20,13 +20,13 @@ def test_hardedge_quad_solve():
     assert abs(1-r11/r11_h)<1e-4
 
 def test_hardedge_quad_track():
-    b1 = "0.0"
+    b1 = 0.0
     b2 = "s"
-    b3 = "0.0"
-    h = "0.0"
+    b3 = 0.0
+    h = 0.0
     length = 1
-    A_magnet = bpmeth.GeneralVectorPotential(hs=h, b=(b1, b2, b3))
-    H_magnet = bpmeth.Hamiltonian(length=length, curv=float(h), vectp=A_magnet)
+    A_magnet = bpmeth.GeneralVectorPotential(h=h, b=(b1, b2, b3))
+    H_magnet = bpmeth.Hamiltonian(length=length, h=h, vectp=A_magnet)
 
     p0=xt.Particles(energy0=10e9, mass0=xt.PROTON_MASS_EV,x=1e-2)
     p1=p0.copy()
@@ -41,20 +41,18 @@ def test_hardedge_quad_track():
     assert np.isclose(p2.s,4)
 
 def test_hardedge_bend_track():
-    b1 = "0.1"
-    h = "0.1"
+    b1 = 0.1
+    h = 0.1
     length = 1
-    A_magnet = bpmeth.GeneralVectorPotential(hs=h, b=(b1,))
-    H_magnet = bpmeth.Hamiltonian(length=length, curv=float(h), vectp=A_magnet)
+    A_magnet = bpmeth.GeneralVectorPotential(h=h, b=(b1,))
+    H_magnet = bpmeth.Hamiltonian(length=length, h=h, vectp=A_magnet)
 
     p0=xt.Particles(energy0=10e9, mass0=xt.PROTON_MASS_EV,
             x=1e-2, px=1e-3, y=1e-2, py=1e-3)
-    p0=xt.Particles(energy0=1e9, mass0=xt.PROTON_MASS_EV,
-            x=0, px=0, y=0, py=0, zeta=0.1,delta=0.001)
     p1=p0.copy()
     p2=p0.copy()
 
-    line=xt.Line([xt.Bend(k0=float(b1),h=float(h),length=length)])
+    line=xt.Line([xt.Bend(k0=b1,angle=h*length,length=length)])
     line.reset_s_at_end_turn=False
 
     H_magnet.track(p1)
@@ -65,16 +63,16 @@ def test_hardedge_bend_track():
     assert np.isclose(p1.y,p2.y)
     assert np.isclose(p1.py,p2.py)
     assert np.isclose(p1.zeta,p2.zeta)
-    assert np.isclose(p1.s,[1])
-    assert np.isclose(p2.s,[1])
+    assert np.isclose(p1.s,[length])
+    assert np.isclose(p2.s,[length])
 
 
 def test_hardedge_drift_track():
-    b1 = "0.0"
-    h = "0.0"
+    b1 = 0.0
+    h = 0.0
     length = 1
-    A_magnet = bpmeth.GeneralVectorPotential(hs=h, b=(b1,))
-    H_magnet = bpmeth.Hamiltonian(length=length, curv=float(h), vectp=A_magnet)
+    A_magnet = bpmeth.GeneralVectorPotential(h=h, b=(b1,))
+    H_magnet = bpmeth.Hamiltonian(length=length, h=h, vectp=A_magnet)
 
     p0=xt.Particles(energy0=1e9, mass0=xt.PROTON_MASS_EV,
             x=0, px=0, y=0, py=0, zeta=0.1,delta=0.01)
@@ -115,13 +113,13 @@ def test_slice_quad_track():
         ypp0=[0],
     )
 
-    b1 = "0.0"  # k0
+    b1 = 0.0  # k0
     b2 = poly_fit.poly_print(poly_entry, x="s")  # k1
-    b3 = "0.0"  # k2
-    hs = "0.0"
+    b3 = 0.0  # k2
+    h = 0.0
     length = s[-1]
     A_magnet_entry = bpmeth.GeneralVectorPotential(b=(b1, b2, b3))
-    H_magnet_entry = bpmeth.Hamiltonian(length=length, curv=float(hs), vectp=A_magnet_entry)
+    H_magnet_entry = bpmeth.Hamiltonian(length=length, h=h, vectp=A_magnet_entry)
 
     # track and twiss through one element
     line = xt.Line([H_magnet_entry])
@@ -131,16 +129,15 @@ def test_slice_quad_track():
     line.track(p0, turn_by_turn_monitor="ONE_TURN_EBE")
     data = line.record_last_track
 
-
     # slicing in 3 parts
     H1 = bpmeth.Hamiltonian(
-        length=length / 3, s_start=0, curv=float(hs), vectp=A_magnet_entry
+        length=length / 3, s_start=0, h=h, vectp=A_magnet_entry
     )
     H2 = bpmeth.Hamiltonian(
-        length=length / 3, s_start=1 / 3 * length, curv=float(hs), vectp=A_magnet_entry
+        length=length / 3, s_start=1 / 3 * length, h=h, vectp=A_magnet_entry
     )
     H3 = bpmeth.Hamiltonian(
-        length=length / 3, s_start=2 / 3 * length, curv=float(hs), vectp=A_magnet_entry
+        length=length / 3, s_start=2 / 3 * length, h=h, vectp=A_magnet_entry
     )
 
     line3 = xt.Line([H1, H2, H3])
@@ -154,4 +151,28 @@ def test_slice_quad_track():
     assert(np.isclose(data3.x[0,-1],0.09990009))
 
 
+def test_combined_function_track():
+    b1 = 0.1
+    b2 = 0.05
+    h = 0.15
+    length = 0.1
+    A_magnet = bpmeth.GeneralVectorPotential(h=h, b=(b1, b2))
+    H_magnet = bpmeth.Hamiltonian(length=length, h=h, vectp=A_magnet)
+    
+    line = xt.Line([xt.Bend(k0=b1, k1=b2, angle=h*length, length=length)])
+    line.reset_s_at_end_turn = False
+    
+    p0 = xt.Particles(x=0.1, px=0.01, y=0.2, py=0.03, delta=0.1, zeta=0.01)
+    p1 = p0.copy()
+    p2 = p0.copy()
+    
+    H_magnet.track(p1)
+    line.track(p2)
+    
+    assert np.isclose(p1.x, p2.x)
+    assert np.isclose(p1.px, p2.px)
+    assert np.isclose(p1.y, p2.y)
+    assert np.isclose(p1.py, p2.py)
+    assert np.isclose(p1.delta, p2.delta)
+    assert np.isclose(p1.zeta, p2.zeta)
 

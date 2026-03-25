@@ -2,25 +2,36 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sp
 import warnings
+from .fieldmaps import Fieldmap
 
-
-def phinplus2(phi, x, s, hs):
+def phinplus2(phi, x, s, h):
     """
     Recursion relation for the magnetic scalar potential
     """
 
-    xx = ((1 + hs * x) * phi.diff(x)).diff(x)
-    ss = (1 / (1 + hs * x) * phi.diff(s)).diff(s)
-    return -1 / (1 + hs * x) * (xx + ss)
+    xx = ((1 + h * x) * phi.diff(x)).diff(x)
+    ss = (1 / (1 + h * x) * phi.diff(s)).diff(s)
+    return -1 / (1 + h * x) * (xx + ss)
 
 
 class FieldExpansion:
-    def __init__(self, a=(), b=(), bs="0", hs="0", nphi=5):
+    def __init__(self, a=(0,), b=(0,), bs=0, h=0, nphi=5):
+        """
+        Multipole coefficients can be given as a float, a sympy expression or a string to be evaluated as a function of s.
+        :param a: Tuple of skew multipole coefficients (a1, a2, a3, ...) in curved frame. 
+        :param b: Tuple of normal multipole coefficients (b1, b2, b3, ...) in curved frame. 
+        :param bs: Longitudinal multipole coefficient in curved frame.
+        :param h: Curvature of the frame. Has to be constant, can be float, int or string.
+        :param nphi: Number of phi to include in magnetic scalar potential
+        """
+
         self.x, self.y, self.s = sp.symbols("x y s", real=True)
-        self.a = tuple(eval(aa, sp.__dict__, {"s": self.s}) if isinstance(aa, str) else aa.subs(sp.Symbol("s"), self.s) for aa in a) 
-        self.b = tuple(eval(bb, sp.__dict__, {"s": self.s}) if isinstance(bb, str) else bb.subs(sp.Symbol("s"), self.s) for bb in b) 
-        self.bs = eval(bs, sp.__dict__, {"s": self.s}) if isinstance(bs, str) else bs.subs(sp.Symbol("s"), self.s)
-        self.hs = eval(hs, sp.__dict__, {"s": self.s}) if isinstance(hs, str) else hs.subs(sp.Symbol("s"), self.s)
+        self.a = tuple(aa if isinstance(aa, (float, int)) else eval(aa, sp.__dict__, {"s": self.s}) \
+            if isinstance(aa, str) else aa.subs(sp.Symbol("s"), self.s) for aa in a) 
+        self.b = tuple(bb if isinstance(bb, (float, int)) else eval(bb, sp.__dict__, {"s": self.s}) \
+            if isinstance(bb, str) else bb.subs(sp.Symbol("s"), self.s) for bb in b) 
+        self.bs = bs if isinstance(bs, (float, int)) else eval(bs, sp.__dict__, {"s": self.s}) if isinstance(bs, str) else bs.subs(sp.Symbol("s"), self.s)
+        self.h = float(h) if isinstance (h, (float, int, str)) else h
         self.nphi = nphi
 
         
@@ -30,43 +41,51 @@ class FieldExpansion:
 
 
     def subs(self, func, coord_subs={}):
+        """
+        Calculations are done with symbolic a, b, bs for speed in case of very complex expressions.
+        Substitute the symbolic calculation with the actual given functions for a, b, bs
+        :param func: Expression in which the symbols have to be replaced.
+        :param coord_subs: Optional dictionary to substitute the coordinates (x, y, s) with other symbols or values. 
+        """
+
         func = func.subs({**{sym.subs(coord_subs):val for sym, val in zip(self.afun,self.a)}, 
                           **{sym.subs(coord_subs):val for sym, val in zip(self.bfun,self.b)}, 
                           self.bsfun.subs(coord_subs):self.bs}).doit()
         return func
 
+
     def get_phi(self, tolerance=1e-4, apperture=0.05, subs=True):
         """
-        a=(a1,a2,a3,...)
-        b=(b1,b2,b3,...)
+        Determine the expression for the magnetic scalar potential.
+        :param tolerance (float): Truncating the expression in phi will violate Maxwell equations. 
+        Verify if the deviation is not too large by checking if the laplacian of the potential remains 
+        within this tolerance. If the laplacian exceeds this value, 
+        a warning is issued that more terms in the expansion are needed.
+        :param apperture (float): Used as extremal value for tolerance check.
+        :param subs (bool): If True, return the potential for the a, b, bs of the class. If False, return symbolic expressions.
+        :return: Expression for the magnetic scalar potential as a function of x, y, s.
         """
 
         x, y, s = self.x, self.y, self.s
         a = self.afun
         b = self.bfun
         bs = self.bsfun
-        hs = self.hs
+        h = self.h
         nphi = self.nphi
         
         phi0 = sum((an * x ** (n + 1) / sp.factorial(n + 1) for n, an in enumerate(a))) + sp.integrate(bs, s)
         phi1 = sum((bn * x**n / sp.factorial(n) for n, bn in enumerate(b)))        
         phiv = [phi0, phi1]
         for i in range(nphi-2):
-            phiv.append(phinplus2(phiv[i], x, s, hs).simplify())
+            phiv.append(phinplus2(phiv[i], x, s, h).simplify())
         phi = sum(pp * y**i / sp.factorial(i) for i, pp in enumerate(phiv)).simplify()
 
-        if subs:
-            """
-            Truncating the expansion in phi will violate Maxwell equations. Verify if the 
-            deviation is not too large by checking if the laplacian of the potential remains 
-            within the allowed tolerances.
-            """
-            
+        if subs:           
             phi =  self.subs(phi)
 
             lapl = (
-                1/(1 + hs*x) * (1/(1 + hs*x) * phi.diff(s)).diff(s) +
-                1/(1 + hs*x) * ((1 + hs*x) * phi.diff(x)).diff(x) +
+                1/(1 + h*x) * (1/(1 + h*x) * phi.diff(s)).diff(s) +
+                1/(1 + h*x) * ((1 + h*x) * phi.diff(x)).diff(x) +
                 phi.diff(y, 2)
             )
             laplval = lapl.subs({x: apperture, y: apperture, s: apperture}).evalf()
@@ -74,18 +93,27 @@ class FieldExpansion:
                 if laplval < tolerance:
                     warnings.warn(f"More terms are needed in the expansion for aperture {apperture}m, the laplacian is {laplval}")
             else:
-                warnings.warn("The laplacian could not be evaluated, are you doing symbolic calculations?")
+                warnings.warn("The laplacian could not be evaluated")
 
         return phi
         
     
     def get_Bfield(self, lambdify=True, subs=True):
+        """
+        Determine the magnetic field.
+        :param lambdify (bool): If True, return the B field as a function that can be evaluated for given x, y, s. 
+        If False, return symbolic expressions.
+        :param subs (bool): If True, return the B field for the a, b, bs of the class. 
+        If False, return symbolic expressions. Only considered when lambdify=False
+        :param return: Tuple of Bx, By, Bs as functions of x, y, s if lambdify=True, otherwise tuple of symbolic expressions.
+        """
+
         x = self.x
         y = self.y
         s = self.s
         phi = self.get_phi(subs=False)
-        hs = self.hs
-        Bx, By, Bs = phi.diff(x), phi.diff(y), 1/(1+hs*x)*phi.diff(s)
+        h = self.h
+        Bx, By, Bs = phi.diff(x), phi.diff(y), 1/(1+h*x)*phi.diff(s)
 
         if subs or lambdify:
             Bx = self.subs(Bx)
@@ -103,13 +131,22 @@ class FieldExpansion:
 
 
     def get_A(self, lambdify=False, subs=True):
+        """
+        Determine the vector potential in the gauge where Ay=0.
+        :param lambdify (bool): If True, return the A field as a function that can be evaluated for given x, y, s. 
+        If False, return symbolic expressions.
+        :param subs (bool): If True, return the A field for the a, b, bs of the class. If False, return symbolic expressions. 
+        Only considered when lambdify=False
+        :return: Tuple of Ax, Ay, As as functions of x, y, s if lambdify=True, otherwise tuple of symbolic expressions.
+        """
+
         x, y, s = self.x, self.y, self.s
-        hs = self.hs
+        h = self.h
         Bx, By, Bs = self.get_Bfield(lambdify=False, subs=False)
 
         Ax = - sp.integrate(Bs, (y, 0, y))
         Ay = sp.S(0)
-        As = sp.integrate(Bx, (y, 0, y)) - 1/(1+hs*x) * sp.integrate((1+hs*x)*By.subs({y:0}), (x, 0, x))
+        As = sp.integrate(Bx, (y, 0, y)) - 1/(1+h*x) * sp.integrate((1+h*x)*By.subs({y:0}), (x, 0, x))
 
         if subs:
             Ax = self.subs(Ax)
@@ -126,30 +163,34 @@ class FieldExpansion:
         return Ax, Ay, As
 
 
-    #########################################
-    # TO BE OPTIMISED FROM HERE             #
-    #########################################
-
     def translate(self, ds):
+        """
+        Translate the expressions in longitudinal direction. Changed in place.
+        :param ds: distance over which to translate expressions.
+        :return: None
+        """
+
         self.a = tuple(sp.sympify(an).subs(self.s, self.s - ds) for an in self.a)
         self.b = tuple(sp.sympify(bn).subs(self.s, self.s - ds) for bn in self.b)
         self.bs = sp.sympify(self.bs).subs(self.s, self.s - ds)
     
+
     def transform(self, theta_E=0, rho=np.inf, maxpow=None):
         """
+        Transform the frame to a straight / bent frame with given edge angle and curvature.
         So far only implemented for the entrance of the element. Some signs will differ for the exit!
         Formulas taken from Hwang/Lee.
-        Dipole edge is at s=0
+        Dipole edge is at s=0.
 
         param theta_E (float): Rotation angle in radians.
         param rho (float): Bending radius of the frame. If rho=np.inf, the frame is straight.
-        param maxpow (int): Maximum power of the series expansion to keep.
+        param maxpow (int): Maximum power of the series expansion to keep. If None, keep all terms up to nphi.
         return (FieldExpansion): New field expansion in the rotated frame.
         """
         
-        assert self.hs==0, "Transform only implemented starting from straight frame!"        
+        assert self.h==0, "Transform only implemented starting from straight frame!"        
         
-        x, y, s = self.x, self.y, self.s
+        x, s = self.x, self.s
         at = self.a
         bt = self.b
         bst = self.bs
@@ -199,9 +240,11 @@ class FieldExpansion:
         Cut a general magnet at an angle theta_E. theta_E = 0 means no edge angle.
         
         :param theta_E (float): Edge angle in radians.
+        :param maxpow: Maximum power of the series expansion to keep. If None, keep all terms up to nphi.
+        :return (FieldExpansion): New field expansion in the rotated frame. The edge is at s=0.
         """
         
-        x, y, s = self.x, self.y, self.s
+        x, s = self.x, self.s
         at = self.a
         bt = self.b
         bst = self.bs
@@ -236,106 +279,164 @@ class FieldExpansion:
             
         return FieldExpansion(a=a, b=b, bs=bs, nphi=nphi)
     
-    def plot_components(self, ax=None, smin=-2, smax=2, ns=100, s_shift=0, plot_b=True, plot_a=True, plot_bs=True):
+
+    def plot_components(self, ax=None, smin=-2, smax=2, ns=100, plot_b=True, plot_a=True, plot_bs=True):
+        """
+        plot the different components of the field expansion as a function of s.
+        :param ax: Matplotlib axis to plot on. If None, a new figure and axis will be created.
+        :param smin: Minimum value of s to plot.
+        :param smax: Maximum value of s to plot.
+        :param ns: Number of points to plot between smin and smax.
+        :param plot_b: If True, plot the normal multipole coefficients b_n(s).
+        :param plot_a: If True, plot the skew multipole coefficients a_n(s).
+        :param plot_bs: If True, plot the longitudinal multipole coefficient bs(s).
+        :return: None
+        """
+
         ss = np.linspace(smin, smax, ns)
         if ax is None:
             fig, ax = plt.subplots()
         
         if plot_a:
             for i, aa in enumerate(self.a):
-                ax.plot(ss+s_shift, [sp.sympify(aa).subs(self.s, sval).evalf() for sval in ss], label=f"a_{i+1}")
+                ax.plot(ss, [sp.sympify(aa).subs(self.s, sval).evalf() for sval in ss], label=f"a_{i+1}")
         if plot_b:
             for i, bb in enumerate(self.b):
-                ax.plot(ss+s_shift, [sp.sympify(bb).subs(self.s, sval).evalf() for sval in ss], label=f"b_{i+1}")
+                ax.plot(ss, [sp.sympify(bb).subs(self.s, sval).evalf() for sval in ss], label=f"b_{i+1}")
         if plot_bs:
-            ax.plot(ss+s_shift, [sp.sympify(self.bs).subs(self.s, sval).evalf() for sval in ss], label=f"bs")
+            ax.plot(ss, [sp.sympify(self.bs).subs(self.s, sval).evalf() for sval in ss], label="bs")
         ax.legend()
     
+
     def integrate_components(self, smin, smax):
+        """
+        Return the integrated components in the given range.
+        :param smin: Minimum value of s.
+        :param smax: Maximum value of s.
+        :return: List [b_integrals, a_integrals, bs_integral]
+        """
+
         ss = np.linspace(smin, smax, 200)
-        integrals = np.zeros(len(self.b))
+        integrals_b = np.zeros(len(self.b))
         for i, bb in enumerate(self.b):
             integral = np.trapezoid([sp.sympify(bb).subs({self.s:sval}) for sval in ss], ss)
-            integrals[i] = integral
-        return integrals
+            integrals_b[i] = integral
+        integrals_a = np.zeros(len(self.a))
+        for i, aa in enumerate(self.a):
+            integral = np.trapezoid([sp.sympify(aa).subs({self.s:sval}) for sval in ss], ss)
+            integrals_a[i] = integral
+        integral_bs = np.trapezoid([sp.sympify(self.bs).subs({self.s:sval}) for sval in ss], ss)
 
-    def plotfield_z(self, X=0, Y=0, ax=None, zmin=-2, zmax=2, zstep=0.01):
+        return integrals_b, integrals_a, integral_bs
+
+
+    def plotfield_s(self, X=0, Y=0, ax=None, smin=-2, smax=2, sstep=0.01):
+        """
+        Plot the field components as a function of s at the given x and y.
+        :param X: x coordinate at which to plot the field.
+        :param Y: y coordinate at which to plot the field.
+        :param ax: Matplotlib axis to plot on. If None, a new figure and axis will be created.
+        :param smin: Minimum value of s to plot.
+        :param smax: Maximum value of s to plot.
+        :param sstep: Step size for s values to plot.
+        :return: None
+        """
+
         if ax is None:
             fig, ax = plt.subplots()
             
         Bxfun, Byfun, Bsfun = self.get_Bfield()
-        Z = np.arange(zmin, zmax, zstep)
+        S = np.arange(smin, smax, sstep)
         
-        ax.plot(Bxfun(X, Y, Z), label="Bx")
-        ax.plot(Byfun(X, Y, Z), label="By")
-        ax.plot(Bsfun(X, Y, Z), label="Bs")
+        ax.plot(Bxfun(X, Y, S), label="Bx")
+        ax.plot(Byfun(X, Y, S), label="By")
+        ax.plot(Bsfun(X, Y, S), label="Bs")
         plt.legend()
         
 
-    def plotfield_yz(self, X=0, ax=None, bmin=None, bmax=None, includebx=False, ymin=-2, ymax=2, ystep=0.05, zmin=-3, zmax=3, zstep=0.05):
+    def plot_ByBs(self, X=0, ax=None, bmin=None, bmax=None, ymin=-2, ymax=2, ystep=0.05, smin=-3, smax=3, sstep=0.05):
+        """
+        Plot the field components By, Bs as a function of y and s at the given x.
+        :param X: x coordinate at which to plot the field.
+        :param ax: Matplotlib axis to plot on. If None, a new figure and axis will be created.
+        :param bmin: Minimum value of the color scale for the field magnitude. If None, determined from the data.
+        :param bmax: Maximum value of the color scale for the field magnitude. If None, determined from the data.
+        :param ymin: Minimum value of y to plot.
+        :param ymax: Maximum value of y to plot.
+        :param ystep: Step size for y values to plot.
+        :param smin: Minimum value of s to plot.
+        :param smax: Maximum value of s to plot.
+        :param sstep: Step size for s values to plot.
+        :return: None
+        """
+
         Y = np.arange(ymin, ymax, ystep)
-        Z = np.arange(zmin, zmax, zstep)
-        Z, Y = np.meshgrid(Z, Y)
+        S = np.arange(smin, smax, sstep)
+        S, Y = np.meshgrid(S, Y)
 
         Bxfun, Byfun, Bsfun = self.get_Bfield()
 
-        By = Byfun(X, Y, Z)
-        Bs = Bsfun(X, Y, Z)
+        By = Byfun(X, Y, S)
+        Bs = Bsfun(X, Y, S)
 
         bmagn = np.sqrt(By**2 + Bs**2)
-        if includebx:
-            Bx = Bxfun(X, Y, Z)
-            bmagn_color = np.sqrt(bmagn**2 + Bx**2)
-        else:
-            bmagn_color = bmagn
-            
         if bmin is None:
-            bmin = bmagn_color.min()
+            bmin = bmagn.min()
         if bmax is None:
-            bmax = bmagn_color.max()
+            bmax = bmagn.max()
 
         if ax is None:
             fig, ax = plt.subplots()
-        plt.imshow(bmagn_color, extent=(zmin, zmax, ymin, ymax), origin='lower', vmin=bmin, vmax=bmax)
+        plt.imshow(bmagn, extent=(smin, smax, ymin, ymax), origin='lower', vmin=bmin, vmax=bmax)
         plt.colorbar()
         skip = 4
-        plt.quiver(Z[::skip, ::skip], Y[::skip, ::skip], Bs[::skip, ::skip]/bmagn[::skip, ::skip], 
+        plt.quiver(S[::skip, ::skip], Y[::skip, ::skip], Bs[::skip, ::skip]/bmagn[::skip, ::skip], 
                 By[::skip, ::skip]/bmagn[::skip, ::skip], scale=50, pivot='mid') 
         
         plt.xlabel("s")
         plt.ylabel("y")
 
         plt.show()
+
         
-    def plotfield_xz(self, Y=0, ax=None, bmin=None, bmax=None, includeby=False, xmin=-2, xmax=2, xstep=0.05, zmin=-3, zmax=3, zstep=0.05):
+    def plot_BxBs(self, Y=0, ax=None, bmin=None, bmax=None, xmin=-2, xmax=2, xstep=0.05, smin=-3, smax=3, sstep=0.05):
+        """
+        Plot the field components Bx, Bs as a function of x and s at the given y.
+        :param Y: y coordinate at which to plot the field.
+        :param ax: Matplotlib axis to plot on. If None, a new figure and axis will be created.
+        :param bmin: Minimum value of the color scale for the field magnitude. If None, determined from the data.
+        :param bmax: Maximum value of the color scale for the field magnitude. If None, determined from the data.
+        :param xmin: Minimum value of x to plot.
+        :param xmax: Maximum value of x to plot.
+        :param xstep: Step size for x values to plot.
+        :param smin: Minimum value of s to plot.
+        :param smax: Maximum value of s to plot.
+        :param sstep: Step size for s values to plot.
+        :return: None
+        """
+
         X = np.arange(xmin, xmax, xstep)
-        Z = np.arange(zmin, zmax, zstep)
-        Z, X = np.meshgrid(Z, X)
+        S = np.arange(smin, smax, sstep)
+        S, X = np.meshgrid(S, X)
 
         Bxfun, Byfun, Bsfun = self.get_Bfield()
 
-        Bx = Bxfun(X, Y, Z)
-        Bs = Bsfun(X, Y, Z)
+        Bx = Bxfun(X, Y, S)
+        Bs = Bsfun(X, Y, S)
 
 
-        bmagn = np.sqrt(Bx**2 + Bs**2)
-        if includeby:
-            By = Byfun(X, Y, Z)
-            bmagn_color = np.sqrt(bmagn**2 + By**2)
-        else:
-            bmagn_color = bmagn
-            
+        bmagn = np.sqrt(Bx**2 + Bs**2)            
         if bmin is None:
-            bmin = bmagn_color.min()
+            bmin = bmagn.min()
         if bmax is None:
-            bmax = bmagn_color.max()
+            bmax = bmagn.max()
 
         if ax is None:
             fig, ax = plt.subplots()
-        plt.imshow(bmagn_color, extent=(zmin, zmax, xmin, xmax), origin='lower', vmin=bmin, vmax=bmax)
+        plt.imshow(bmagn, extent=(smin, smax, xmin, xmax), origin='lower', vmin=bmin, vmax=bmax)
         plt.colorbar()
         skip = 4
-        plt.quiver(Z[::skip, ::skip], X[::skip, ::skip], Bs[::skip, ::skip]/bmagn[::skip, ::skip], 
+        plt.quiver(S[::skip, ::skip], X[::skip, ::skip], Bs[::skip, ::skip]/bmagn[::skip, ::skip], 
                 Bx[::skip, ::skip]/bmagn[::skip, ::skip], scale=50, pivot='mid')
         
         plt.xlabel("s")
@@ -343,9 +444,24 @@ class FieldExpansion:
 
         plt.show()
         
-    def plot_By(self, Y=0, ax=None, bmin=None, bmax=None, includeby=False, xmin=-2, xmax=2, xstep=0.05, zmin=-3, zmax=3, zstep=0.05):
+    def plot_By(self, Y=0, ax=None, bmin=None, bmax=None, xmin=-2, xmax=2, xstep=0.05, smin=-3, smax=3, sstep=0.05):
+        """
+        Plot the field component By as a function of x and s at the given y.
+        :param Y: y coordinate at which to plot the field.
+        :param ax: Matplotlib axis to plot on. If None, a new figure and axis will be created.
+        :param bmin: Minimum value of the color scale for By. If None, determined from the data.
+        :param bmax: Maximum value of the color scale for By. If None, determined from the data.
+        :param xmin: Minimum value of x to plot.
+        :param xmax: Maximum value of x to plot.
+        :param xstep: Step size for x values to plot.
+        :param smin: Minimum value of s to plot.
+        :param smax: Maximum value of s to plot.
+        :param sstep: Step size for s values to plot.
+        :return: None
+        """
+
         X = np.arange(xmin, xmax, xstep)
-        Z = np.arange(zmin, zmax, zstep)
+        Z = np.arange(smin, smax, sstep)
         Z, X = np.meshgrid(Z, X)
 
         Bxfun, Byfun, Bsfun = self.get_Bfield()
@@ -358,7 +474,7 @@ class FieldExpansion:
 
         if ax is None:
             fig, ax = plt.subplots()
-        plt.imshow(By, extent=(zmin, zmax, xmin, xmax), origin='lower', vmin=bmin, vmax=bmax)
+        plt.imshow(By, extent=(smin, smax, xmin, xmax), origin='lower', vmin=bmin, vmax=bmax)
         plt.colorbar()
         
         plt.xlabel("s")
@@ -380,8 +496,8 @@ class FieldExpansion:
         to calculate the RDTs as a function of s.
         """
 
-        x, y, s = self.x, self.y, self.s
-        hs = self.hs
+        x, y = self.x, self.y
+        h = self.h
         Ax, Ay, As = self.get_A()
         
         hxp, hxm, hyp, hym = sp.symbols("hxp hxm hyp hym")
@@ -391,23 +507,23 @@ class FieldExpansion:
         pysubs = - 1/(2*sp.sqrt(bety))*((alphy + 1j)*hyp + (alphy - 1j)*hym)
         
         # H = -(1+hx) As
-        H_As = -((1+hs*x) * As).series(x,0,n+1).removeO().subs([(x, xsubs), (y, ysubs)])
+        H_As = -((1+h*x) * As).series(x,0,n+1).removeO().subs([(x, xsubs), (y, ysubs)])
         H_As_poly = H_As.as_poly(hxp, hxm, hyp, hym)
         
         # H = -(1+hx) px Ax
-        H_pxAx = -((1+hs*x) * pxsubs * Ax).cancel().series(x,0,n+1).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
+        H_pxAx = -((1+h*x) * pxsubs * Ax).cancel().series(x,0,n+1).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
         H_pxAx_poly = H_pxAx.as_poly(hxp, hxm, hyp, hym)
         
         # H = (1+hx) 1/2 Ax^2
-        H_Ax2 = ((1+hs*x) * 1/2 * Ax**2).cancel().series(x,0,n+1).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
+        H_Ax2 = ((1+h*x) * 1/2 * Ax**2).cancel().series(x,0,n+1).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
         H_Ax2_poly = H_Ax2.as_poly(hxp, hxm, hyp, hym)
 
         # H = -(1+hx) py Ay
-        H_pyAy = -((1+hs*x) * pysubs * Ay).cancel().series(x,0,n+1).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
+        H_pyAy = -((1+h*x) * pysubs * Ay).cancel().series(x,0,n+1).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
         H_pyAy_poly = H_pyAy.as_poly(hxp, hxm, hyp, hym)
         
         # H = (1+hx) 1/2 Ay^2
-        H_Ay2 = ((1+hs*x) * 1/2 * Ay**2).cancel().series(x,0,n+1).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
+        H_Ay2 = ((1+h*x) * 1/2 * Ay**2).cancel().series(x,0,n+1).removeO().subs([(x, xsubs), (y, ysubs)]).expand()
         H_Ay2_poly = H_Ay2.as_poly(hxp, hxm, hyp, hym)
         
         h = sp.MutableDenseNDimArray(np.zeros((n+1, n+1, n+1, n+1), dtype=object))
@@ -424,29 +540,46 @@ class FieldExpansion:
 
         return h
         
-        
 
-    def writefile(self, xarr, yarr, zarr, filename):
-        X, Y, Z = np.meshgrid(xarr, yarr, zarr)
+    def create_fieldmap(self, xarr, yarr, sarr, filename):
+        """
+        Create a fieldmap of the magnetic field components Bx, By, Bs on a grid defined by xarr, yarr, zarr and save it as a csv file.
+        :param xarr: 1D array of x coordinates.
+        :param yarr: 1D array of y coordinates.
+        :param sarr: 1D array of s coordinates.
+        :param filename: Name of the csv file to save the fieldmap to (without .csv extension).
+        :return: bpmeth.Fieldmap object if filename not given
+        """
+        
+        X, Y, S = np.meshgrid(xarr, yarr, sarr)
 
         Bxfun, Byfun, Bsfun = self.get_Bfield()
 
-        Bx = Bxfun(X, Y, Z)
-        By = Byfun(X, Y, Z)
-        Bs = Bsfun(X, Y, Z)
+        Bx = Bxfun(X, Y, S)
+        By = Byfun(X, Y, S)
+        Bs = Bsfun(X, Y, S)
+        
+        if filename is None:
+            return Fieldmap(X, Y, S, Bx, By, Bs)
 
         with open(f'{filename}.csv', 'w') as file:
-            file.write(f'"X","Y","Z","Bx","By","Bz"\n')
-            np.savetxt(file, np.c_[X.flat, Y.flat, Z.flat, Bx.flat, By.flat, Bs.flat], delimiter=',', fmt='%.10f')
+            file.write('"X", "Y", "S", "Bx", "By", "BS"\n')
+            np.savetxt(file, np.c_[X.flat, Y.flat, S.flat, Bx.flat, By.flat, Bs.flat], delimiter=',', fmt='%.10f')
 
 
-    def __call__(self, x, y, z):
-        # Return the magnetic field at the point (x, y, z)
+    def __call__(self, x, y, s):
+        """
+        Return the magnetic field at the point (x, y, z)
+        :param x: x coordinate of the point.
+        :param y: y coordinate of the point.
+        :param s: s coordinate of the point.
+        """
+
         Bx, By, Bs = self.get_Bfield(lambdify=False)
         return (
-            Bx.subs({self.x: x, self.y: y, self.s: z}).evalf(),
-            By.subs({self.x: x, self.y: y, self.s: z}).evalf(),
-            Bs.subs({self.x: x, self.y: y, self.s: z}).evalf(),
+            Bx.subs({self.x: x, self.y: y, self.s: s}).evalf(),
+            By.subs({self.x: x, self.y: y, self.s: s}).evalf(),
+            Bs.subs({self.x: x, self.y: y, self.s: s}).evalf(),
         )
 
 
