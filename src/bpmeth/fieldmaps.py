@@ -609,7 +609,7 @@ class Fieldmap:
         
         
         if ax is not None:
-            ax.plot(x, fieldvals, label=f"y={ypos}, s={spos}")
+            ax.scatter(x, fieldvals, marker=".", label=f"y={ypos}, s={spos}")
             ax.set_xlabel('x')
             ax.set_ylabel(field)
             ax.legend(bbox_to_anchor=(1, 1), loc='upper left')
@@ -635,7 +635,7 @@ class Fieldmap:
         fieldvals = self.src[field][mask]
 
         if ax is not None:
-            ax.plot(s, fieldvals, label=f"x={xpos}, y={ypos}")
+            ax.scatter(s, fieldvals, marker=".", label=f"x={xpos}, y={ypos}")
             ax.set_xlabel('s')
             ax.set_ylabel(field)
             ax.legend(bbox_to_anchor=(1, 1), loc='upper left')
@@ -643,7 +643,7 @@ class Fieldmap:
         return s, fieldvals
         
         
-    def fit_xprofile(self, ypos, spos, field, order, ax=None, xmax=None, radius=0.01):
+    def fit_xprofile(self, ypos, spos, field, order, ax=None, xmax=None, radius=0.01, data=True):
         """
         Fit the field values along the horizontal direction at the given vertical and longitudinal positions 
         with a polynomial of the given order, and return the coefficients of the fit.
@@ -654,12 +654,13 @@ class Fieldmap:
         :param ax: If given, plot profile and fit with error region.
         :param xmax: Maximal x value to take into account in fit, best to exclude any region outside of GFR.
         :param radius: Radius for interpolation if the asked position is not present in the data.
+        :param data: If datapoints also have to be plotted, or only the fit.
         :return: Tuple of (coeffs, coeffsstd), where coeffs is the array of coefficients of the fit, 
         starting with the highest order, and coeffsstd is the array of standard deviations of the coefficients, 
         estimated from fits with different polynomial orders. 
         """
         
-        x, fieldvals = self.xprofile(ypos, spos, field, ax=ax, xmax=xmax, radius=radius)
+        x, fieldvals = self.xprofile(ypos, spos, field, xmax=xmax, radius=radius)
 
         paramslist = np.array([np.polyfit(x, fieldvals, order-1+j)[j:] for j in range(5)])
         params = np.mean(paramslist, axis=0)
@@ -670,18 +671,44 @@ class Fieldmap:
         coeffsstd = np.std(coeffslist, axis=1)
         
         if ax:
-            ax.scatter(x, fieldvals, label="data")
+            if data:
+                ax.scatter(x, fieldvals, label="data", marker=".")
             xx = np.linspace(-xmax, xmax, 100)
             ax.plot(xx, np.polyval(params, xx), color="orange", label="polynomial fit")
             yymin = np.polyval(params, xx) - np.polyval(paramsstd, abs(xx))
             yymax = np.polyval(params, xx) + np.polyval(paramsstd, abs(xx))
             ax.fill_between(xx, yymin, yymax, color="orange", alpha=0.5)
-            ax.legend()
-            ymin, ymax = fieldvals.min(), fieldvals.max()
-            yrange = ymax - ymin
-            ax.set_ylim(ymin - 0.1*yrange, ymax + 0.1*yrange)
             
         return coeffs, coeffsstd
+
+
+    def findif_xprofile(self, ypos, spos, field, order, ax=None, xmax=0.05, radius=0.01):
+        """
+        Use finite differences to determine multipole coefficients at the given vertical and longitudinal positions 
+        with a polynomial of the given order, and return the coefficients of the fit.
+        :param ypos: Vertical position at which to fit the horizontal profile.
+        :param spos: Longitudinal position at which to fit the horizontal profile.
+        :param field: Which vectorfield to fit, typically By for normal multipoles.
+        :param order: Maximal order to be deterimed in the fit. Order = 1 must fit b1 only, so a polynomial of degree = order - 1.
+        :param ax: If given, plot profile and fit with error region.
+        :param xmax: Maximal x value to take into account in fit, best to exclude any region outside of GFR.
+        :param radius: Radius for interpolation if the asked position is not present in the data.
+        :param data: If datapoints also have to be plotted, or only the fit.
+        :return: (coeffs), coeffs is the array of coefficients of the finite differences, starting with the highest order.
+        Errors have to be added.
+        """
+
+        x, fieldvals = self.xprofile(ypos, spos, field, xmax=xmax, radius=radius)
+
+        coeffs = np.zeros(order)
+        center = np.where(x==0)[0]
+        h = x[center+1] - x[center-1]
+        for n in range(order):
+            for j in range(n+1):
+                ind = int(center+2*(n/2-j))  # h means two indices
+                print(ind)
+                coeffs[-(n+1)] += 1/(h**n) * (-1)**j * math.factorial(n)/math.factorial(n-j)/math.factorial(j) * fieldvals[ind]
+        return (coeffs)
 
 
     def s_multipoles(self, order, xmax=None, ax=None, mov_av=1, **kwargs):

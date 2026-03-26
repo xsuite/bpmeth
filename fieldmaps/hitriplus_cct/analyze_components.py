@@ -24,9 +24,27 @@ cctmagnet_FS = cctmagnet.calc_FS_coords(xFS, yFS, sFS, rho, phi, radius=0.005)
 # plt.legend()
 
 fig, ax = plt.subplots()
-coeffs, coeffsstd = cctmagnet_FS.fit_xprofile(0, 0.1, "By", 3, ax=ax, xmax=apt/2, radius=0.005)
+cctmagnet_FS.xprofile(0, 0.1, "By", ax=ax, xmax=apt, radius=0.005)
+coeffs, coeffsstd = cctmagnet_FS.fit_xprofile(0, 0.1, "By", 5, xmax=apt/2, radius=0.005, ax=ax, data=False)
 x1, y1 = 0, 2
 dx, dy = 0.04, 0
 ax.arrow(x1, y1, dx, dy, color="gray", head_width=0.04, length_includes_head=True, head_length=0.004)
 ax.arrow(x1, y1, -dx, dy, color="gray", head_width=0.04, length_includes_head=True, head_length=0.004)
 ax.text(x1, y1, "aperture", ha="center", va="bottom", color="gray")
+plt.savefig("By_at_s0.1.png")
+plt.close()
+print(coeffs)
+
+fig, ax = plt.subplots()
+cctmagnet_FS.xprofile(0, 0.1, "Bx", ax=ax, xmax=apt, radius=0.005)
+coeffs, coeffsstd = cctmagnet_FS.fit_xprofile(0, 0.1, "Bx", 5, xmax=apt/2, radius=0.005, ax=ax, data=False)
+x1, y1 = 0, -0.2
+dx, dy = 0.04, 0
+ax.arrow(x1, y1, dx, dy, color="gray", head_width=0.005, length_includes_head=True, head_length=0.004)
+ax.arrow(x1, y1, -dx, dy, color="gray", head_width=0.005, length_includes_head=True, head_length=0.004)
+ax.text(x1, y1, "aperture", ha="center", va="bottom", color="gray")
+plt.savefig("Bx_at_s0.1.png")
+plt.close()
+
+coeffs2 = cctmagnet_FS.findif_xprofile(0, 0.1, "By", 5, radius=0.005)
+print(coeffs2)
