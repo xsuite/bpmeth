@@ -580,7 +580,7 @@ class Fieldmap:
         self.src["Bs"] = self.src["Bs"] * scalefactor
 
         
-    def xprofile(self, ypos, spos, field, ax=None, xmax=None):
+    def xprofile(self, ypos, spos, field, ax=None, xmax=None, radius=0.01):
         """ 
         Return the field values along the horizontal direction at the given vertical and longitudinal positions.
         :param ypos: Vertical position at which to extract the horizontal profile.
@@ -588,17 +588,25 @@ class Fieldmap:
         :param field: Which field component to extract, can be "Bx", "By", or "Bs".
         :param ax: If given, plot the horizontal profile on the given matplotlib axis.
         :param xmax: Maximal x value to take into account in the profile, best to exclude any region outside of GFR.
+        :param radius: Radius for interpolation if the asked position is not present in the data.
         :return: Tuple of (x, fieldvals), where x is the array of x coordinates and fieldvals is the array of 
         corresponding field values for the specified field component.
         """ 
-        
-        assert ypos in self.src['y'] and spos in self.src['s'], "These values are not present in the data"
+
         if xmax is None:
             xmax = np.max(abs(self.src['x']))
-        mask = (self.src['y'] == ypos) & (self.src['s'] == spos) & (abs(self.src['x']) <= xmax)
+
+        if ypos in self.src['y'] and spos in self.src['s']:
+            fm = self
+        else:            
+            xvals = np.linspace(-xmax, xmax, 101)
+            X, Y, S = np.meshgrid(xvals, ypos, spos)
+            fm = self.interpolate_points(X, Y, S, radius=radius)
+
+        mask = (fm.src['y'] == ypos) & (fm.src['s'] == spos) & (abs(fm.src['x']) <= xmax)
+        x = fm.src['x'][mask]
+        fieldvals = fm.src[field][mask]
         
-        x = self.src['x'][mask]
-        fieldvals = self.src[field][mask]
         
         if ax is not None:
             ax.plot(x, fieldvals, label=f"y={ypos}, s={spos}")
@@ -651,13 +659,7 @@ class Fieldmap:
         estimated from fits with different polynomial orders. 
         """
         
-        if ypos in self.src['y'] and spos in self.src['s']:
-            x, fieldvals = self.xprofile(ypos, spos, field, ax=ax, xmax=xmax)
-        else:
-            xvals = np.linspace(-xmax, xmax, 101)
-            X, Y, S = np.meshgrid(xvals, ypos, spos)
-            fm = self.interpolate_points(X, Y, S, radius=radius)
-            x, fieldvals = fm.xprofile(ypos, spos, field, ax=ax, xmax=xmax)
+        x, fieldvals = self.xprofile(ypos, spos, field, ax=ax, xmax=xmax, radius=radius)
 
         paramslist = np.array([np.polyfit(x, fieldvals, order-1+j)[j:] for j in range(5)])
         params = np.mean(paramslist, axis=0)
@@ -671,8 +673,8 @@ class Fieldmap:
             ax.scatter(x, fieldvals, label="data")
             xx = np.linspace(-xmax, xmax, 100)
             ax.plot(xx, np.polyval(params, xx), color="orange", label="polynomial fit")
-            yymin = np.polyval(params - paramsstd, xx)
-            yymax = np.polyval(params + paramsstd, xx)
+            yymin = np.polyval(params, xx) - np.polyval(paramsstd, abs(xx))
+            yymax = np.polyval(params, xx) + np.polyval(paramsstd, abs(xx))
             ax.fill_between(xx, yymin, yymax, color="orange", alpha=0.5)
             ax.legend()
             ymin, ymax = fieldvals.min(), fieldvals.max()
