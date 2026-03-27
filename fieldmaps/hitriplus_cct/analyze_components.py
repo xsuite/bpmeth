@@ -18,14 +18,16 @@ yFS = [0]
 sFS = np.linspace(-0.9*l_magn, 0.9*l_magn, 501)
 cctmagnet_FS = cctmagnet.calc_FS_coords(xFS, yFS, sFS, rho, phi, radius=0.005)
 
+method="polynomial"
+# method="finite_difference"
 fig, ax = plt.subplots(figsize=(6,4))
-cctmagnet_FS.s_multipoles(3, ax=ax, xmax=apt/2, elinewidth=0.3, method="polynomial")
+cctmagnet_FS.s_multipoles(3, ax=ax, xmax=apt/2, method=method)
 ax.set_yscale('symlog')
 ax.set_xlabel("s [m]")
 ax.set_ylabel(r"multipole strength $[m^{-n}]$")
 plt.legend()
 plt.tight_layout()
-plt.savefig("multipoles_polynomial.png", dpi=300)
+plt.savefig(f"multipoles_{method}.png", dpi=300)
 plt.close()
 
 order = 5

@@ -597,12 +597,9 @@ class Fieldmap:
         if xmax is None:
             xmax = np.max(abs(self.src['x']))
 
-        if ypos in self.src['y'] and spos in self.src['s']:
-            fm = self
-        else:            
-            xvals = np.linspace(-xmax, xmax, nx)
-            X, Y, S = np.meshgrid(xvals, ypos, spos)
-            fm = self.interpolate_points(X, Y, S, radius=radius)
+        xvals = np.linspace(-xmax, xmax, nx)
+        X, Y, S = np.meshgrid(xvals, ypos, spos)
+        fm = self.interpolate_points(X, Y, S, radius=radius)
 
         mask = (fm.src['y'] == ypos) & (fm.src['s'] == spos) & (abs(fm.src['x']) <= xmax)
         x = fm.src['x'][mask]
@@ -711,7 +708,7 @@ class Fieldmap:
             
         # Error estimation: use as error the difference with step size h and h/2
         coeffsstd = -coeffs
-        xd, fieldvalsd = self.xprofile(ypos, spos, field, xmax=xmax, nx=2*order+1, radius=radius)
+        xd, fieldvalsd = self.xprofile(ypos, spos, field, xmax=xmax, nx=4*order-1, radius=radius)
         center = np.where(xd==0)[0]
         h = xd[center+1] - xd[center-1]
         for n in range(order):
@@ -765,7 +762,8 @@ class Fieldmap:
         
         if ax is not None:
             for i in range(order):
-                ax.errorbar(svals, coeffs[:,i], yerr=coeffsstd[:,i], label=f"b{i+1}", **kwargs)
+                ax.plot(svals, coeffs[:,i], label=f"b{i+1}", **kwargs)
+                ax.fill_between(svals, coeffs[:,i]-coeffsstd[:,i], coeffs[:,i]+coeffsstd[:,i], alpha=0.5, **kwargs)
         return svals, coeffs, coeffsstd
 
 
