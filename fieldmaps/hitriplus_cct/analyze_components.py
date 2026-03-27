@@ -18,33 +18,32 @@ yFS = [0]
 sFS = np.linspace(-0.9*l_magn, 0.9*l_magn, 501)
 cctmagnet_FS = cctmagnet.calc_FS_coords(xFS, yFS, sFS, rho, phi, radius=0.005)
 
-# fig, ax = plt.subplots()
-# cctmagnet_FS.s_multipoles(3, ax=ax, elinewidth=0.2)
-# ax.set_yscale('symlog')
-# plt.legend()
+fig, ax = plt.subplots(figsize=(6,4))
+cctmagnet_FS.s_multipoles(3, ax=ax, xmax=apt/2, elinewidth=0.3, method="polynomial")
+ax.set_yscale('symlog')
+ax.set_xlabel("s [m]")
+ax.set_ylabel(r"multipole strength $[m^{-n}]$")
+plt.legend()
+plt.tight_layout()
+plt.savefig("multipoles_polynomial.png", dpi=300)
+plt.close()
 
+order = 5
 fig, ax = plt.subplots()
 cctmagnet_FS.xprofile(0, 0.1, "By", ax=ax, xmax=apt, radius=0.005)
-coeffs, coeffsstd = cctmagnet_FS.fit_xprofile(0, 0.1, "By", 5, xmax=apt/2, radius=0.005, ax=ax, data=False)
+coeffs, coeffsstd = cctmagnet_FS.fit_xprofile(0, 0.1, "By", order, xmax=apt/2, radius=0.005, ax=ax, data=False)
+coeffs2, coeffsstd2 = cctmagnet_FS.findif_xprofile(0, 0.1, "By", order, xmax=apt/2, radius=0.005, ax=ax, data=False)
 x1, y1 = 0, 2
 dx, dy = 0.04, 0
 ax.arrow(x1, y1, dx, dy, color="gray", head_width=0.04, length_includes_head=True, head_length=0.004)
 ax.arrow(x1, y1, -dx, dy, color="gray", head_width=0.04, length_includes_head=True, head_length=0.004)
 ax.text(x1, y1, "aperture", ha="center", va="bottom", color="gray")
-plt.savefig("By_at_s0.1.png")
 plt.close()
-print(coeffs)
 
 fig, ax = plt.subplots()
-cctmagnet_FS.xprofile(0, 0.1, "Bx", ax=ax, xmax=apt, radius=0.005)
-coeffs, coeffsstd = cctmagnet_FS.fit_xprofile(0, 0.1, "Bx", 5, xmax=apt/2, radius=0.005, ax=ax, data=False)
-x1, y1 = 0, -0.2
-dx, dy = 0.04, 0
-ax.arrow(x1, y1, dx, dy, color="gray", head_width=0.005, length_includes_head=True, head_length=0.004)
-ax.arrow(x1, y1, -dx, dy, color="gray", head_width=0.005, length_includes_head=True, head_length=0.004)
-ax.text(x1, y1, "aperture", ha="center", va="bottom", color="gray")
-plt.savefig("Bx_at_s0.1.png")
-plt.close()
+nfact = np.array([math.factorial(i) for i in range(order)])
+ax.errorbar(np.arange(order), coeffs/nfact, yerr=coeffsstd/nfact, fmt='o', label="fit", capsize=5)
+ax.errorbar(np.arange(order), coeffs2/nfact, yerr=coeffsstd2/nfact, fmt='o', label="findif", capsize=5)
+ax.set_xticks(np.arange(order), labels=[f"b{i}/{i}!" for i in range(order)])
+plt.legend()
 
-coeffs2 = cctmagnet_FS.findif_xprofile(0, 0.1, "By", 5, radius=0.005)
-print(coeffs2)
