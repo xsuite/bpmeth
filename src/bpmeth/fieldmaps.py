@@ -699,7 +699,7 @@ class Fieldmap:
         Errors have to be added.
         """
 
-        x, fieldvals = self.xprofile(ypos, spos, field, xmax=xmax, nx=4*order-1, radius=radius)
+        x, fieldvals = self.xprofile(ypos, spos, field, xmax=xmax, nx=2*order-1, radius=radius)
 
         coeffs = np.zeros(order)
         center = np.where(x==0)[0]
@@ -711,7 +711,7 @@ class Fieldmap:
             
         # Error estimation: use as error the difference with step size h and h/2
         coeffsstd = -coeffs
-        xd, fieldvalsd = self.xprofile(ypos, spos, field, xmax=xmax, nx=4*order+1, radius=radius)
+        xd, fieldvalsd = self.xprofile(ypos, spos, field, xmax=xmax, nx=2*order+1, radius=radius)
         center = np.where(xd==0)[0]
         h = xd[center+1] - xd[center-1]
         for n in range(order):
