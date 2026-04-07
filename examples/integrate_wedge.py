@@ -2,11 +2,14 @@ import bpmeth
 import sympy as sp
 import xtrack as xt
 
+###############
+# Track wedge #
+###############
 
 class WedgeHamiltonian(bpmeth.Hamiltonian):
     # Might not work for higher than quadrupole, use with caution!
     def __init__(self, vectp):
-        super().__init__(length=0, curv=vectp.hs, vectp=vectp)
+        super().__init__(length=0, h=vectp.h, vectp=vectp)
 
     def get_H(self, coords):
         """
@@ -18,7 +21,7 @@ class WedgeHamiltonian(bpmeth.Hamiltonian):
         px, py, ptau = coords.px, coords.py, coords.ptau
         
         beta0 = coords.beta0
-        h = self.curv
+        h = self.h
         A = self.vectp.get_A()
         A = [Ai.subs({self.vectp.x: x, self.vectp.y: y, self.vectp.s: s}) for Ai in A]
         assert A[0] == 0
@@ -45,7 +48,7 @@ b1 = sp.symbols('b1')
 b2 = sp.symbols('b2')
 h = sp.symbols('h')
 
-A_dipole = bpmeth.GeneralVectorPotential(hs=h, b=(b1,b2), nphi=2)
+A_dipole = bpmeth.GeneralVectorPotential(h=h, b=(b1,b2), nphi=2)
 H_wedge = WedgeHamiltonian(vectp=A_dipole)
 
 p = bpmeth.SympyParticle()
@@ -53,12 +56,12 @@ H_wedge.get_H(p)
 
 
 # Track XSuite particles
-b1 = "0"
-b2 = "10"
+b1 = 0
+b2 = 10
 angle = -0.1
 h = sp.symbols('h')
 
-A_dipole = bpmeth.GeneralVectorPotential(hs=h, b=(b1,b2), nphi=2)
+A_dipole = bpmeth.GeneralVectorPotential(h=h, b=(b1,b2), nphi=2)
 H_wedge = WedgeHamiltonian(vectp=A_dipole)
 
 x0 = 7.193443e-02
