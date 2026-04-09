@@ -9,7 +9,7 @@ from bpmeth import poly_fit
 ############################################################
 
 # peak gradient
-k1 = 0.01  # m^-1
+k1 = 0.01  # m^-2
 
 # ----- ENTRY -----
 # Defining a smooth function from 0 to 1 of length 1 m
