@@ -495,7 +495,7 @@ class Fieldmap:
 
         # Create new dataframe to update geometry and not only the coordinates of the points, 
         # needed for interpolation later on, easier than updating it in place.        
-        data = np.array([x_translated, y_translated, z_translated, Bx, By, Bs]).T
+        data = np.array([x_translated, y_translated, s_translated, Bx, By, Bs]).T
     
         return Fieldmap(data)
 
