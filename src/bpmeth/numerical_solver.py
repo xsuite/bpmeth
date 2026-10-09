@@ -32,7 +32,7 @@ class Hamiltonian:
     def get_H(self, coords):
         """
         Get the Hamiltonian of the system. This can be replaced with a custom Hamiltonian.
-        :param coords: Particle object to evaluate the Hamiltonian on, must have attributes x, y, s, px, py, ptau, beta0.
+        :param coords: Particle object to evaluate the Hamiltonian on, must have attributes x, y, tau, px, py, ptau, beta0.
         :return: Hamiltonian expression in the given coordinates.
         """
 

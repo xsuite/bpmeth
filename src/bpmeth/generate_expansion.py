@@ -73,7 +73,7 @@ class FieldExpansion:
         h = self.h
         nphi = self.nphi
         
-        phi0 = -sum((an * x ** (n + 1) / sp.factorial(n + 1) for n, an in enumerate(a))) + sp.integrate(bs, s)
+        phi0 = -sum((an * x ** (n + 1) / sp.factorial(n + 1) for n, an in enumerate(a))) - sp.integrate(bs, s)
         phi1 = -sum((bn * x**n / sp.factorial(n) for n, bn in enumerate(b)))        
         phiv = [phi0, phi1]
         for i in range(nphi-2):

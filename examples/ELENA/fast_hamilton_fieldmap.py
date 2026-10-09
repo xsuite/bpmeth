@@ -91,12 +91,16 @@ dipole.rescale(1/Brho)
 radius=0.0025
 dipole_FS = dipole.calc_FS_coords(xFS=np.linspace(-0.025, 0.025, 51), yFS=[0], sFS=np.arange(-l_magn, l_magn, 0.001), rho=rho, phi=phi, radius=radius)
 dipole_FS = dipole_FS.symmetrize(radius=radius)
-fig, ax = plt.subplots(figsize=(15, 3))
-zvals, coeffs, coeffsstd = dipole_FS.s_multipoles(4, ax=ax, marker='.', ms=4, elinewidth=0.2, capsize=0.3)  # Fitted only normal multipoles! 
+fig, ax = plt.subplots(figsize=(7, 5))
+zvals, coeffs, coeffsstd = dipole_FS.s_multipoles(4, ax=ax)  # Fitted only normal multipoles! 
 ax.set_ylim(-15, 20)
-ax.legend()
-ax.set_xlabel('s')
-ax.set_ylabel(r'multipole component [$m^{-n}$]')
+ax.set_xlim(-0.864, 0.864)
+ax.set_yscale('symlog')
+ax.legend(fontsize=10)
+ax.set_xlabel('s [m]', fontsize=12)
+ax.set_ylabel(r'Derivative on axis [$m^{-n}$]', fontsize=12)
+plt.tight_layout()
+plt.savefig("ELENA_dipole_multipoles.png", dpi=300)
 
 
 
@@ -192,8 +196,7 @@ segment_inds.append([end2_ind, magnet_end_ind])
 
 all_pols = np.array(all_pols)  # Shape (n_multipoles, n_segments, order+1=4)
 
-fig, ax = plt.subplots(figsize=(15, 3))
-plt.axvline(x=-l_magn/2, color="gray", linestyle="--")
+fig, ax = plt.subplots(figsize=(7, 5))
 for index in range(max_multipole):
     pols = []
 
@@ -202,6 +205,15 @@ for index in range(max_multipole):
 
     for (ia, ib), pol in zip(segment_inds, all_pols[index]):
         bpmeth.plot_fit(ia,ib,zvals,b,pol,ax=ax,data=True)
+
+ax.set_ylim(-15, 20)
+ax.set_xlim(-0.864, 0.864)
+ax.set_yscale('symlog')
+ax.set_xlabel('s [m]', fontsize=12)
+ax.set_ylabel(r'Derivative on axis [$m^{-n}$]', fontsize=12)
+plt.tight_layout()
+plt.savefig("ELENA_dipole_splines.png", dpi=300)
+
 
 
 Melvin = bpmeth.RK4_Magnet(segments, all_pols, l_magn/2, rho, 0.001)

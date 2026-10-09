@@ -34,7 +34,7 @@ for method in ["polynomial", "finite_difference"]:
     plt.close()
 
 
-data = np.loadtxt("../../fieldmaps/ELENA/ELENA_fieldmap_cylindrical.csv", skiprows=1, delimiter=",")[:, [0,1,2,7,8,9]]  # Fieldmap in Tesla
+data = np.loadtxt("../../fieldmaps/ELENA/ELENA_fieldmap_cylindrical_morepoints.csv", skiprows=1, delimiter=",")[:, [0,1,2,7,8,9]]  # Fieldmap in Tesla
 Brho = B_dip_T * rho  # T.m
 magnet = bpmeth.Fieldmap(data)
 magnet.rescale(1/Brho)
@@ -44,13 +44,15 @@ ntheta = 64
 rFS = np.linspace(rmin, rmax, nr)
 thetaFS = np.arange(ntheta)/ntheta*2*np.pi
 
-radius = 0.001
+radius = 0.00000001
 vapt = 0.076
 sFS = np.concatenate([np.arange(-l_magn/2 - 5*vapt, -l_magn/2, 0.001), np.arange(-l_magn/2, l_magn/2, 0.001), np.arange(l_magn/2, l_magn/2 + 5*vapt, 0.001)])
+ns = len(sFS)
 magnet_FS_c = magnet.calc_FS_coords_cylindrical(rFS, thetaFS, sFS, rho, phi, radius=radius)
 
 fig, ax = plt.subplots()
-magnet_FS_c.s_harmonics(3, rmin=rmin, rmax=rmax, nr=nr, ntheta=ntheta, radius=radius, ax=ax)
+rr = np.linspace(rmin, rmax, nr)
+magnet_FS_c.s_harmonics(3, rr, ntheta=ntheta, ns=ns, ax=ax)
 ax.set_yscale('symlog')
 ax.set_xlabel("s [m]")
 ax.set_ylabel(r"multipole strength $[m^{-n}]$")
